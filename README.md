@@ -60,4 +60,4 @@ You can also see some more in depth examples which showcase the intended usage o
 
 ## __License__
 
-This package will be available under the Apache 2.0 license. You can read about the Apache 2.0 license [here](https://www.github.com/waleed-sh/__dev_neuraLQX/LICENSE).
+This package will be available under the Apache 2.0 license. You can read about the Apache 2.0 license [here](/LICENSE).
