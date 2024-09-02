@@ -2,8 +2,7 @@
 <img src="neuralqx/utils/base/logo_WIP.png" alt="logo" width="600"></img>
 </div>
 
-<div style="height: 50px; border-bottom: 2px dimgrey solid">
-</div>
+<hr>
 
 
 
