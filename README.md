@@ -54,7 +54,7 @@ some systems explored using neuraLQX in this [paper](https://arxiv.org/abs/2405.
 [paper](https://arxiv.org/abs/2402.10622) too.
 
 You can also see some more in depth examples which showcase the intended usage of the package in our 
-[tutorials page](https://www.github.com/waleed-sh/neuraLQX.git/docs/Tutorials/). 
+[tutorials page](/docs/Tutorials/). 
 
 <hr>
 
