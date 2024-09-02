@@ -9,7 +9,6 @@
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Static Badge](https://img.shields.io/badge/linting-pylint-blue)](https://github.com/pylint-dev/pylint)
-[![Static Badge](https://img.shields.io/badge/code_style-pep8-orange)](https://peps.python.org/pep-0008/)
 
 ## Description
 
@@ -18,7 +17,9 @@ canonical loop quantum gravity systems. Built on top of [NetKet](https://github.
 environment for researchers and developers in the field.
 
 **Note:** The package is currently under development and will be released at a later date. Once available, it can be 
-installed via pip.
+installed via pip. Check back here for the release data later.
+
+**Release Date:** TBA
 
 ### Key Features
 
@@ -37,13 +38,13 @@ entropy.
 - **Multiple Hilbert Spaces:** Support for different Hilbert spaces (e.g. gauge-invariant subspaces).
 - **Gauge Groups and Spacetime Dimensions:** Choose from different gauge groups (e.g., U(1)<sup>3</sup>, SU(2)) and 
 spacetime dimensions, providing flexibility for diverse simulations.
-- **Standard Models of Interest:** Implementations of some traditional models, such as the torus universe, are included
-for convenience.
+- **Standard Models of Interest:** Implementations of some commonly used models, such as the torus universe, are 
+included for convenience.
 
 **High-Performance Computing (HPC) Friendly and Ease of Use:**
 - **Parallelization Support:** Optimized for HPC environments, allowing for efficient parallel computations.
-- **Seamless Installation and Setup:** Designed to bypass technical difficulties, allowing you to focus on simulating 
-systems rather than dealing with implementation issues.
+- **Seamless Installation and Setup:** Modular designed enabling the bypass technical difficulties, allowing you to 
+focus on simulating systems rather than dealing with implementation issues.
 
 <hr>
 
