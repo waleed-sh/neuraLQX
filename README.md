@@ -1,6 +1,6 @@
 <div align="center">
 <img src="neuralqx/utils/base/nqx_logo_WIP.png" alt="logo" width="600"></img>
-</div>
+
 
 <hr>
 
@@ -9,6 +9,9 @@
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Static Badge](https://img.shields.io/badge/linting-pylint-blue)](https://github.com/pylint-dev/pylint)
+![Static Badge](https://img.shields.io/badge/python-3.9%2B-green)
+
+</div>
 
 ## __Description__
 
