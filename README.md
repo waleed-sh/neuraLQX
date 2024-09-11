@@ -15,7 +15,7 @@
 
 ## __Description__
 
-neuraLQX is an open-source Python package designed for high-performance computing, tailored specifically for simulating 
+neuraLQX is an open-source Python package designed for high-performance simulations of 
 canonical loop quantum gravity systems. Built on top of [NetKet](https://github.com/netket/netket.git) [1, 2], neuraLQX 
 offers a complete and user-friendly environment for applying the machinery of NetKet specifically in the context of 
 canonical loop quantum gravity with ease.
