@@ -1,5 +1,5 @@
 <div align="center">
-<img src="neuralqx/utils/base/nqx_logo_WIP.png" alt="logo" width="600"></img>
+<img src="neuralqx/utils/base/logo.png" alt="logo" width="600"></img>
 
 
 <hr>
@@ -28,27 +28,36 @@ installed via pip. Check back here for the release data later.
 ### __Key Features__
 
 **Modular and Customizable Design:**
-- **Flexible Quantum Models:** Easily construct custom quantum models, including various geometric and quantum 
+- **Flexible Quantum Models:** Easily construct custom models, including various geometric and quantum 
 operators.
 - **Custom Graphs:** Design and implement custom graphs to fit specific needs.
-- **Quantum Constraints:** Ready-to-use quantum constraints such as Gauß and Euclidean Hamilton constraints, with the 
-ability to solve these using neural networks (see [NQS](https://www.science.org/doi/10.1126/science.aag2302) [3]).
+- **Quantum Constraints:** Ready-to-use quantum constraints such as Gauß and Euclidean Hamilton constraints, along with
+ the abilitiy to construct Master constraints and to solve them using neural networks (see [NQS](https://www.science.org/doi/10.1126/science.aag2302) [3]).
 - **Pre-trained Neural Networks:** Includes pre-trained novel neural networks capable of solving constraints across 
 different models, saving time and effort.
 
 **Advanced State Characterization and Analysis:**
 - **State Characterization Tools:** Analyze states using tools like coloring operators, N-point functions and Rényi
-entropy.
-- **Multiple Hilbert Spaces:** Support for different Hilbert spaces (e.g. gauge-invariant subspaces).
-- **Gauge Groups and Spacetime Dimensions:** Choose from different gauge groups (e.g., U(1)<sup>3</sup>, SU(2)) and 
+entropy and more.
+- **Multiple Hilbert Spaces:** Support for different Hilbert spaces (e.g. tensor product spaces, gauge-invariant subspaces, etc.).
+- **Gauge Groups and Spacetime Dimensions:** Choose from different gauge groups and 
 spacetime dimensions, providing flexibility for diverse simulations.
 - **Standard Models of Interest:** Implementations of some commonly used models, such as the torus universe, are 
 included for convenience.
 
 **High-Performance Computing (HPC) Friendly and Ease of Use:**
-- **Parallelization Support:** Optimized for HPC environments, allowing for efficient parallel computations.
-- **Seamless Installation and Setup:** Modular designed enabling the bypass technical difficulties, allowing you to 
+- **Parallelization Support:** Optimized for HPC environments, thanks to NetKet's JAX dependence, allowing for efficient parallel computations.
+- **Seamless Installation and Setup:** Modular designe enabling the bypass technical difficulties, allowing you to 
 focus on simulating systems rather than dealing with implementation issues.
+
+<hr>
+
+## __Suggestions__
+
+If you have any ideas or suggestions (for example, useful operators of interest) which you would like us 
+to look into implementing, then please let us know by reaching out to us and creating a new post [here](https://github.com/waleed-sh/neuraLQX/discussions/new?category=ideas).
+
+P.S. you will need a GitHub account for that. 
 
 <hr>
 
@@ -80,9 +89,8 @@ Jul. 2019, doi: 10.1016/j.softx.2019.100311.
 [3] G. Carleo and M. Troyer, “Solving the quantum many-body problem with artificial neural networks,” Science, vol. 355,
 no. 6325, pp. 602–606, 2017, doi: 10.1126/science.aag2302.
 
-
 [4] H. Sahlmann and W. Sherif, “Towards quantum gravity with neural networks: Solving quantum Hamilton constraints of 3d
-Euclidean gravity in the weak coupling limit,” May 2024 [arXiv: 2405.00661 [gr-qc]].
+Euclidean gravity in the weak coupling limit,” 2024 Class. Quantum Grav. 41 215006
 
 [5] H. Sahlmann and W. Sherif, “Towards quantum gravity with neural networks: Solving the quantum Hamilton constraint of
-U(1) BF theory,” Feb. 2024 [arXiv: 2402.10622 [gr-qc]].
+U(1) BF theory,” 2024 Class. Quantum Grav. 41 225014
