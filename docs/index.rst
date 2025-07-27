@@ -74,8 +74,9 @@ The package is still under development. However, its functionality has already b
 some systems explored using neuraLQX in this `paper <https://arxiv.org/abs/2405.00661>`_ [4] and this
 `paper <https://arxiv.org/abs/2402.10622>`_ [5] too.
 
-You can also see more in-depth examples which showcase the intended usage of the package in our
-`tutorials page </docs/Tutorials/>`_.
+You can also see more in-depth examples which showcase some of the intended usage of the package in our
+`tutorials page <https://github.com/waleed-sh/neuraLQX/tree/main/docs/Tutorials>`_. As we are currently under development, these are just Jupyter
+notebooks in our GitHub repository for now...
 
 ----
 
@@ -83,7 +84,7 @@ License
 =======
 
 This package will be available under the Apache 2.0 license. You can read about the Apache 2.0 license
-`here </LICENSE>`_.
+`here <https://github.com/waleed-sh/neuraLQX/blob/main/LICENSE>`_.
 
 ----
 
