@@ -1,7 +1,7 @@
 .. raw:: html
 
    <div align="center">
-       <img src="docs/_static/logo.png" alt="logo" width="600"></img>
+       <img src="_static/logo.png" alt="logo" width="600"></img>
    </div>
 
 ==================================
