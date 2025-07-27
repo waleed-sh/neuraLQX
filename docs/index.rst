@@ -1,29 +1,13 @@
 .. raw:: html
 
    <div align="center">
-       <img src="neuralqx/utils/base/logo.png" alt="logo" width="600"></img>
+       <img src="docs/_static/logo.png" alt="logo" width="600"></img>
    </div>
 
 ==================================
-Welcome to neuraLQX Documentation
+neuraLQX Documentation
 ==================================
 
-.. raw:: html
-
-   <div align="center">
-
-   <hr>
-
-   <a href="https://github.com/psf/black">
-       <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black">
-   </a>
-   <a href="https://github.com/pylint-dev/pylint">
-       <img src="https://img.shields.io/badge/linting-pylint-blue" alt="linting: pylint">
-   </a>
-   <img src="https://img.shields.io/badge/python-3.9%2B-green" alt="Python 3.9+">
-
-   <hr>
-   </div>
 
 
 Description

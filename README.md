@@ -1,12 +1,12 @@
 <div align="center">
-<img src="neuralqx/utils/base/logo.png" alt="logo" width="600"></img>
+<img src="docs/_static/logo.png" alt="logo" width="600"></img>
 
 
 <hr>
 
 
 
-
+[![Documentation Status](https://readthedocs.org/projects/neuralqx/badge/?version=latest)](https://neuralqx.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Static Badge](https://img.shields.io/badge/linting-pylint-blue)](https://github.com/pylint-dev/pylint)
 ![Static Badge](https://img.shields.io/badge/python-3.9%2B-green)
