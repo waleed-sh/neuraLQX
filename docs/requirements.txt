@@ -1,2 +1,7 @@
 sphinx
 sphinx-rtd-theme
+sphinx-copybutton
+myst-parser
+shibuya
+sphinx-autobuild
+sphinx-design
