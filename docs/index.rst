@@ -1,14 +1,26 @@
+
+.. image:: _static/logo.png
+   :align: center
+   :alt: neuralQX logo
+   :width: 400px
+
 .. raw:: html
 
-   <div align="center">
-       <img src="_static/logo.png" alt="logo" width="600"></img>
-   </div>
+   <div style="margin-bottom: 40px;"></div>
+
 
 ==================================
 neuraLQX Documentation
 ==================================
 
+.. toctree::
+   :caption: Contents
+   :maxdepth: 2
+   :hidden:
 
+   documentation/index
+   getting_started/parallelisation/index
+   guides/index
 
 Description
 ===========
@@ -18,11 +30,33 @@ canonical loop quantum gravity systems. Built on top of `NetKet <https://github.
 **neuraLQX** offers a complete and user-friendly environment for applying the machinery of NetKet specifically in the
 context of canonical loop quantum gravity with ease.
 
-**Note:** The package is currently under development and will be released at a later date. Once available, it can be
-installed via pip. Check back here for the release data later.
+.. attention::
+    The package is currently under development and will be released at a later date. Once available, it can be
+    installed via pip. Check back here for the release data later.
 
-**Release Date:** TBA
+    **Release Date:** TBA
 
+
+In the meantime, have a look at the following
+
+.. grid:: 2
+   :gutter: 2
+
+   .. grid-item-card:: 📘 Docs
+      :link: documentation/index.html
+      :text-align: center
+
+   .. grid-item-card:: ⚙️ Guides
+      :link: guides/index.html
+      :text-align: center
+
+   .. grid-item-card:: 🧠 Tutorials
+      :link: guides/tutorials/index.html
+      :text-align: center
+
+   .. grid-item-card:: 💡 Getting Started
+      :link: getting_started/installation.html
+      :text-align: center
 
 Key Features
 ============
@@ -33,7 +67,7 @@ Key Features
 
 - **Custom Graphs:** Design and implement custom graphs to fit specific needs.
 
-- **Quantum Constraints:** Ready-to-use quantum constraints such as Gauß and Euclidean Hamilton constraints, along with the ability to construct Master constraints and solve them using neural networks (see `NQS <https://www.science.org/doi/10.1126/science.aag2302>`_ [3]).
+- **Quantum Constraints:** Ready-to-use quantum constraints such as Gauß and Euclidean Hamilton constraints, along with the ability to construct Master-like constraints and solve them using neural networks (see `NQS <https://www.science.org/doi/10.1126/science.aag2302>`_ [3]).
 
 - **Pre-trained Neural Networks:** Includes pre-trained novel neural networks capable of solving constraints across different models, saving time and effort.
 
@@ -51,6 +85,8 @@ Key Features
 **High-Performance Computing (HPC) Friendly and Ease of Use:**
 
 - **Parallelization Support:** Optimized for HPC environments, thanks to NetKet's JAX dependence, allowing for efficient parallel computations.
+
+- **Large Systems:** Ability to study arbitrary graphs and arbitrary DoF cutoffs for certain models.
 
 - **Seamless Installation and Setup:** Modular design enabling bypassing technical difficulties, allowing you to focus on simulating systems rather than dealing with implementation issues.
 
