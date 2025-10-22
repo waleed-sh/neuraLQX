@@ -3,6 +3,7 @@
    :align: center
    :alt: neuralQX logo
    :width: 400px
+   :class: no-scaled-link
 
 .. raw:: html
 
