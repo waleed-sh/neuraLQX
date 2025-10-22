@@ -86,7 +86,7 @@ Environment Variables
      - ``0`` | ``1``
      - ``0``
      - Enable CUDA-aware MPI for neuraLQX
-     - Yes
+     - No
    * - ``NQX_JAX_DISTRIBUTED``
      - ``int``
      - ``0`` | ``1``
