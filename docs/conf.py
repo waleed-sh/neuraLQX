@@ -34,8 +34,8 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 html_theme = 'shibuya'
 html_static_path = ['_static']
 html_theme_options = {
-    "light_logo": "_static/logo.png",
-    "dark_logo": "_static/logo.png",
+    "light_logo": "_static/logo_banner.png",
+    "dark_logo": "_static/logo_banner.png",
     "logo_target": "https://neuralqx.readthedocs.io/en/latest/",
     "accent_color": "teal",
     "color_mode": "light",

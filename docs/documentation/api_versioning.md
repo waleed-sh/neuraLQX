@@ -95,7 +95,7 @@ Lifecycle and Frequency of Releases
 Practical Advice for Users
 ---------------------------
 
-- **Pin your major version**: In production or long-running projects, you might specify `neuraLQX>=2.0,<3.0` to ensure you stay in the same major branch.  
+- **Pin your major version**: In production or long-running projects, you might specify `neuralqx>=2.0,<3.0` to ensure you stay in the same major branch.  
 - **Check release notes**: Always read the changelog for the version you are upgrading to. Watch for "Breaking changes" or "Deprecations".  
 - **Avoid private APIs**: Code using private members (leading underscores) may fail unexpectedly.  
 - **Enable warnings**: Accept deprecation warnings as they are your early signals for upcoming changes.  

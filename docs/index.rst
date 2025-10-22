@@ -9,10 +9,6 @@
    <div style="margin-bottom: 40px;"></div>
 
 
-==================================
-neuraLQX Documentation
-==================================
-
 .. toctree::
    :caption: Contents
    :maxdepth: 2
@@ -22,8 +18,6 @@ neuraLQX Documentation
    getting_started/parallelisation/index
    guides/index
 
-Description
-===========
 
 **neuraLQX** is an open-source Python package designed for high-performance simulations of
 canonical loop quantum gravity systems. Built on top of `NetKet <https://github.com/netket/netket.git>`_ [1, 2],
