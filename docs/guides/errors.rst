@@ -1320,6 +1320,38 @@ To resolve this, provide only two edges
 
    <hr style="margin: 30px 0;">
 
+AreaDifferenceSurfacesError
+-----------------------------------
+
+**Description**
+
+To use the area difference operator between **two surfaces** in the 4d weak coupling model, you need
+to provide 2 **(and only 2)** surfaces. If you provide more (or less), you will see this error.
+
+
+**Cause**
+
+The following code
+
+.. code-block:: python
+
+    Adiff = lqx.model.area_difference_surfaces_operator([[[3, 2], [1, 2]], [[0, 2], [4, 5]], [0, 1], [1, 5]])
+
+will raise a ``AreaDifferenceSurfacesError`` error.
+
+
+**Fix**
+
+To resolve this, provide only two surfaces
+
+.. code-block:: python
+
+    Adiff = lqx.model.area_difference_surfaces_operator([[[3, 2], [1, 2]], [[0, 2], [4, 5]]])
+
+.. raw:: html
+
+   <hr style="margin: 30px 0;">
+
 
 IncompatibleNonGIOperatorError
 -----------------------------------
