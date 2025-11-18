@@ -172,17 +172,20 @@ We can then start installing neuraLQX. Unlike in the vanilla MPI installation in
 we will first start in the other direction. Namely, installing neuraLQX first. You will need to
 
 - upgrade pip, along with other things, using
+
  .. code-block:: bash
 
     pip install --upgrade pip setuptools wheel
 
 - Remove any cached ``mpi4py`` and ``mpi4jax`` from build cache
+
  .. code-block:: bash
 
     pip cache remove mpi4py
     pip cache remove mpi4jax
 
 - Install neuraLQX **without** the ``"[mpi]"`` flag using
+
  .. code-block:: bash
 
     pip install --upgrade neuralqx
@@ -199,9 +202,10 @@ we will first start in the other direction. Namely, installing neuraLQX first. Y
     if you have CUDA 11 loaded, this would be ``[cuda11_local]``.
 
 - Install ``mpi4py``
+
  .. code-block:: bash
 
-    pip install mpi4py
+    pip install mpi4py cython
 
  .. important::
 
@@ -214,6 +218,7 @@ we will first start in the other direction. Namely, installing neuraLQX first. Y
         MPICC=$(which mpicc) pip install --no-cache-dir mpi4py cython
 
 - Lastly, install ``mpi4jax``
+
  .. code-block::
 
     pip install --upgrade --no-build-isolation "mpi4jax==0.7.1"

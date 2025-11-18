@@ -257,7 +257,7 @@ Trying to create a gauge invariant Hilbert space as follows
 .. code-block:: python
 
     # note how no gauge fixing is provided and no automatic gauge fixing is instructed
-    H = nqx.hilbert.Hilbert(my_graph, gauge_invariant = True, cutoff = 10)
+    H = nqx.hilbert.u1.HilbertU1(my_graph, gauge_invariant = True, cutoff = 10)
 
 will raise an ``UnspecifiedGaugeFixingError`` error.
 
@@ -272,14 +272,14 @@ Example (by-hand):
 .. code-block:: python
 
     # specify an array of gauge fixing which explicitly states which edges fix which edges
-    H = nqx.hilbert.Hilbert(my_graph, gauge_invariant = True, cutoff = 10, gauge_fixing = my_gauge_fixing_array)
+    H = nqx.hilbert.u1.HilbertU1(my_graph, gauge_invariant = True, cutoff = 10, gauge_fixing = my_gauge_fixing_array)
 
 Example (automatic):
 
 .. code-block:: python
 
     # let neuraLQX do the gauge fixing for you
-    H = nqx.hilbert.Hilbert(my_graph, gauge_invariant = True, cutoff = 10, auto_constraint = True)
+    H = nqx.hilbert.u1.HilbertU1(my_graph, gauge_invariant = True, cutoff = 10, auto_constraint = True)
 
 .. raw:: html
 
@@ -455,7 +455,7 @@ Trying to run the following code with an ``lqx`` object for the 4d weak coupling
 .. code-block:: python
 
     # note the gauge_dimensions being 4
-    gauge_group = nqx.gauge_groups.U1Gauge(H, gauge_dimensions = 4, is_4d = True)
+    gauge_group = nqx.gauge_groups.u1.U1GaugeGroup(H, gauge_dimensions = 4, is_4d = True)
 
     lqx = nqx.lqx.EuclideanWCL(H, gaugeGroup, spacetime_dims = 4)
 
@@ -474,7 +474,7 @@ Example:
 .. code-block:: python
 
     # note the gauge_dimensions being 3
-    gauge_group = nqx.gauge_groups.U1Gauge(H, gauge_dimensions = 3, is_4d = True)
+    gauge_group = nqx.gauge_groups.u1.U1GaugeGroup(H, gauge_dimensions = 3, is_4d = True)
 
     lqx = nqx.lqx.EuclideanWCL(H, gaugeGroup, spacetime_dims = 4)
 
@@ -501,10 +501,10 @@ Trying to run something as the code below
 .. code-block:: python
 
     # note the gauge_dimensions being 2
-    H = nqx.hilbert.Hilbert(graph_4d_new, cutoff, gauge_dimensions = 2, is_gauge_invariant = True, auto_constraint = True)
+    H = nqx.hilbert.u1.HilbertU1(graph_4d_new, cutoff, gauge_dimensions = 2, is_gauge_invariant = True, auto_constraint = True)
 
     # note the gauge_dimensions being 3
-    gauge_group = nqx.gauge_groups.U1Gauge(H, gauge_dimensions = 3, is_4d = True)
+    gauge_group = nqx.gauge_groups.u1.U1GaugeGroup(H, gauge_dimensions = 3, is_4d = True)
 
     # this will raise an error
     lqx = nqx.lqx.EuclideanWCL(H, gaugeGroup, spacetime_dims = 4)
@@ -519,10 +519,10 @@ the same gauge dimensions. In the example above, this means
 .. code-block:: python
 
     # note the gauge_dimensions being 3
-    H = nqx.hilbert.Hilbert(graph_4d_new, cutoff, gauge_dimensions = 3, is_gauge_invariant = True, auto_constraint = True)
+    H = nqx.hilbert.u1.HilbertU1(graph_4d_new, cutoff, gauge_dimensions = 3, is_gauge_invariant = True, auto_constraint = True)
 
     # note the gauge_dimensions being 3
-    gauge_group = nqx.gauge_groups.U1Gauge(H, gauge_dimensions = 3, is_4d = True)
+    gauge_group = nqx.gauge_groups.u1.U1GaugeGroup(H, gauge_dimensions = 3, is_4d = True)
 
     # this will run
     lqx = nqx.lqx.EuclideanWCL(H, gaugeGroup, spacetime_dims = 4)

@@ -69,6 +69,12 @@ some name. Once created, you can activate it using
 Note that once again, if you are using an IDE, this is already done. You can just open the command line
 in your IDE project.
 
+You can, and should, upgrade `pip` as well as `setuptools` and `wheel` before starting using
+
+.. code-block:: bash
+
+    pip install --upgrade pip setuptools wheel
+
 Now, you can install neuraLQX with MPI dependencies. In this pre-alpha phase, you need to fetch
 the latest code from the shared GitHub repository. Once completed, just run the following command
 
@@ -166,12 +172,14 @@ we can activate the that virtual environment using
 We now need to install ``mpi4py`` or ``mpi4jax``, as neuraLQX (by default) does not install them.
 This is because it can be cluster dependent. You will need to do the following:
 
-- upgrade pip
+- upgrade pip, setuptools and wheel using
+
  .. code-block:: bash
 
-    pip install --upgrade pip
+    pip install --upgrade pip setuptools wheel
 
 - Remove any cached ``mpi4py`` and ``mpi4jax`` from build cache
+
  .. code-block:: bash
 
         pip cache remove mpi4py
@@ -181,7 +189,7 @@ This is because it can be cluster dependent. You will need to do the following:
 
  .. code-block:: bash
 
-        pip install mpi4py
+        pip install mpi4py cython
 
  .. warning::
         **On this specific cluster**, the above command will install a generic ``mpi4py`` which will

@@ -15,9 +15,15 @@
    :maxdepth: 2
    :hidden:
 
+   philosophy
+   roadmap
    documentation/index
    getting_started/parallelisation/index
+   tutorials/index
    guides/index
+   contribute
+   change_log
+   api_versioning
 
 
 **neuraLQX** is an open-source Python package designed for high-performance simulations of

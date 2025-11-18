@@ -83,8 +83,7 @@ available the following
 
 - ``is_master()``: a function that returns ``True`` if you are on rank 0 worker
 - ``rank``: the rank of the current worker
-- ``barrier()``: a function that makes sure that all workers synchronise at it when called before
- proceeding to any further code
+- ``barrier()``: a function that makes sure that all workers synchronise at it when called before proceeding to any further code
 
 among other functionalities in that module. Therefore, if you wish to compute and output/print some
 expectation values after a simulation is done, you will follow the logic provided here:

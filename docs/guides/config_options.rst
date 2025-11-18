@@ -44,7 +44,7 @@ Environment Variables
      - **Possible Values**
      - **Default**
      - **Description**
-     - **Runtime Change**
+     - **Runtime Mutable**
    * - ``NQX_DEBUG``
      - ``bool``
      - ``False`` | ``True``

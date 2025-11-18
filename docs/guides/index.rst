@@ -7,8 +7,14 @@ This section is currently under development
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
+   :maxdepth: 2
 
-   tutorials/index
+   graphs
+   gauge_groups
+   hilbert
+   lqx
+   operators/index
+   vqs
+   symmetries
    config_options
    errors

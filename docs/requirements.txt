@@ -5,3 +5,5 @@ myst-parser
 shibuya
 sphinx-autobuild
 sphinx-design
+sphinx_autodoc_typehints
+myst-nb
