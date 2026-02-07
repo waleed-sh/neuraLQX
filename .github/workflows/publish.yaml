@@ -19,6 +19,10 @@ jobs:
           submodules: true
 
       - run: |
+          # actions/checkout may create a local tag ref pointing to the commit sha.
+          # If the remote tag is annotated, fetching tags would otherwise fail with:
+          # "would clobber existing tag".
+          git tag -d "${{ github.event.release.tag_name }}" 2>/dev/null || true
           git fetch --prune --unshallow --tags
 
       - name: Set up Python
@@ -30,11 +34,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade build
-          pip install -U build twine
+          pip install -U build twine 
 
       - name: Build
         run: |
           python -m build
-
+      
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
