@@ -1067,9 +1067,7 @@ class Solver(AbstractSolver):
             # this should not overwrite the loaded state because we will
             # immediately replace it after import.
             if not getattr(self, "_driver_flag", False):
-                self.initialize_vmc(
-                    diagonal_shift=self.diagonal_shift
-                )
+                self.initialize_vmc(diagonal_shift=self.diagonal_shift)
 
             # now we should have a template variational state
             loaded_state = self.import_state(

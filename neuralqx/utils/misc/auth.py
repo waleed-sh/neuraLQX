@@ -206,17 +206,13 @@ class Authenticator:
         except FileNotFoundError:
             raise
         except Exception as e:
-            print(
-                f"\n\nSignature verification failed\n(Reason: {e})\n\n"
-            )
+            print(f"\n\nSignature verification failed\n(Reason: {e})\n\n")
             return
 
         if res.ok:
             print("Validated.")
         else:
-            print(
-                f"\n\nSignature verification failed\n(Reason: {res.error})\n\n"
-            )
+            print(f"\n\nSignature verification failed\n(Reason: {res.error})\n\n")
 
 
 def get_hash():  # pylint: disable=C0115,C0116

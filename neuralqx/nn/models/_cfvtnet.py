@@ -580,9 +580,7 @@ class CFVTNet(nn.Module):
                 (B, loop_idxs.shape[0], loop_idxs.shape[1], loop_idxs.shape[2]),
             )
             # (B,K,L,S)
-            gathered = jnp.take_along_axis(
-                sigma[:, None, None, :], idxs_exp, axis=3
-            )
+            gathered = jnp.take_along_axis(sigma[:, None, None, :], idxs_exp, axis=3)
             # pre-multiplied sign*mask avoids an extra mul in hot path
             # (1,K,L,S)
             sgnmask = loop_sgnmask[None, ...].astype(gathered.dtype)
@@ -664,9 +662,7 @@ class CFVTNet(nn.Module):
                 raise ValueError("Triplet volume term requires gauge_dim == 3.")
 
             # (B,T,3,K)
-            idx_exp = jnp.broadcast_to(
-                trip_idx[None, ...], (B,) + trip_idx.shape
-            )
+            idx_exp = jnp.broadcast_to(trip_idx[None, ...], (B,) + trip_idx.shape)
 
             # (B,1,1,N)
             sig_exp = sigma[:, None, None, :]

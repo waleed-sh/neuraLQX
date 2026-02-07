@@ -215,9 +215,7 @@ class MultiSolver(Solver):
             ]
 
         self._network = networks
-        self._gnetwork = networks[
-            0
-        ]
+        self._gnetwork = networks[0]
 
         # logger, aggregate + per-state fields (unique keys!)
         net_names = [

@@ -53,6 +53,7 @@ from neuralqx.utils.experimental import experimental
 if TYPE_CHECKING:
     from .jax import MarkedLocalOperatorJax
 
+
 @experimental
 class MarkedLocalOperator(LocalOperatorBase):
     """A custom local operator. This is a sum of an arbitrary number of operators
