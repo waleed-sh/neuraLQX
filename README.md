@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/_static/_logo.png" alt="neuraLQX logo" width="420" />
+  <img src="https://github.com/waleed-sh/neuraLQX/blob/1b53438720fd3411dac0e562e5b08fe6ea021162/docs/_static/_logo.png" alt="neuraLQX logo" width="420" />
 </div>
 
 <div align="center">
@@ -7,8 +7,8 @@
 # neuraLQX
 **High-performance variational simulations for canonical Loop Quantum Gravity - built on NetKet & JAX.**
 
-[![PyPI](https://img.shields.io/pypi/v/neuralqx.svg)](https://pypi.org/project/neuralqx/)
-[![Python](https://img.shields.io/pypi/pyversions/neuralqx.svg)](https://pypi.org/project/neuralqx/)
+[![PyPI](https://img.shields.io/pypi/v/neuralqx.svg?cachebust=1)](https://pypi.org/project/neuralqx/)
+![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 [![License](https://img.shields.io/github/license/waleed-sh/neuraLQX.svg)](https://github.com/waleed-sh/neuraLQX/blob/main/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/neuralqx/badge/?version=latest)](https://neuralqx.readthedocs.io/en/latest/?badge=latest)
 
