@@ -1,0 +1,650 @@
+# Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Copyright 2021 The NetKet Authors - All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# pylint: skip-file
+# fmt: off
+
+"""
+NOTE: part(s) of, or the entire content, of this file is obtained from NetKet's source code
+      the original copyright mentioned above applies.
+"""
+
+from functools import partial
+from typing import Callable, Optional, Sequence, Union
+
+import jax
+from jax import numpy as jnp
+from flax.core.scope import CollectionFilter, DenyList  # noqa: F401
+
+from netket import jax as nkjax
+from netket import config
+from netket.utils import mpi, dispatch
+from netket.utils.types import PyTree
+from netket.stats import Stats, statistics
+
+from netket.operator import (
+    AbstractOperator,
+    Squared,
+)
+
+from netket.experimental.observable import VarianceObservable
+
+from netket.vqs.mc.mc_state.state import MCState
+
+from ..common import get_local_kernel_arguments, get_local_kernel
+from .state import MCState as NQXMCState
+from ....operators import InverseExpectationCost, PenaltyCost
+from ....operators.types.computational_operator import ComputationalOperator
+from ....utils.errors import ExpectationValueError, InvalidOperatorsSequenceError
+from ....utils.parsing import strict_type
+from ....vqs import expect_and_grad, expect_and_forces
+from ....vqs.mc.common import force_to_grad
+
+
+
+@partial(jax.jit, static_argnums=(0, 1))
+def _locals_only(
+        local_kernel,
+        model_apply_fun,
+        parameters,
+        model_state,
+        σ,
+        local_args,
+):
+    """
+    A helper function to avoid mixing up lambdas and jit-compiled paths
+    """
+    if σ.ndim >= 3:
+        σ = jax.lax.collapse(σ, 0, 2)
+
+    return local_kernel(
+        model_apply_fun,
+        {"params": parameters, **model_state},
+        σ,
+        local_args,
+    )
+
+
+@partial(jax.jit, static_argnums=(0, 1, 2),)
+def _variance_vjp_and_local(
+    local_kernel_O,
+    local_kernel_O2,
+    afun,
+    params,
+    model_state,
+    σ,
+    args_O,
+    args_O2,
+):
+    n_chains = σ.shape[0]
+    σ_flat = σ.reshape(-1, σ.shape[-1])
+
+    def log_pdf(p, s):
+        return 2 * afun({"params": p, **model_state}, s).real
+
+    # expectation of variance (a scalar)
+    def variance_expect(p):
+        # mean(O)
+        O_mean = nkjax.expect(
+            log_pdf,
+            lambda pp, ss: local_kernel_O(afun, {"params": pp, **model_state}, ss, args_O),
+            p,
+            σ_flat,
+            n_chains = n_chains,
+        )[0]
+
+        # local O²
+        O2_loc = local_kernel_O2(afun, {"params": p, **model_state}, σ_flat, args_O2)
+
+        return nkjax.expect(
+            log_pdf,
+            lambda pp, ss: (O2_loc - O_mean**2).real,
+            p,
+            σ_flat,
+            n_chains=n_chains,
+        )
+
+    # vjp
+    var_val, vjp_fun, var_stats = nkjax.vjp(
+        variance_expect, params, has_aux=True, conjugate=True,
+    )
+    grad = vjp_fun(jnp.ones_like(var_val))[0]
+    grad = jax.tree_util.tree_map(lambda x: mpi.mpi_sum_jax(x)[0], grad)
+
+    # local estimator L_σ for downstream summation
+    O_loc = local_kernel_O(afun, {"params": params, **model_state}, σ_flat, args_O)
+    O2_loc = local_kernel_O2(afun, {"params": params, **model_state}, σ_flat, args_O2)
+    L_σ = (O2_loc - (jnp.mean(O_loc))**2).real
+
+    return L_σ, var_stats, grad
+
+
+@expect_and_grad.dispatch
+def expect_and_grad_variance(
+    vstate: Union[MCState, NQXMCState],
+    Ô: VarianceObservable,
+    chunk_size: None,
+    *,
+    mutable: CollectionFilter = False,
+    use_covariance = None,
+):
+    """
+    Variance cost specific path for the gradient
+    """
+    σ, (args_O, args_O2) = get_local_kernel_arguments(vstate, Ô)
+
+    local_O = get_local_kernel(vstate, Ô.operator)
+    local_O2 = get_local_kernel(vstate, Ô.operator_squared)
+
+    L_σ, stats, grad = _variance_vjp_and_local(
+        local_O,
+        local_O2,
+        vstate._apply_fun,
+        vstate.parameters,
+        vstate.model_state,
+        σ,
+        args_O,
+        args_O2,
+    )
+
+    return stats, grad
+
+
+@expect_and_grad.dispatch
+def expect_and_grad_default_formula_sequence(
+    vstate: Union[MCState, NQXMCState],
+    Ô: Sequence[AbstractOperator],
+    chunk_size: Optional[int],
+    *args,
+    mutable: CollectionFilter = False,
+    use_covariance: Optional[bool] = None,
+) -> tuple[Stats, PyTree]:
+    """
+    Extended to handle multiple operators. If use_covariance=True, we use the new
+    expect_and_forces() that can handle a list.
+    """
+
+    # sanity check
+    if isinstance(Ô, list) and len(Ô) == 0:
+        raise ExpectationValueError("expect_and_grad")
+
+    # use_covariance unspecified and we have to see based on operators
+    if use_covariance is None:
+        # check all operators in the list
+        use_covariance = all(op.is_hermitian for op in Ô)
+
+    # now based on that, we will execute different functions either hermitian or nonhermitian
+    if use_covariance:
+        Ō, Ō_grad = expect_and_forces(vstate, Ô, chunk_size, *args, mutable=mutable)
+        # convert forces to gradient
+        Ō_grad = force_to_grad(Ō_grad, vstate.parameters)
+        return Ō, Ō_grad
+    else:
+        # non-hermitian path
+        return expect_and_grad_nonhermitian(
+            vstate, Ô, chunk_size, *args, mutable=mutable
+        )
+
+
+# General implementation checking hermitianity
+@expect_and_grad.dispatch
+def expect_and_grad_default_formula(
+    vstate: Union[MCState, NQXMCState],
+    Ô: AbstractOperator,
+    chunk_size: Optional[int],
+    *args,
+    mutable: CollectionFilter = False,
+    use_covariance: Optional[bool] = None,
+) -> tuple[Stats, PyTree]:
+    if use_covariance is None:
+        use_covariance = Ô.is_hermitian
+
+    if use_covariance:
+        # Implementation of expect_and_grad for `use_covariance == True` (due to the Literal[True]
+        # type in the signature).` This case is equivalent to the composition of the
+        # `expect_and_forces` and `force_to_grad` functions.
+        # return expect_and_grad_from_covariance(vstate, Ô, *args, mutable=mutable)
+        Ō, Ō_grad = expect_and_forces(vstate, Ô, chunk_size, *args, mutable=mutable)
+        Ō_grad = force_to_grad(Ō_grad, vstate.parameters)
+        return Ō, Ō_grad
+    else:
+        return expect_and_grad_nonhermitian(
+            vstate, Ô, chunk_size, *args, mutable=mutable
+        )
+
+
+# Squared is a special operator...
+@expect_and_grad.dispatch
+def expect_and_grad_squared_op(
+    vstate: Union[MCState, NQXMCState],
+    Ô: Squared,
+    chunk_size: Optional[int],
+    *args,
+    mutable: CollectionFilter = False,
+    use_covariance: Optional[bool] = None,
+) -> tuple[Stats, PyTree]:
+    if use_covariance is not None:
+        raise ValueError(
+            "Cannot specify `use_covariance` with Squared[...] operator.\n"
+            "This operator must use the same formula as non-hermitian operators to work."
+        )
+    return expect_and_grad_nonhermitian(vstate, Ô, chunk_size, *args, mutable=mutable)
+
+
+@expect_and_grad.dispatch
+def expect_and_grad_squared_op_sequence(
+    vstate: Union[MCState, NQXMCState],
+    Ô: Sequence[Union[Squared, PenaltyCost, ComputationalOperator]],
+    chunk_size: Optional[int],
+    *args,
+    mutable: CollectionFilter = False,
+    use_covariance: Optional[bool] = None,
+) -> tuple[Stats, PyTree]:
+    """
+    Extends the squared-op code to handle either a single Squared[...] operator,
+    or a list of Squared[...] operators. If it's a list, we do a multi-operator approach.
+
+    It can also accept PenaltyCost operators which are not Squared.
+    """
+
+    # We disallow use_covariance for squared, following NetKet's logic
+    if use_covariance is not None:
+        raise ValueError(
+            "Cannot specify `use_covariance` with Squared[...] operator.\n"
+            "This operator must use the same formula as non-hermitian operators to work."
+        )
+
+    # assume it's a list of Squared[...] operators
+    if not isinstance(Ô, list):
+        raise InvalidOperatorsSequenceError("expect_and_grad")
+
+    # check for empty lists
+    if len(Ô) == 0:
+        raise ExpectationValueError("expect_and_grad")
+
+    # now we have a list of squared operators: we route them to the non-hermitian logic
+    # by calling `expect_and_grad_nonhermitian(...)` with the entire list
+    # This will dispatch the multi-operator summation approach
+    return expect_and_grad_nonhermitian(vstate, Ô, chunk_size, *args, mutable=mutable)
+
+
+@dispatch.dispatch
+def expect_and_grad_nonhermitian(
+    vstate: Union[MCState, NQXMCState],
+    Ô: Union[AbstractOperator, Squared],
+    chunk_size: None,
+    *,
+    mutable: CollectionFilter = False,
+):
+    if not isinstance(Ô, Squared) and not config.netket_experimental:
+        raise RuntimeError(
+            """
+            Computing the gradient of non hermitian operator is an
+            experimental feature under development and is known not to
+            return wrong values sometimes.
+
+            If you want to debug it, set the environment variable
+            NETKET_EXPERIMENTAL=1
+            """
+        )
+
+    σ, args = get_local_kernel_arguments(vstate, Ô)
+
+    local_estimator_fun = get_local_kernel(vstate, Ô)
+
+    # remain general here for all costs
+    scale_factor = Ô.factor if isinstance(Ô, PenaltyCost) else 1.0
+
+    Ō, Ō_grad, new_model_state = _grad_expect_nonherm_kernel(
+        local_estimator_fun,
+        vstate._apply_fun,
+        mutable,
+        vstate.sampler.machine_pow,
+        vstate.parameters,
+        vstate.model_state,
+        σ,
+        args,
+        scale_factor,
+    )
+
+    if mutable is not False:
+        vstate.model_state = new_model_state
+
+    return Ō, Ō_grad
+
+
+@dispatch.dispatch
+def expect_and_grad_nonhermitian(
+    vstate: Union[MCState, NQXMCState],
+    Ô: Sequence[AbstractOperator],
+    chunk_size: None,
+    *,
+    mutable: CollectionFilter = False,
+):
+    """
+    Extends the NetKet implementation to handle list of non-Hermitian (or 'Squared') operators.
+    """
+
+    # ensure list type
+    Ô_list = list(Ô)
+
+    # Sanity check
+    if len(Ô_list) == 0:
+        raise ExpectationValueError("expect_and_grad")
+
+    # NetKet's `_grad_expect_nonherm_kernel()` does not support updating model_state
+    # we either skip it or raise an error if mutable != False. We'll raise an error like NetKet:
+    if mutable is not False:
+        raise NotImplementedError(
+            "Updating model_state (mutable != False) is not implemented for multiple "
+            "non-Hermitian operators. Please set mutable=False."
+        )
+
+    # get the vstate.samples to ensure that we use the same ones for every Ô
+    σ = vstate.samples
+
+    # get the number of MC chains
+    n_chains = σ.shape[0]
+
+    # flatten if needed
+    if σ.ndim >= 3:
+        σ = jax.lax.collapse(σ, 0, 2)
+
+    # the get_local_kernel which returns the local estimator we want to store for every Ô will
+    # return a JAX array of shape (σ.shape[0], ), so we create an empty one with that shape
+    # this array will hold the sum of all local estimators L_σ returned from every operator
+    # dev: this was weak, essentially wrong... we were creating just a scalar zero, and later
+    #      JAX changed it into an array after the first sum with the first L_σ, now it should be
+    #      more "stable", aka less error prone
+    # L_σ_sum = jnp.zeros_like((σ.shape[0],))
+    L_σ_sum = jnp.zeros((σ.shape[0],), dtype=jnp.result_type(float))
+
+    # we will accumulate partial gradients
+    grad_sum = None
+
+    # the kernel function to compute the gradients for the typical non-hermitian operators
+    _kernel_func = _grad_expect_nonherm_kernel_sequence
+
+    # now we want to call the dedicated JAX jitted function to compute L_σ per operator and
+    # aggregate the values
+    for i, ô in enumerate(Ô_list):
+
+        # discared the σ returned from the get_local_kernel_arguments as we want to avoid any
+        # potential mismatch in using different σ for different operators in case it changes
+        # somewhere during execution
+        _, args_op = get_local_kernel_arguments(vstate, ô)
+        local_estimator_fun = get_local_kernel(vstate, ô)
+
+        if strict_type(ô) is InverseExpectationCost:
+            # branch out for the IEC
+            # forward locals, but grad via forces on E only so we avoid backprop through expect()
+
+            # forward locals for IEC (no VJP)
+            L_op = _locals_only(
+                local_estimator_fun,
+                vstate._apply_fun,
+                vstate.parameters,
+                vstate.model_state,
+                σ,
+                args_op,
+            )
+
+            # gradient via forces on E
+            # dev: we are essentially computing the gradient via covariance, which is fine
+            #      as long as our operator is Hermitian. A safety net has been added in the
+            #      IEC wrapper to ensure this and it is assumed that the wrapped operator is
+            #      Hermitian at this point
+            V_stats, V_forces = expect_and_forces(vstate, ô.cost_operator, None, mutable = False)
+
+            # get the mean and assemble the derivative
+            meanV = jnp.real(V_stats.mean).astype(jnp.result_type(float))
+            denom = ô.alpha + meanV + ô.eps
+            fprime = (-2.0 * ô.factor) / (denom ** 3)
+
+            # construct the gradient, first forces
+            Ō_forces_i = jax.tree_util.tree_map(lambda g: fprime * g, V_forces)
+
+            # now gradients
+            Ō_grad_i = force_to_grad(Ō_forces_i, vstate.parameters)
+        else:
+            # all other operators, this may VJP
+
+            # estimator and partial grad
+            L_op, _Ō_stat, Ō_grad_i, _new_model_state = _kernel_func(
+                local_estimator_fun,
+                vstate._apply_fun,
+                False,
+                vstate.sampler.machine_pow,
+                vstate.parameters,
+                vstate.model_state,
+                σ,
+                args_op,
+            )
+
+        # check if we are doing a penalty operator of any type other than the
+        # InverseExpectationCost, and if so, aggregate differently
+        if strict_type(ô) is PenaltyCost:
+            jax.debug.print("PENALTY COST")
+            L_op = ô.factor * L_op
+            Ō_grad_i = jax.tree_util.tree_map(lambda v: ô.factor * v, Ō_grad_i)
+
+        # aggregate local estimators
+        L_σ_sum = L_σ_sum + L_op
+
+        # aggregate partial gradients
+        grad_sum = Ō_grad_i if grad_sum is None else jax.tree_util.tree_map(
+            lambda a, b: a + b, grad_sum, Ō_grad_i,
+        )
+
+    # compute the final Stats object for L_σ_sum
+    # we do "statistics(...)" on the sum of local values
+    stats_sum = statistics(L_σ_sum.reshape((n_chains, -1)))
+
+    return stats_sum, grad_sum
+
+
+@partial(jax.jit, static_argnums=(0, 1, 2,))
+def _grad_expect_nonherm_kernel_sequence(
+    local_value_kernel: Callable,
+    model_apply_fun: Callable,
+    mutable: CollectionFilter,
+    machine_pow: float,
+    parameters: PyTree,
+    model_state: PyTree,
+    σ: jnp.ndarray,
+    local_value_args: PyTree,
+) -> tuple[PyTree, PyTree, Stats]:
+    """
+    Extends the NetKet logic to return the local estimator instead of the Stats
+    """
+
+    n_chains = σ.shape[0]
+
+    if σ.ndim >= 3:
+        σ = jax.lax.collapse(σ, 0, 2)
+
+    is_mutable = mutable is not False
+    logpsi = lambda w, σ: model_apply_fun(
+        {"params": w, **model_state}, σ, mutable=mutable
+    )
+    log_pdf = (
+        lambda w, σ: machine_pow * model_apply_fun({"params": w, **model_state}, σ).real
+    )
+
+    def expect_closure_pars(pars):
+        return nkjax.expect(
+            log_pdf,
+            partial(local_value_kernel, logpsi),
+            pars,
+            σ,
+            local_value_args,
+            n_chains=n_chains,
+        )
+
+    def expect_closure_pars_lop(pars):
+        return _nkjax_expect_kernel(
+            partial(local_value_kernel, logpsi),
+            pars,
+            σ,
+            local_value_args,
+        )
+
+    L_op = expect_closure_pars_lop(parameters)
+
+    Ō, Ō_pb, Ō_stats = nkjax.vjp(
+        expect_closure_pars, parameters, has_aux=True, conjugate=True
+    )
+    Ō_pars_grad = Ō_pb(jnp.ones_like(Ō))[0]
+
+    if is_mutable:
+        raise NotImplementedError(
+            "gradient of non-hermitian operators over mutable models "
+            "is not yet implemented."
+        )
+    new_model_state = None
+
+    return (
+        L_op,
+        Ō_stats,
+        jax.tree_util.tree_map(lambda x: mpi.mpi_mean_jax(x)[0], Ō_pars_grad),
+        new_model_state,
+    )
+
+
+@partial(jax.jit, static_argnums=(0, 1, 2,))
+def _grad_expect_nonherm_kernel(
+    local_value_kernel: Callable,
+    model_apply_fun: Callable,
+    mutable: CollectionFilter,
+    machine_pow: float,
+    parameters: PyTree,
+    model_state: PyTree,
+    σ: jnp.ndarray,
+    local_value_args: PyTree,
+    scale_factor: float = 1.0,
+) -> tuple[PyTree, PyTree, Stats]:
+    n_chains = σ.shape[0]
+    if σ.ndim >= 3:
+        σ = jax.lax.collapse(σ, 0, 2)
+
+    is_mutable = mutable is not False
+    logpsi = lambda w, σ: model_apply_fun(
+        {"params": w, **model_state}, σ, mutable=mutable
+    )
+    log_pdf = (
+        lambda w, σ: machine_pow * model_apply_fun({"params": w, **model_state}, σ).real
+    )
+
+    def expect_closure_pars(pars):
+        out = nkjax.expect(
+            log_pdf,
+            partial(local_value_kernel, logpsi),
+            pars,
+            σ,
+            local_value_args,
+            n_chains=n_chains,
+        )
+
+        sf = jnp.asarray(scale_factor, dtype=jnp.result_type(float))
+        return (sf * out[0], out[1])  # (value, Stats)
+
+    Ō, Ō_pb, Ō_stats = nkjax.vjp(
+        expect_closure_pars, parameters, has_aux=True, conjugate=True
+    )
+
+    Ō_pars_grad = Ō_pb(jnp.ones_like(Ō))[0]
+
+    if is_mutable:
+        raise NotImplementedError(
+            "gradient of non-hermitian operators over mutable models "
+            "is not yet implemented."
+        )
+    new_model_state = None
+
+    return (
+        Ō_stats,
+        jax.tree_util.tree_map(lambda x: mpi.mpi_mean_jax(x)[0], Ō_pars_grad),
+        new_model_state,
+    )
+
+
+def _nkjax_expect_kernel(expected_fun, pars, σ, *expected_fun_args):
+    return expected_fun(pars, σ, *expected_fun_args)
+
+
+@expect_and_grad.dispatch
+def expect_and_grad_iec_single(
+    vstate: Union[MCState, NQXMCState],
+    Ô: InverseExpectationCost,
+    chunk_size: Optional[int],
+    *args,
+    mutable: CollectionFilter = False,
+    use_covariance: Optional[bool] = None,
+) -> tuple[Stats, PyTree]:
+    """
+    IEC-specific, computes gradient via forces on E only:
+        d/dθ <IEC> = f'(<E>) * d/dθ <E>
+    while keeping the forward stats of IEC via the (already implemented) local estimator
+
+    Note: the assumption here is that the wrapped operator E is Hermitian. This will produce
+    incorrect results if it is not, as we use the covariance method to compute the gradient
+    """
+
+    # forward stats for IEC
+    σ_iec, packed_iec = get_local_kernel_arguments(vstate, Ô)
+    local_iec = get_local_kernel(vstate, Ô)
+
+    # get the number of chains
+    n_chains = vstate.samples.shape[0]
+
+    # collapse the samples if needed
+    if σ_iec.ndim >= 3:
+        σ_iec = jax.lax.collapse(σ_iec, 0, 2)
+
+    def logpsi(w, σ_):
+        return vstate._apply_fun({"params": w, **vstate.model_state}, σ_)
+
+    # compute the local estimator and stats
+    L_σ = local_iec(logpsi, vstate.parameters, σ_iec, packed_iec)
+    Ō_iec = statistics(L_σ.reshape((n_chains, -1)))
+
+    # compute the forces for V
+    V_stats, V_forces = expect_and_forces(vstate, Ô.cost_operator, chunk_size, mutable=mutable)
+
+    # chain rule at mean(V)
+    meanV = jnp.real(V_stats.mean).astype(jnp.result_type(float))
+    denom = Ô.alpha + meanV + Ô.eps
+    fprime = (-2.0 * Ô.factor) / (denom ** 3)
+
+    # still in forces
+    IEC_forces = jax.tree_util.tree_map(lambda g: fprime * g, V_forces)
+
+    # now convert forces to grad
+    IEC_grad = force_to_grad(IEC_forces, vstate.parameters)
+
+    return Ō_iec, IEC_grad

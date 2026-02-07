@@ -1,5 +1,8 @@
+.. _errors:
+
+==============
 Errors
-======
+==============
 
 This page lists some of the errors and warnings that you might encounter when using
 neuraLQX. For each error below, we detail
@@ -1361,3 +1364,113 @@ IncompatibleNonGIOperatorError
 Sometimes, some operators are not compatible with gauge invariant Hilbert spaces. If you see this error,
 it means that you have chosen such an operator. To use it, you must use the full Hilbert space or
 implement your own custom operator.
+
+
+
+AutoConstraintGaugeFixingConflictError
+---------------------------------------
+
+**Description**
+
+When creating gauge invariant Hilbert spaces with Abelian degrees of freedom, neuraLQX has the option for you to allow it
+to figure out the gauge fixing conditions. If you specify that using ``auto_constraint=True`` and simultaneously provide
+an explicit gauge fixing list, you will see this error. Choose one or the other, but not both.
+
+
+
+IncompatibleNonPlanarGraphModel
+---------------------------------------
+
+**Description**
+
+Some models in neuraLQX are only compatible with planar graphs. If you supplied a non-planar graph to such a model, you
+will see this error. To resolve this, use ``non_planar=False`` when instantiating your graph object if it is a pre-defined
+neuraLQX graph class.
+
+
+
+IncompatiblePlanarGraphModel
+---------------------------------------
+
+**Description**
+
+Some models in neuraLQX are only compatible with non-planar graphs. If you supplied a planar graph to such a model, you
+will see this error. To resolve this, use ``non_planar=True`` when instantiating your graph object if it is a pre-defined
+neuraLQX graph class.
+
+
+
+IncompatibleHilbertSpaceError
+---------------------------------------
+
+**Description**
+
+Some models in neuraLQX are particular about the choice of Hilbert spaces. If you supply Hilbert spaces of incorrect type
+(i.e. too many gauge dimensions in Hilbert spaces with Abelian degrees of freedom, you will see this error).
+
+
+
+
+IncompatibleModdedOperatorWarning
+---------------------------------------
+
+**Description**
+
+The Gauß constraint in Abelian models is only available with modded arithmetic in the computational backend. If you
+have requested the gauge group with a ``LocalOperator`` backend and simultaneously requested the ``modded=True``, you
+will see this error. To resolve this, either use ``modded=False`` or switch to the computational backend.
+
+
+
+RandomEmbeddingForPlanarGraphWarning
+---------------------------------------
+
+**Description**
+
+Random embedding is only compatible with non-planar graphs. If you have requested a planar graph with ``random_embedding=True``,
+you will see this warning. This means that the request for random embedding has been ignored. Use non-planar graphs for
+random embeddings if your physical model supports it.
+
+
+LiveMonitoringUnavailableWarning
+---------------------------------------
+
+**Description**
+By default, neuraLQX disables live monitoring in distributed computations, whether it is on CPUs or GPUs. If you see
+this warning, then you have requested live monitoring while running in distributed mode.
+
+
+ComputationalModelConcretizationWarning
+------------------------------------------
+
+**Description**
+Some pre-implemented models in neuraLQX are strictly only computational (or support only computational backends for the
+main constraints). If you see this warning, it means you have requested a local operator backend in a model which does
+not support it.
+
+
+SuboptimalOperatorForGPUWarning
+------------------------------------------
+
+**Description**
+neuraLQX provides both ``ComputationalOperator`` and ``ComputationalJaxOperator`` as computational backends for operators.
+When computing on GPUs, the ``ComputationalOperator`` type is suboptimal in performance and we recommend using the JAX
+variant instead.
+
+If you are using one of neuraLQX's implemented operators, you can find the JAX variant in the ``neuralqx.operators.computational``
+module
+
+.. code-block:: python
+
+   # ComputationalOperator
+   from neuralqx.operators.computational.misc.numba import U1Holonomy
+
+   # ComputationalJaxOperator
+   from neuralqx.operators.computational.misc.jax import U1HolonomyJax
+
+   # alternatively
+   from neuralqx.operators.computational.misc import U1HolonomyOperator
+   op = U1HolonomyOperator(..., jax=True)
+
+If this is a custom operator, consider implementing it as a subclass of ``ComputationalJaxOperator`` for better
+performance on GPUs.

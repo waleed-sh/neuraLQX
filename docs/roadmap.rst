@@ -13,7 +13,7 @@ Where we are today
 -------------------
 
 The current version of neuraLQX focuses on the Abelian :math:`U(1)^N` models of LQG. This is the "simple playground" where
-we can prototype ideas relevant to the full :math:`SU(2)` LQG while leveraging NetKet's mature infrastructure. At the moment,
+we can prototype ideas relevant to the full :math:`SU(2)` LQG while leveraging NetKet's mature and powerful infrastructure. At the moment,
 neuraLQX provides:
 
 - A NetKet-based implementation of :math:`U(1)^N` models for LQG-like systems
@@ -73,12 +73,12 @@ and to keep the interface clean, for any defined model we, by default, offer the
 Medium-term roadmap
 --------------------
 
-The next major qualitative step is to move towards the full :math:`SU(2)` theory. This requires us to introduce a custom Hilbert API
-that is no longer limited by NetKet's current abstractions. Unlike the Abelian theory, in the :math:`SU(2)` theory the edges carry
-:math:`SU(2)` representation labels and the vertices are computationally non-trivial. They host :math:`SU(2)`-invariant tensors
-that impose local gauge invariant. Operators such as the Hamiltonian constraint and volume operators probe this richer structure.
+The next major qualitative step is to move towards the full :math:`SU(2)` theory. This will require neuraLQX to built on
+NetKet's abstract Hilbert API to provide an :math:`SU(2)`-friendly Hilbert space construction where both the edges and
+the vertices carry degrees of freedom which influence one another. The edges in this case carry the usual :math:`SU(2)`
+spins while the vertices must host :math:`SU(2)`-invariant tensors that impose local gauge invariance.
 
-To support this, neuraLQX will introduce its own Hilbert space API which is designed from the ground up for such models, and
+To support this, if need be, neuraLQX will introduce its own Hilbert space API, built from NetKet's abstraction, which is designed from the ground up for such models, and
 supports "backward compatibility" to "simpler" models (where vertices are computationally trivial) such as the existing
 Abelian model. Of course, this requires that the new API be fully compatible with NetKet, so that as long as you stay within
 the supported feature set, you can still use NetKet's optimisers, drivers, and so on, without changing your neuraLQX-level code.
@@ -105,7 +105,7 @@ can be achieved via a Validator. Therefore, they can check local and global admi
 
 Of course, once we can mutate a graph, we need to generate a kinematical Hilbert space on it. Therefore, the Hilbert API
 will see yet another rewriting which allows it to be more dynamic, enabling us to quickly generate spaces on-the-fly, but
-remain friendly to our underlying machinery (aka JAX).
+remain friendly to our underlying machinery (aka JAX and NetKet).
 
 The vision then is once completed, the last step is to tie the sampling and the VMC process together to accommodate for this. Sampling
 is then done in extended configuration space where states are now pairs of (graph, labels) and constraints/operators may act by
@@ -117,15 +117,15 @@ also means that operators will need to expose the ability to also *act on the gr
 Relation to NetKet
 ----------------------------
 
-Throughout this roadmap, we expect the relationship to NetKet to evolve. NetKet provides an **amazing** toolbox for
-quantum systems. However, our demands on the long run will start to ask for more than what NetKet is designed to provide. As
+Throughout this roadmap, we expect the relationship to NetKet to evolve. NetKet provides an **amazing**, state of the art toolbox for
+quantum systems with an extremely rich and mature infrastructure. However, we believe our demands on the long run will start to ask for more than what NetKet is designed to provide **natively**. As
 such
 
-- **Right now:** neuraLQX is tightly built on top of NetKet. NetKet's Hilbert spaces, operators and variational machinery are the backbone of neuraLQX. We simply use it to introduce LQG specific strucutre on top
+- **Right now:** neuraLQX is tightly built on top of NetKet. NetKet's Hilbert spaces, operators and variational machinery are the backbone of neuraLQX. We simply use it to introduce LQG specific strucutre on top.
 
-- **Next:** we want to provide all APIs and LQG operators in a neuraLQX native manner which *still remains compatible with NetKet* but can handle, natively, the demands of LQG. For example, future neuraLQX Hilbert spaces should remain compatible with NetKet.
+- **Next:** we want to provide certain APIs and LQG operators in a neuraLQX native manner which *still remains compatible with NetKet* (ideally built from NetKet abstractions but not if need be) but can handle, natively, the demands of LQG. For example, future neuraLQX Hilbert spaces should remain compatible with NetKet.
 
-- **Later:** as graph dynamics are implemented, the core of neuraLQX will be largely independent. We expect to use NetKet where it fits, but neuraLQX abstractions will be driven primarily by LQG requirements rather than by the limits of existing libraries.
+- **Later:** as graph dynamics are implemented, **if need be**, the core of neuraLQX will be largely independent. We hope to utilise NetKet, as it provides state of the art tools, and thus to use NetKet where it fits. However, neuraLQX abstractions will be driven primarily by LQG requirements rather than by the limits of existing libraries.
 
 
 The user-facing philosophy is to protect your investment in neuraLQX-level code: the goal is that scripts written against high-level neuraLQX API should continue to work and require only minor updates as the backend develops.

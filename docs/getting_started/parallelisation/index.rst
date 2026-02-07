@@ -1,3 +1,5 @@
+.. _parallel_nqx:
+
 =================================
 Parallelisation in neuraLQX
 =================================
@@ -51,11 +53,6 @@ MPI is fine-tuned for CPU based parallelisation, therefore we recommend it be us
 However, it is possible to use MPI for GPU computations although **it may be a tedious process**.
 Once sharding is implemented, that will be the default for GPU based parallelisation and MPI will be
 the default for CPU based parallelisation.
-
-.. note::
-    The GPU based parallelisation as currently available by neuraLQX is consistently around 10%
-    slower than the Jax distributed GPU parallelisation. We are currently working on getting Jax's
-    sharding based parallelisation up and working.
 
 To get started with parallelisation in neuraLQX, please see the following documentations.
 

@@ -1,144 +1,115 @@
-
-.. image:: _static/logo.png
-   :align: center
-   :alt: neuralQX logo
-   :width: 400px
-   :class: no-scaled-link
+:layout: landing
+:description: neuraLQX – High-performance variational simulations for Loop Quantum Gravity
 
 .. raw:: html
 
-   <div style="margin-bottom: 40px;"></div>
+   <style>
+     .btn-primary {
+       background: #14806e;
+       color: white;
+       transition: background 0.2s ease;
+     }
+
+     .btn-primary:hover {
+       background: #1aa08a;
+     }
+
+     .btn-secondary {
+       color: inherit;
+       border: 1px solid rgba(0,0,0,0.25);
+       transition: color 0.2s ease, border-color 0.2s ease;
+     }
+
+     .btn-secondary:hover {
+       color: #14806e;
+       border-color: #14806e;
+     }
+   </style>
+
+
+.. raw:: html
+
+   <div style="max-width:900px; margin:0 auto;">
+
+     <img src="_static/logo.png"
+          alt="neuraLQX logo"
+          style="width:420px; margin-bottom:18px;margin-top:60px;" />
+
+     <div style="font-size:18px; opacity:0.85; margin-bottom:26px;">
+       High-performance simulation toolkit, built on NetKet &amp; JAX,
+       tailored for canonical loop quantum gravity.
+     </div>
+
+
+.. raw:: html
+
+   <div style="display:flex; gap:16px; margin-bottom:82px;">
+     <a href="start.html" style="text-decoration:none; border-bottom:none;">
+       <span class="btn-primary"
+             style="
+               padding:14px 24px;
+               border-radius:999px;
+               font-weight:900;
+               font-size:16px;
+               display:inline-block;
+             ">
+         Get Started
+       </span>
+     </a>
+
+     <a href="documentation/api/index.html" style="text-decoration:none; border-bottom:none;">
+       <span class="btn-secondary"
+             style="
+               padding:14px 24px;
+               border-radius:999px;
+               font-size:16px;
+               display:inline-block;
+             ">
+         API Docs
+       </span>
+     </a>
+   </div>
+
+     <div style="font-size:15px; line-height:1.6; opacity:0.5;">
+       neuraLQX is an open-source Python package for variational canonical loop
+       quantum gravity. It lets you work directly with graphs, Hilbert spaces,
+       gauge groups, and constraints, while leveraging state of the art Monte Carlo methods,
+       automatic differentiation, and scalable optimisation.
+     </div>
+
+   </div>
 
 
 .. toctree::
-   :caption: Contents
-   :maxdepth: 2
+   :caption: Getting Started
+   :maxdepth: 3
    :hidden:
 
    philosophy
    roadmap
-   documentation/index
-   getting_started/parallelisation/index
-   tutorials/index
+   installation
+   config_options
+   citing
+   quickstart.ipynb
+
+
+.. toctree::
+   :caption: Contents
+   :maxdepth: 3
+   :hidden:
+
+   documentation/api/index
+   Tutorials/index
    guides/index
+   getting_started/parallelisation/index
+
+
+.. toctree::
+   :caption: Developers
+   :maxdepth: 3
+   :hidden:
+
    contribute
    change_log
    api_versioning
-
-
-**neuraLQX** is an open-source Python package designed for high-performance simulations of
-canonical loop quantum gravity systems. Built on top of `NetKet <https://github.com/netket/netket.git>`_ [1, 2],
-**neuraLQX** offers a complete and user-friendly environment for applying the machinery of NetKet specifically in the
-context of canonical loop quantum gravity with ease.
-
-.. attention::
-    The package is currently under development and will be released at a later date. Once available, it can be
-    installed via pip. Check back here for the release data later.
-
-    **Release Date:** TBA
-
-
-In the meantime, have a look at the following
-
-.. grid:: 2
-   :gutter: 2
-
-   .. grid-item-card:: 📘 Docs
-      :link: documentation/index.html
-      :text-align: center
-
-   .. grid-item-card:: ⚙️ Guides
-      :link: guides/index.html
-      :text-align: center
-
-   .. grid-item-card:: 🧠 Tutorials
-      :link: guides/tutorials/index.html
-      :text-align: center
-
-   .. grid-item-card:: 💡 Getting Started
-      :link: getting_started/installation.html
-      :text-align: center
-
-Key Features
-============
-
-**Modular and Customizable Design:**
-
-- **Flexible Quantum Models:** Easily construct custom models, including various geometric and quantum operators.
-
-- **Custom Graphs:** Design and implement custom graphs to fit specific needs.
-
-- **Quantum Constraints:** Ready-to-use quantum constraints such as Gauß and Euclidean Hamilton constraints, along with the ability to construct Master-like constraints and solve them using neural networks (see `NQS <https://www.science.org/doi/10.1126/science.aag2302>`_ [3]).
-
-- **Pre-trained Neural Networks:** Includes pre-trained novel neural networks capable of solving constraints across different models, saving time and effort.
-
-
-**Advanced State Characterization and Analysis:**
-
-- **State Characterization Tools:** Analyze states using tools like coloring operators, N-point functions, Rényi entropy, and more.
-
-- **Multiple Hilbert Spaces:** Support for different Hilbert spaces (e.g., tensor product spaces, gauge-invariant subspaces, etc.).
-
-- **Gauge Groups and Spacetime Dimensions:** Choose from different gauge groups and spacetime dimensions, providing flexibility for diverse simulations.
-
-- **Standard Models of Interest:** Implementations of some commonly used models, such as the torus universe, are included for convenience.
-
-**High-Performance Computing (HPC) Friendly and Ease of Use:**
-
-- **Parallelization Support:** Optimized for HPC environments, thanks to NetKet's JAX dependence, allowing for efficient parallel computations.
-
-- **Large Systems:** Ability to study arbitrary graphs and arbitrary DoF cutoffs for certain models.
-
-- **Seamless Installation and Setup:** Modular design enabling bypassing technical difficulties, allowing you to focus on simulating systems rather than dealing with implementation issues.
-
-----
-
-Suggestions
-===========
-
-If you have any ideas or suggestions (for example, useful operators of interest) which you would like us
-to look into implementing, then please let us know by reaching out to us and creating a new post
-`here <https://github.com/waleed-sh/neuraLQX/discussions/new?category=ideas>`_.
-
-P.S. you will need a GitHub account for that.
-
-----
-
-Examples
-========
-
-The package is still under development. However, its functionality has already been put to test. You can read about
-some systems explored using neuraLQX in this `paper <https://arxiv.org/abs/2405.00661>`_ [4] and this
-`paper <https://arxiv.org/abs/2402.10622>`_ [5] too.
-
-You can also see more in-depth examples which showcase some of the intended usage of the package in our
-`tutorials page <https://github.com/waleed-sh/neuraLQX/tree/main/docs/Tutorials>`_. As we are currently under development, these are just Jupyter
-notebooks in our GitHub repository for now...
-
-----
-
-License
-=======
-
-This package will be available under the Apache 2.0 license. You can read about the Apache 2.0 license
-`here <https://github.com/waleed-sh/neuraLQX/blob/main/LICENSE>`_.
-
-----
-
-References
-==========
-
-[1] F. Vicentini and others, “NetKet 3: Machine Learning Toolbox for Many-Body Quantum Systems,” *SciPost Phys. Codeb.*,
-vol. 2022, p. 7, 2022, doi: 10.21468/SciPostPhysCodeb.7.
-
-[2] G. Carleo et al., “NetKet: A machine learning toolkit for many-body quantum systems,” *SoftwareX*, vol. 10, p. 100311,
-Jul. 2019, doi: 10.1016/j.softx.2019.100311.
-
-[3] G. Carleo and M. Troyer, “Solving the quantum many-body problem with artificial neural networks,” *Science*, vol. 355,
-no. 6325, pp. 602–606, 2017, doi: 10.1126/science.aag2302.
-
-[4] H. Sahlmann and W. Sherif, “Towards quantum gravity with neural networks: Solving quantum Hamilton constraints of 3d
-Euclidean gravity in the weak coupling limit,” *Class. Quantum Grav.*, 41 215006 (2024).
-
-[5] H. Sahlmann and W. Sherif, “Towards quantum gravity with neural networks: Solving the quantum Hamilton constraint of
-U(1) BF theory,” *Class. Quantum Grav.*, 41 225014 (2024).
+   experimental/index

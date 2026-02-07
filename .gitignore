@@ -17,6 +17,9 @@ ENV/
 .idea/
 
 docs/_build/
+/docs/TEST_RUN/
+docs/documentation/api/generated
+docs/experimental/api/generated
 
 .DS_Store
 Thumbs.db

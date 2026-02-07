@@ -1,32 +1,38 @@
 
 
-# Configuration file for the Sphinx documentation builder.
 #
-# For the full list of built-in configuration values, see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+#
+#   Configuration file for the Sphinx documentation builder.
 
-import inspect
 import os
 import sys
+import shutil
+import inspect
 
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+os.environ["NQX_EXPERIMENTAL"]="1"
+
+import neuralqx as nqx
+
+ROOT = os.path.abspath("..")
+sys.path.insert(0, ROOT)
+
+#
+#
+#   Project information
 
 project = 'neuraLQX'
-copyright = '2025, The neuraLQX Authors - All Rights Reserved'
+copyright = '2026, The neuraLQX Authors - All Rights Reserved'
 author = 'The neuraLQX Authors'
 
-# change to nqx.__version__ when releasing
-release = '0.0.1'
+release = nqx.__version__
 
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+#
+#
+#   General configuration
 
-# -- General configuration ---------------------------------------------------
 extensions = [
     "sphinx_design",
-    # "myst_parser",
-    "sphinx.ext.autodoc",      # For automatic API docs later
+    "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
     "myst_nb",
@@ -35,24 +41,29 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
-    # "sphinx.ext.linkcode",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.graphviz",
 ]
 
 autodoc_docstring_signature = True
 autodoc_inherit_docstrings = True
+autodoc_default_options = {
+    "members": True,
+    "show-inheritance": True,
+    "imported-members": False,
+}
+autodoc_member_order = "bysource"
 allow_inherited = True
 autosummary_generate = True
 napoleon_preprocess_types = True
 napoleon_attr_annotations = True
-
+toc_object_entries_show_parents = "hide"
+add_module_names = False
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', "**.ipynb_checkpoints", "README.md"]
 source_suffix = [".rst", ".ipynb", ".md"]
 
-# MyST extensions
 myst_enable_extensions = [
     "dollarmath",
     "amsmath",
@@ -62,9 +73,7 @@ myst_enable_extensions = [
     "deflist",
     "fieldlist",
     "tasklist",
-    "colon_fence",  # allows ::: blocks
     "deflist",
-    "html_admonition",
     "html_image",
 ]
 
@@ -73,8 +82,9 @@ mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
 myst_heading_anchors = 2
 autosectionlabel_maxdepth = 1
 
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+#
+#
+#   Options for HTML output
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
@@ -82,45 +92,29 @@ intersphinx_mapping = {
     "netket": ("https://netket.readthedocs.io/en/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
-    # "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "flax": ("https://flax-linen.readthedocs.io/en/latest/", None),
 }
 
 html_theme = 'shibuya'
 html_static_path = ['_static']
-html_title = "neuraLQX"
+html_title = "neuraLQX: high-performance simulations toolkit for LQG"
+html_short_title = "neuraLQX"
 html_logo = "_static/logo_banner_tbg.png"
+html_css_files = [
+    "custom.css",
+]
 # html_favicon = "_static/favicon.ico"
 
 html_theme_options = {
     "light_logo": "_static/logo_banner_tbg.png",
     "dark_logo": "_static/logo_banner_tbg.png",
     "logo_target": "https://neuralqx.readthedocs.io/en/latest/",
+    "github_url": "https://github.com/waleed-sh/neuraLQX.git",
     "accent_color": "teal",
     "color_mode": "light",
     "page_layout": "default",
-    "announcement": "This package is still underdevelopment. Stay tuned for the release!",
-    "globaltoc_expand_depth": 2,
-    # "nav_links": [
-    #     {
-    #         "title": "Examples",
-    #         "url": "writing",
-    #         "children": [
-    #             {
-    #                 "title": "Admonitions",
-    #                 "url": "writing/admonition",
-    #             },
-    #             {
-    #                 "title": "Code Blocks",
-    #                 "url": "writing/code",
-    #             },
-    #             {
-    #                 "title": "Autodoc",
-    #                 "url": "writing/api",
-    #             },
-    #         ]
-    #     },
-    # ]
+    "announcement": "This package is still under development. Stay tuned for the release!",
+    "globaltoc_expand_depth": 0,
 }
 
 nb_execution_mode = "off"
@@ -128,4 +122,62 @@ nb_execution_allow_errors = False
 
 nb_render_markdown_format = "myst"
 nb_merge_streams = True
+
+
+#
+#
+#   Autogenerated public API
+
+HERE = os.path.abspath(os.path.dirname(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, ".."))
+
+sys.path.insert(0, ROOT)
+
+def run_apidoc(app):
+    try:
+        from sphinx.ext.apidoc import main as apidoc_main
+    except Exception:
+        from sphinx.apidoc import main as apidoc_main
+
+    out_dir = os.path.join(HERE, "documentation", "api", "generated")
+    pkg_dir = os.path.join(ROOT, "neuralqx")
+
+    if os.path.isdir(out_dir):
+        shutil.rmtree(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # -f force, -e separate pages, -M module-first
+    apidoc_main([
+        "-f",
+        "-e",
+        "-M",
+        "-o", out_dir,
+        pkg_dir,
+        os.path.join(pkg_dir, "tests"),
+    ])
+
+def skip_imported(app, what, name, obj, skip, options):
+    cur_mod = getattr(app.env, "temp_data", {}).get("autodoc:module")
+    if not cur_mod:
+        return skip
+
+    mod = sys.modules.get(cur_mod)
+
+    allow = getattr(mod, "__all__", None)
+    if allow is not None:
+        return False if name in allow else True
+
+    obj_mod = getattr(obj, "__module__", None)
+    if obj_mod and obj_mod != cur_mod:
+        return True
+
+    if inspect.ismodule(obj):
+        return True
+
+    return skip
+
+def setup(app):
+    app.connect("builder-inited", run_apidoc)
+    app.connect("autodoc-skip-member", skip_imported)
+
 

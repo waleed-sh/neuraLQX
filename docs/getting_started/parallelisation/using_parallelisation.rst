@@ -1,3 +1,5 @@
+.. _using_parallelisation:
+
 =================================
 Using neuraLQX in Parallel
 =================================

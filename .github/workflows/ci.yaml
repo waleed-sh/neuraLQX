@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'main') }}
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Ubuntu (unit tests)"
+            os: ubuntu-latest
+            python-version: "3.13"
+            kind: "main"
+            mpi: false
+
+          - name: "macOS (unit tests)"
+            os: macos-latest
+            python-version: "3.13"
+            kind: "main"
+            mpi: false
+
+          - name: "MPI (Ubuntu)"
+            os: ubuntu-latest
+            python-version: "3.13"
+            kind: "mpi"
+            mpi: true
+
+          - name: "Doctests"
+            os: ubuntu-latest
+            python-version: "3.13"
+            kind: "doctest"
+            mpi: false
+
+    env:
+      NQX_TESTING: "1"
+      NQX_EXPERIMENTAL: "1"
+      NETKET_EXPERIMENTAL: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-tags: true
+
+      - name: Set up uv + Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # MPI toolchain must exist before installing mpi extras (mpi4jax may need mpicc)
+      - name: Install MPI toolchain (Ubuntu MPI job only)
+        if: ${{ matrix.kind == 'mpi' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mpich
+          which mpicc
+          mpicc --version
+
+      - name: Install dependencies (non-MPI)
+        if: ${{ matrix.kind == 'main' }}
+        run: |
+          uv sync --extra dev
+
+      - name: Install dependencies (MPI)
+        if: ${{ matrix.kind == 'mpi' }}
+        env:
+          PATH: /usr/bin:${{ env.PATH }}
+          MPI4JAX_BUILD_MPICC: /usr/bin/mpicc
+          MPICC: /usr/bin/mpicc
+        run: |
+          uv sync --extra dev --extra mpi
+
+      - name: Main tests (non-MPI)
+        if: ${{ matrix.kind == 'main' }}
+        run: |
+          uv run pytest -m "not mpi" --cov=neuralqx --cov-report=xml
+
+      - name: MPI tests
+        if: ${{ matrix.kind == 'mpi' }}
+        env:
+          NQX_MPI: "1"
+          NQX_MPI_TESTS: "1"
+          NQX_TESTING_MPI: "1"
+        run: |
+          mpirun -n 2 uv run pytest -m "mpi" --no-cov
+
+      - name: Doc tests
+        if: ${{ matrix.kind == 'doctest' }}
+        run: |
+          uv run pytest --cov=neuralqx --cov-append --doctest-continue-on-failure --doctest-modules neuralqx/
+
+      - name: Upload coverage artifact
+        if: always() && !matrix.mpi
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.name }}
+          path: coverage.xml
