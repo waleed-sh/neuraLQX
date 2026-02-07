@@ -4,12 +4,6 @@
 Installing neuraLQX
 ====================
 
-
-.. warning::
-
-   **This package is still under development and is set to be released soon.** The install instructions below are currently
-   non-functional!
-
 This page explains how to install **neuraLQX** for typical *local* development and usage (laptop/workstation).
 It focuses on the standard serial install and the most common optional extras, and intentionally avoids
 cluster/HPC-specific workflows.

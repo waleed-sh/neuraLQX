@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/_static/logo.png" alt="neuraLQX logo" width="420" />
+  <img src="docs/_static/_logo.png" alt="neuraLQX logo" width="420" />
 </div>
 
 <div align="center">
@@ -26,8 +26,6 @@ available in an API that speaks the language of LQG.
 
 
 ## Installation
-
-> **Status:** the package is still under active development, and is not released yet.
 
 neuraLQX requires **Python ≥ 3.11**.
 

@@ -1,4 +1,4 @@
-.. image:: _static/logo.png
+.. image:: _static/_logo.png
    :align: center
    :alt: neuralQX logo
    :width: 400px
@@ -58,12 +58,6 @@
 .. raw:: html
 
    </div>
-
-.. attention::
-    The package is currently under development and will be released at a later date. Once available, it can be
-    installed via pip. Check back here for the release data later.
-
-    **Release Date:** TBA
 
 
 What is neuraLQX?
@@ -193,9 +187,6 @@ P.S. you will need a GitHub account.
 
 Examples
 =========
-
-The package is still under development, but its core functionality has already been used in real workflows.
-For a taste of the kind of systems neuraLQX targets, see the papers linked from the repository and the tutorial material.
 
 You can also find more hands-on examples in the tutorials area. During development, some tutorial content may live as notebooks
 in the GitHub repository before it is fully integrated into Read the Docs.
