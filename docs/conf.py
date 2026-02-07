@@ -11,10 +11,19 @@ import inspect
 
 os.environ["NQX_EXPERIMENTAL"]="1"
 
-import neuralqx as nqx
-
-ROOT = os.path.abspath("..")
+HERE = os.path.abspath(os.path.dirname(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, ".."))
 sys.path.insert(0, ROOT)
+
+try:
+    import neuralqx as nqx
+    _RELEASE = nqx.__version__
+except Exception:
+    # If importing fails (missing optional deps etc.), avoid a hard crash here.
+    # Autodoc may still fail later if it needs imports, but this gives clearer logs.
+    nqx = None
+    _RELEASE = "unknown"
+
 
 #
 #
@@ -24,7 +33,7 @@ project = 'neuraLQX'
 copyright = '2026, The neuraLQX Authors - All Rights Reserved'
 author = 'The neuraLQX Authors'
 
-release = nqx.__version__
+release = _RELEASE
 
 #
 #
@@ -113,7 +122,6 @@ html_theme_options = {
     "accent_color": "teal",
     "color_mode": "light",
     "page_layout": "default",
-    "announcement": "This package is still under development. Stay tuned for the release!",
     "globaltoc_expand_depth": 0,
 }
 
