@@ -117,16 +117,6 @@ class MultiHamiltonianRuleJax(MetropolisRule):
 
     Acceptance log-correction uses only operator i (auxiliary-variable MH),
     ensuring detailed balance without summing over operators.
-
-    Parameters
-    ----------
-    operators : Sequence[DiscreteJaxOperator]
-        List/tuple of JAX operators (e.g. `ComputationalJaxOperator`, `LocalOperatorJax`).
-    p_ops : array-like, shape (K,), optional
-        Probabilities to pick each operator. Defaults to uniform.
-    choose_per_chain : bool
-        If False (default), a single operator index is drawn for the whole batch
-        per sweep (fastest). If True, each chain draws its own operator.
     """
 
     operators: tuple = struct.field(pytree_node=False)

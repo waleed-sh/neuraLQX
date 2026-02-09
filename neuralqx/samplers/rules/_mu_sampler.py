@@ -20,7 +20,10 @@ import jax.numpy as jnp
 from netket.sampler.rules import MetropolisRule
 from netket.utils import struct
 
+from neuralqx.utils.experimental import experimental
 
+
+@experimental
 @struct.dataclass
 class MuSampler(MetropolisRule):
     """
@@ -119,4 +122,5 @@ class MuSampler(MetropolisRule):
         σp = vmap(enforce_forbidden_per_chain)((σp, keys_enf))
 
         # no log corr here, just flips
+        # dev: we need a logprob correction here
         return σp, None
