@@ -117,16 +117,15 @@ def _hv_kernel(
 ):
     sigma = jnp.asarray(sigma, dtype=jnp.int32)
 
-    leading = sigma.shape[:-1]  # python tuple of ints (static)
-    D = sigma.shape[-1]  # python int (static)
+    leading = sigma.shape[:-1]
+    D = sigma.shape[-1]
 
-    # ✅ No int(jnp.prod(...)) anywhere
-    sig0 = sigma.reshape((-1, D))  # (M, D) where M is inferred
+    sig0 = sigma.reshape((-1, D))
 
-    T = weight.shape[0]  # python int (static)
-    C = 3 * T  # python int (static)
+    T = weight.shape[0]
+    C = 3 * T
 
-    s0 = _sqrt_volume_2p1(sig0, vol_c1, vol_c2, vol_s)  # (M,)
+    s0 = _sqrt_volume_2p1(sig0, vol_c1, vol_c2, vol_s)
 
     # outputs
     sigp = jnp.broadcast_to(sig0[:, None, :], (sig0.shape[0], C, D)).copy()

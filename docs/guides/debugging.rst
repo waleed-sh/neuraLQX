@@ -6,7 +6,7 @@ Debugging in neuraLQX
 
 neuraLQX ships with a built-in debugging and instrumentation layer designed for
 scientific / HPC workloads (MPI, long runs, lots of nested calls). It is *opt-in*
-and controlled entirely through environment variables (or your ``cfg`` wrapper).
+and controlled entirely through environment variables.
 
 What you get when it's enabled
 =================================

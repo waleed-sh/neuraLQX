@@ -31,7 +31,7 @@
 
    <div style="max-width:900px; margin:0 auto;">
 
-     <img src="_static/logo.png"
+     <img src="_static/_logo.png"
           alt="neuraLQX logo"
           style="width:420px; margin-bottom:18px;margin-top:60px;" />
 

@@ -512,12 +512,9 @@ Indexing is useful in many places.
 
 NetKet can index many Hilbert spaces, but neuraLQX targets regimes where dimensions are
 often astronomically large. For this reason it provides indexing utilities that mirror NetKet's
-behavior where possible and remain available beyond NetKet's indexability limits.
+behavior where possible and remain available beyond NetKet's indexability limits. Note that these methods are fully
+compatible to be used in jitted JAX routines and in JAX transformations.
 
-.. important::
-
-   Currently, the indexing methods provided by neuraLQX are **not** JAX just-in-time friendly. This is a feature still
-   under development.
 
 Public API
 ~~~~~~~~~~

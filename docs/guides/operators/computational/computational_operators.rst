@@ -240,7 +240,7 @@ Your kernel must return something that behaves like:
 
 with a fixed, operator-defined ``n_conn``.
 
-A good mental model is: "I am implementing the right-hand side of
+**For the sake of simplicity, we will consider the ket action in what follows**. In that case, a good mental model is: "I am implementing the right-hand side of
 :math:`\hat O|\sigma\rangle = \sum_k O_k(\sigma)\,|\sigma'_k\rangle`
 directly."
 
