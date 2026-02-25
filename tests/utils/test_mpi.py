@@ -14,12 +14,17 @@
 
 
 import os
+import sys
+
 import importlib
 from types import SimpleNamespace
 
 import pytest
 
 import numpy as np
+
+pytest.importorskip("jax")
+import jax.numpy as jnp
 
 if os.environ.get("NQX_MPI_TESTS", "0") != "1":
     pytest.skip(
@@ -118,6 +123,104 @@ class _CommSpy:
         return xs[self._rank]
 
 
+class _MPI4JaxSpy:
+
+    def __init__(self):
+        self.calls = []
+
+    def _size(self, comm):
+        return comm.Get_size() if hasattr(comm, "Get_size") else 1
+
+    def _rank(self, comm):
+        return comm.Get_rank() if hasattr(comm, "Get_rank") else 0
+
+    def allreduce(self, x, op=None, comm=None, token=None):
+        arr = jnp.asarray(x)
+        size = self._size(comm)
+
+        if op == _MPISpy.SUM:
+            out = arr * size
+        elif op == _MPISpy.PROD:
+            out = arr**size
+        elif op == _MPISpy.MAX:
+            out = arr
+        elif op == _MPISpy.LOR:
+            out = arr.astype(bool)
+        elif op == _MPISpy.LAND:
+            out = arr.astype(bool)
+        else:
+            out = arr
+
+        self.calls.append(
+            {
+                "fn": "allreduce",
+                "op": op,
+                "comm": comm,
+                "token": token,
+            }
+        )
+        return out, token
+
+    def bcast(self, x, token=None, root=0, comm=None):
+        out = jnp.asarray(x)
+        self.calls.append(
+            {
+                "fn": "bcast",
+                "root": root,
+                "comm": comm,
+                "token": token,
+            }
+        )
+        return out, token
+
+    def allgather(self, x, token=None, comm=None):
+        arr = jnp.asarray(x)
+        size = self._size(comm)
+        out = jnp.asarray(np.broadcast_to(np.asarray(arr), (size,) + arr.shape))
+        self.calls.append(
+            {
+                "fn": "allgather",
+                "comm": comm,
+                "token": token,
+            }
+        )
+        return out, token
+
+    def gather(self, x, token=None, root=0, comm=None):
+        arr = jnp.asarray(x)
+        size = self._size(comm)
+        rnk = self._rank(comm)
+
+        if rnk == root:
+            out = jnp.asarray(np.broadcast_to(np.asarray(arr), (size,) + arr.shape))
+        else:
+            out = None
+
+        self.calls.append(
+            {
+                "fn": "gather",
+                "root": root,
+                "comm": comm,
+                "token": token,
+            }
+        )
+        return out, token
+
+    def scatter(self, x, root=0, token=None, comm=None):
+        arr = jnp.asarray(x)
+        rnk = self._rank(comm)
+        out = arr[rnk]
+        self.calls.append(
+            {
+                "fn": "scatter",
+                "root": root,
+                "comm": comm,
+                "token": token,
+            }
+        )
+        return out, token
+
+
 @pytest.fixture
 def mpi_core():
     return core
@@ -146,11 +249,25 @@ def simulated_collectives(monkeypatch):
     return comm
 
 
+@pytest.fixture
+def simulated_jax_collectives(monkeypatch):
+    comm = _CommSpy(size=4, rank=0)
+    mpi4jax_spy = _MPI4JaxSpy()
+
+    monkeypatch.setattr(primitives, "MPI", _MPISpy, raising=True)
+    monkeypatch.setattr(primitives, "comm_jax", comm, raising=True)
+    monkeypatch.setattr(primitives, "n_nodes", 4, raising=True)
+    monkeypatch.setitem(sys.modules, "mpi4jax", mpi4jax_spy)
+
+    return comm, mpi4jax_spy
+
+
 @pytest.mark.mpi
 def test_core_public_surface_exports(mpi_core):
     for name in [
         "MPI",
         "comm",
+        "comm_jax",
         "available",
         "n_nodes",
         "rank",
@@ -420,8 +537,9 @@ def test_mpi_gather_ndarray_nonroot_returns_none(
 ):
     x = np.array([1, 2, 3], dtype=np.float64)
 
-    monkeypatch.setattr(mpi_primitives, "rank", 1, raising=True)
-    out = mpi_primitives.mpi_gather(x, root=0)
+    comm = _CommSpy(size=4, rank=1)
+    monkeypatch.setattr(mpi_primitives, "comm", comm, raising=True)
+    out = mpi_primitives.mpi_gather(x, root=0, communicator=comm)
     assert out is None
 
 
@@ -585,3 +703,325 @@ def test_helpers_tqdm_enabled_on_rank0(monkeypatch, mpi_helpers):
         assert getattr(bar, "disable", None) in (False, None)
     finally:
         bar.close()
+
+
+@pytest.mark.mpi
+def test_mpi_sum_prod_max_jax_branches(simulated_jax_collectives, mpi_primitives):
+    _, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([1.0, 2.0])
+    out_sum, tok_sum = mpi_primitives.mpi_sum_jax(x, token="t0")
+    assert np.allclose(np.asarray(out_sum), np.asarray([4.0, 8.0]))
+    assert tok_sum == "t0"
+
+    out_prod, tok_prod = mpi_primitives.mpi_prod_jax(jnp.array([2.0, 3.0]), token="t1")
+    assert np.allclose(np.asarray(out_prod), np.asarray([2.0, 3.0]) ** 4)
+    assert tok_prod == "t1"
+
+    out_max, tok_max = mpi_primitives.mpi_max_jax(jnp.array([5.0, -1.0]), token="t2")
+    assert np.allclose(np.asarray(out_max), np.asarray([5.0, -1.0]))
+    assert tok_max == "t2"
+
+    ops = [c["op"] for c in mpi4jax_spy.calls if c["fn"] == "allreduce"]
+    assert ops[:3] == [_MPISpy.SUM, _MPISpy.PROD, _MPISpy.MAX]
+
+
+@pytest.mark.mpi
+def test_mpi_mean_jax_is_sum_div_n_nodes(simulated_jax_collectives, mpi_primitives):
+    _, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([3.0, 7.0])
+    out, tok = mpi_primitives.mpi_mean_jax(x, token="mean_tok")
+
+    assert np.allclose(np.asarray(out), np.asarray([3.0, 7.0]))
+    assert tok == "mean_tok"
+
+    last = [c for c in mpi4jax_spy.calls if c["fn"] == "allreduce"][-1]
+    assert last["op"] == _MPISpy.SUM
+
+
+@pytest.mark.mpi
+def test_mpi_any_all_jax_returns_bool(simulated_jax_collectives, mpi_primitives):
+    _, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([1, 0, 1])
+    out_any, tok_any = mpi_primitives.mpi_any_jax(x, token="a")
+    out_all, tok_all = mpi_primitives.mpi_all_jax(x, token="b")
+
+    assert np.asarray(out_any).dtype == np.bool_
+    assert np.asarray(out_all).dtype == np.bool_
+    assert np.all(np.asarray(out_any) == np.array([True, False, True]))
+    assert np.all(np.asarray(out_all) == np.array([True, False, True]))
+    assert tok_any == "a"
+    assert tok_all == "b"
+
+    ops = [c["op"] for c in mpi4jax_spy.calls if c["fn"] == "allreduce"]
+    assert _MPISpy.LOR in ops
+    assert _MPISpy.LAND in ops
+
+
+@pytest.mark.mpi
+def test_mpi_bcast_jax_calls_mpi4jax_with_root(
+    simulated_jax_collectives, mpi_primitives
+):
+    comm, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([10, 20])
+    out, tok = mpi_primitives.mpi_bcast_jax(x, root=2, token="btok")
+
+    assert np.all(np.asarray(out) == np.array([10, 20]))
+    assert tok == "btok"
+
+    last = mpi4jax_spy.calls[-1]
+    assert last["fn"] == "bcast"
+    assert last["root"] == 2
+    assert last["comm"] is comm
+    assert last["token"] == "btok"
+
+
+@pytest.mark.mpi
+def test_mpi_allgather_jax_shape(simulated_jax_collectives, mpi_primitives):
+    comm, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([9, 10], dtype=jnp.int32)
+    out, tok = mpi_primitives.mpi_allgather_jax(x, token="gtok")
+
+    assert out.shape == (4, 2)
+    assert np.all(np.asarray(out[0]) == np.array([9, 10]))
+    assert np.all(np.asarray(out[3]) == np.array([9, 10]))
+    assert tok == "gtok"
+
+    last = mpi4jax_spy.calls[-1]
+    assert last["fn"] == "allgather"
+    assert last["comm"] is comm
+    assert last["token"] == "gtok"
+
+
+@pytest.mark.mpi
+def test_mpi_gather_jax_root_gets_stack(simulated_jax_collectives, mpi_primitives):
+    comm, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([1, 2, 3], dtype=jnp.float32)
+    out, tok = mpi_primitives.mpi_gather_jax(x, root=0, token="gath_tok")
+
+    assert out is not None
+    assert out.shape == (4, 3)
+    assert np.all(np.asarray(out[2]) == np.array([1, 2, 3], dtype=np.float32))
+    assert tok == "gath_tok"
+
+    last = mpi4jax_spy.calls[-1]
+    assert last["fn"] == "gather"
+    assert last["root"] == 0
+    assert last["comm"] is comm
+
+
+@pytest.mark.mpi
+def test_mpi_gather_jax_nonroot_returns_none(monkeypatch, mpi_primitives):
+    comm = _CommSpy(size=4, rank=1)
+    mpi4jax_spy = _MPI4JaxSpy()
+
+    monkeypatch.setattr(primitives, "MPI", _MPISpy, raising=True)
+    monkeypatch.setattr(primitives, "n_nodes", 4, raising=True)
+    monkeypatch.setattr(primitives, "comm_jax", comm, raising=True)
+    monkeypatch.setitem(sys.modules, "mpi4jax", mpi4jax_spy)
+
+    x = jnp.array([1, 2, 3], dtype=jnp.float32)
+    out, tok = mpi_primitives.mpi_gather_jax(
+        x, root=0, token="nr_tok", communicator=comm
+    )
+
+    assert out is None
+    assert tok == "nr_tok"
+
+
+@pytest.mark.mpi
+def test_mpi_scatter_jax_parallel_returns_local_slice(
+    simulated_jax_collectives, mpi_primitives
+):
+    comm, mpi4jax_spy = simulated_jax_collectives
+
+    x = jnp.array([[10, 11], [20, 21], [30, 31], [40, 41]])
+    out, tok = mpi_primitives.mpi_scatter_jax(x, root=0, token="stok")
+
+    assert np.all(np.asarray(out) == np.array([10, 11]))
+    assert tok == "stok"
+
+    last = mpi4jax_spy.calls[-1]
+    assert last["fn"] == "scatter"
+    assert last["root"] == 0
+    assert last["comm"] is comm
+
+
+@pytest.mark.mpi
+def test_mpi_scatter_jax_parallel_nonroot_uses_rank(monkeypatch, mpi_primitives):
+    comm = _CommSpy(size=4, rank=2)
+    mpi4jax_spy = _MPI4JaxSpy()
+
+    monkeypatch.setattr(primitives, "MPI", _MPISpy, raising=True)
+    monkeypatch.setattr(primitives, "n_nodes", 4, raising=True)
+    monkeypatch.setattr(primitives, "comm_jax", comm, raising=True)
+    monkeypatch.setitem(sys.modules, "mpi4jax", mpi4jax_spy)
+
+    x = jnp.array([[10], [20], [30], [40]])
+    out, tok = mpi_primitives.mpi_scatter_jax(
+        x, root=0, token="stok2", communicator=comm
+    )
+
+    assert np.all(np.asarray(out) == np.array([30]))
+    assert tok == "stok2"
+
+
+@pytest.mark.mpi
+def test_primitives_serial_reductions_jax_return_input_and_token(
+    monkeypatch, mpi_primitives
+):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    token = object()
+    x = jnp.array([1.0, 2.0])
+
+    s, t1 = mpi_primitives.mpi_sum_jax(x, token=token)
+    p, t2 = mpi_primitives.mpi_prod_jax(x, token=token)
+    m, t3 = mpi_primitives.mpi_max_jax(x, token=token)
+    mean, t4 = mpi_primitives.mpi_mean_jax(x, token=token)
+
+    assert np.allclose(np.asarray(s), np.asarray([1.0, 2.0]))
+    assert np.allclose(np.asarray(p), np.asarray([1.0, 2.0]))
+    assert np.allclose(np.asarray(m), np.asarray([1.0, 2.0]))
+    assert np.allclose(np.asarray(mean), np.asarray([1.0, 2.0]))
+
+    assert t1 is token
+    assert t2 is token
+    assert t3 is token
+    assert t4 is token
+
+
+@pytest.mark.mpi
+def test_primitives_serial_logical_jax_return_input_and_token(
+    monkeypatch, mpi_primitives
+):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    token = object()
+    x = jnp.array([True, False, True])
+
+    a, t1 = mpi_primitives.mpi_any_jax(x, token=token)
+    b, t2 = mpi_primitives.mpi_all_jax(x, token=token)
+
+    assert np.all(np.asarray(a) == np.array([True, False, True]))
+    assert np.all(np.asarray(b) == np.array([True, False, True]))
+    assert t1 is token
+    assert t2 is token
+
+
+@pytest.mark.mpi
+def test_primitives_serial_bcast_jax_returns_input(monkeypatch, mpi_primitives):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    token = object()
+    x = np.array([7, 8, 9])
+
+    out, tok = mpi_primitives.mpi_bcast_jax(x, root=0, token=token)
+    assert np.all(np.asarray(out) == np.array([7, 8, 9]))
+    assert tok is token
+
+
+@pytest.mark.mpi
+def test_primitives_serial_bcast_jax_requires_root_zero(monkeypatch, mpi_primitives):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    with pytest.raises(AssertionError):
+        mpi_primitives.mpi_bcast_jax(jnp.array([1, 2]), root=1)
+
+
+@pytest.mark.mpi
+def test_primitives_serial_allgather_jax_shape(monkeypatch, mpi_primitives):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    token = object()
+    x = jnp.array([3, 4, 5], dtype=jnp.int32)
+    out, tok = mpi_primitives.mpi_allgather_jax(x, token=token)
+
+    assert out.shape == (1, 3)
+    assert np.all(np.asarray(out[0]) == np.array([3, 4, 5]))
+    assert tok is token
+
+
+@pytest.mark.mpi
+def test_primitives_serial_gather_jax_shape(monkeypatch, mpi_primitives):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    token = object()
+    x = jnp.array([7, 8], dtype=jnp.int32)
+    out, tok = mpi_primitives.mpi_gather_jax(x, root=0, token=token)
+
+    assert out.shape == (1, 2)
+    assert np.all(np.asarray(out[0]) == np.array([7, 8]))
+    assert tok is token
+
+
+@pytest.mark.mpi
+def test_primitives_serial_scatter_jax(monkeypatch, mpi_primitives):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    token = object()
+    x = jnp.array([[42, 43]])
+    out, tok = mpi_primitives.mpi_scatter_jax(x, root=0, token=token)
+
+    assert np.all(np.asarray(out) == np.array([42, 43]))
+    assert tok is token
+
+
+@pytest.mark.mpi
+def test_primitives_serial_scatter_jax_invalid_shape(monkeypatch, mpi_primitives):
+    monkeypatch.setattr(mpi_primitives, "n_nodes", 1, raising=True)
+
+    x = jnp.array([[1, 2], [3, 4]])
+    with pytest.raises(ValueError, match="Invalid input shape for scattering"):
+        mpi_primitives.mpi_scatter_jax(x, root=0)
+
+
+@pytest.mark.skipif(
+    core.n_nodes < 2, reason="Run under mpiexec -n>1 to exercise real JAX collectives."
+)
+@pytest.mark.mpi
+def test_real_mpi_sum_jax_matches_expected_across_ranks():
+    pytest.importorskip("mpi4jax")
+
+    x = jnp.array(core.rank + 1, dtype=jnp.int64)
+    out, _ = primitives.mpi_sum_jax(x)
+
+    expected = np.array((core.n_nodes * (core.n_nodes + 1)) // 2, dtype=np.int64)
+    assert np.asarray(out) == expected
+
+
+@pytest.mark.skipif(
+    core.n_nodes < 2, reason="Run under mpiexec -n>1 to exercise real JAX allgather."
+)
+@pytest.mark.mpi
+def test_real_mpi_allgather_jax_shape_and_values():
+    pytest.importorskip("mpi4jax")
+
+    x = jnp.array([core.rank], dtype=jnp.int64)
+    out, _ = primitives.mpi_allgather_jax(x)
+
+    assert out.shape == (core.n_nodes, 1)
+    assert np.all(np.asarray(out[:, 0]) == np.arange(core.n_nodes))
+
+
+@pytest.mark.skipif(
+    core.n_nodes < 2, reason="Run under mpiexec -n>1 to exercise real JAX bcast."
+)
+@pytest.mark.mpi
+def test_real_mpi_bcast_jax_roundtrip():
+    pytest.importorskip("mpi4jax")
+
+    root = 0
+    x = (
+        jnp.array([123, 456], dtype=jnp.int64)
+        if core.rank == root
+        else jnp.array([0, 0], dtype=jnp.int64)
+    )
+    out, _ = primitives.mpi_bcast_jax(x, root=root)
+
+    assert np.all(np.asarray(out) == np.array([123, 456]))

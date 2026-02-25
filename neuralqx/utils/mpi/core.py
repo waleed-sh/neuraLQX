@@ -71,6 +71,7 @@ if _mpi4py_available:
             # these are module-level constants in netket.utils.mpi
             from netket.utils.mpi import (
                 MPI_py_comm as _NK_COMM,
+                MPI_jax_comm as _NK_JAX_COMM,
                 rank as _NK_RANK,
                 n_nodes as _NK_SIZE,
             )
@@ -78,6 +79,7 @@ if _mpi4py_available:
             # sanity check: NetKet might be present but MPI disabled there
             if _NK_COMM is not None:
                 comm = _NK_COMM
+                comm_jax = _NK_JAX_COMM
                 rank = int(_NK_RANK)
                 n_nodes = int(_NK_SIZE)
                 _USE_NETKET_MPI = True
@@ -93,7 +95,8 @@ if _mpi4py_available:
         NetKetMPIUnavailableWarning()
 
         # NOTE: Dup() is safer than Clone() with some CUDA-aware MPI stacks
-        comm = MPI.COMM_WORLD.Dup()
+        comm = MPI.COMM_WORLD.Create(MPI.COMM_WORLD.Get_group())
+        comm_jax = MPI.COMM_WORLD.Create(MPI.COMM_WORLD.Get_group())
         n_nodes = comm.Get_size()
         rank = comm.Get_rank()
 
@@ -183,6 +186,7 @@ else:
     # initialise the fake MPI
     MPI = FakeMPI  # type: ignore[assignment]
     comm = FakeMPI.COMM_WORLD  # type: ignore[assignment]
+    comm_jax = FakeMPI.COMM_WORLD  # type: ignore[assignment]
     n_nodes: int = 1
     rank: int = 0
     node_number: int = 0
@@ -303,6 +307,7 @@ def detect_cpus_per_task() -> int:
 __all__ = [
     "MPI",
     "comm",
+    "comm_jax",
     "available",
     "n_nodes",
     "rank",
