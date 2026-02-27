@@ -498,15 +498,22 @@ class AbstractSolver(abc.ABC):
             )
 
     def _clean_up(self):
-        """Delete all empty directories in the output path"""
+        """Delete all empty directories in the output path, except the current run directory."""
 
         # rank-0 only
         if not _mpi.is_global_master():
             return
 
+        current_run_dir = os.path.join(self.output_path, str(self.hash))
+
         for root, dirs, files in os.walk(self.output_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
+
+                # never delete the current run directory
+                if os.path.abspath(dir_path) == os.path.abspath(current_run_dir):
+                    continue
+
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
 
