@@ -43,7 +43,7 @@ import netket as nk
 from netket.utils import StaticRange
 
 from neuralqx.graph.core import AbstractGraph
-from .utils.layout import GaugeLayout
+from .utils.layout import StridedGaugeCopyLayout
 from .utils.index import states_to_numbers as _states_to_numbers
 from .utils.index import numbers_to_states as _numbers_to_states
 from neuralqx.debug import event
@@ -316,7 +316,7 @@ class AbstractHilbertSpace(abc.ABC):
         return self._hilbert
 
     @property
-    def layout(self) -> GaugeLayout:
+    def layout(self) -> StridedGaugeCopyLayout:
         """
         Gauge layout describing the block structure of the flattened configuration.
 
@@ -328,10 +328,10 @@ class AbstractHilbertSpace(abc.ABC):
 
         where each block :math:`\\sigma^{(g)}` contains :math:`E` edge sites.
 
-        :return: A :class:`~neuralqx.hilbert.utils.layout.GaugeLayout` instance.
+        :return: A :class:`~neuralqx.hilbert.utils.layout.StridedGaugeCopyLayout` instance.
         """
 
-        return GaugeLayout(
+        return StridedGaugeCopyLayout(
             edges_per_copy=self.tiny_size, gauge_dimensions=self.gauge_dimensions
         )
 
@@ -369,7 +369,7 @@ class AbstractHilbertSpace(abc.ABC):
         """
 
         edge_idx = self.graph.edge_to_index(edge)
-        return self.layout.site(edge_idx, gauge_copy=gauge_copy)
+        return self.layout.encode(gauge_copy=gauge_copy, edge_index=edge_idx)
 
     def site_to_edge(self, site: int):
         """
@@ -380,7 +380,8 @@ class AbstractHilbertSpace(abc.ABC):
             ``graph.index_to_edge``.
         """
 
-        gd, edge_idx = self.layout.decode(site)
+        _coord = self.layout.coord_of(site)
+        gd, edge_idx = _coord.gauge_copy, _coord.edge_index
         return gd, self.graph.index_to_edge(edge_idx)
 
     def view(self, sigma: jax.Array) -> jax.Array:

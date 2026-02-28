@@ -157,22 +157,34 @@ you should always use the same key convention that the graph exposes.
 Gauge-strided flattening
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Let:
 
-* ``E`` = number of edges in the graph (one gauge copy),
-* ``G`` = ``gauge_dimensions``.
+Let
 
-Then a single configuration is a 1D array of length ``N = G*E``. neuraLQX stores it as
-``G`` contiguous blocks of length ``E``: ``[copy 0 | copy 1 | ... | copy G-1]``.
+* ``E`` be the number of edges in one gauge copy
+* ``G`` be ``gauge_dimensions``
 
+Then a single flattened configuration is a 1D array of length ``N = G * E``. In the strided gauge-copy layout used by neuraLQX, the data is stored as ``G`` contiguous blocks of length ``E``,
 
-A small helper (the ``GaugeLayout`` class) defines the forward/backward index maps
+``[copy 0 | copy 1 | ... | copy G-1]``.
 
-* ``site(e, g) = g*E + e``
+The concrete implementation is :class:`StridedGaugeCopyLayout`, which is a subclass of the more general :class:`AbstractBasisLayout` abstraction. This layout defines the forward and backward maps between structured gauge coordinates and flattened site indices:
+
+* ``encode(g, e) = g * E + e``
 * ``decode(s) -> (g, e)``
 
-This convention shows up *everywhere*, in sampling, move proposals, constraint reimposition, and indexing routines all
-rely on the same layout to avoid subtle off-by-block errors.
+where ``g`` is the gauge-copy index and ``e`` is the within-copy edge index.
+
+For layout-agnostic code, the generic API is also available:
+
+* ``site_of(GaugeCoord(g, e)) -> s``
+* ``coord_of(s) -> GaugeCoord(g, e)``
+
+.. note::
+
+   The legacy helper ``site(e, g)`` is retained temporarily for backward compatibility, but it is deprecated and will be removed in a future release. Use ``encode(g, e)`` instead. The new API keeps the argument order consistent with ``decode(s) -> (g, e)``.
+
+This convention appears throughout the codebase, including sampling, move proposals, constraint reimposition, and indexing utilities. Centralizing the layout logic avoids subtle off-by-block errors and keeps flattening semantics consistent across components.
+
 
 Reshaping helpers: ``view`` and ``flatten``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

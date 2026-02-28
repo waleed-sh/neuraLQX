@@ -35,11 +35,15 @@ NOTE: part(s) of, or the entire content, of this file is obtained from NetKet's 
       the original copyright mentioned above applies.
 """
 
-import warnings
 import functools
 import inspect
+import warnings
 from textwrap import dedent
+from typing import TypeVar
+from typing import Callable
 
+# TODO: move to types
+T = TypeVar("T", bound=type)
 
 def deprecated(
     reason: str = None,
@@ -202,3 +206,87 @@ def parameter_name_deprecation(
         return deprecated_function
 
     return deprecated_decorator
+
+
+def deprecated_class(
+    reason: str | None = None,
+    class_name: str | None = None,
+    *,
+    category: type[Warning] = FutureWarning,
+    warn_on_subclasses: bool = False,
+    stacklevel: int = 2,
+) -> Callable[[T], T]:
+    """
+    Decorator to mark a class as deprecated.
+
+    Unlike function-style deprecation decorators, this decorator preserves the class object
+    (so ``isinstance``, subclassing, and introspection continue to work) and emits a warning
+    when the class is instantiated.
+
+    The warning is emitted from a wrapped ``__init__`` method.
+
+    :param reason: Optional additional migration notes (e.g. replacement class or API changes).
+    :param class_name: Optional name to display in the warning instead of ``cls.__name__``. Useful when deprecating an
+      alias/shim class.
+    :param category: Warning category to emit. Defaults to :class:`FutureWarning`.
+    :param warn_on_subclasses: If ``False`` (default), warn only when the deprecated class itself is instantiated. If
+      ``True``, also warn when subclasses (that inherit the wrapped ``__init__``) are instantiated.
+    :param stacklevel: Stacklevel passed to :func:`warnings.warn`. Default ``2`` is usually correct.
+
+
+    :returns: Callable[[type], type] A class decorator that wraps ``__init__`` and returns the original class object.
+
+    Notes
+    -----
+    - This decorator modifies ``cls.__init__`` in place.
+    - It is safe for normal classes and dataclasses.
+    - It is not intended for deprecating a plain alias assignment like
+      ``OldClass = NewClass`` because aliases provide no call hook.
+      For aliases, create a shim class and decorate that shim.
+    """
+
+    def decorator(cls: T) -> T:
+        if not inspect.isclass(cls):
+            raise TypeError(
+                f"@deprecated_class can only be applied to classes, got {type(cls).__name__}."
+            )
+
+        displayed_name = class_name or cls.__name__
+
+        message = (
+            f"\n\nCall to deprecated class {displayed_name!r}\n\n"
+            f"Class {displayed_name!r} is now deprecated and will be removed in the next "
+            f"version release.\n\n"
+            f"Please update your code to remove usages of the class {displayed_name!r}."
+        )
+
+        if reason is not None and reason.strip():
+            message += f"\n\nNotes:\n{dedent(reason).strip()}"
+
+        original_init = cls.__init__
+
+        # Avoid double-wrapping the same class.
+        if getattr(original_init, "__neuralqx_deprecated_class_wrapped__", False):
+            return cls
+
+        @functools.wraps(original_init)
+        def wrapped_init(self, *args, **kwargs):
+            # Warn only for exact class instantiation by default.
+            # This avoids surprising warnings when a subclass reuses super().__init__.
+            if warn_on_subclasses or type(self) is cls:
+                warnings.warn(message, category=category, stacklevel=stacklevel)
+            return original_init(self, *args, **kwargs)
+
+        # Marker to prevent duplicate wrapping
+        setattr(wrapped_init, "__neuralqx_deprecated_class_wrapped__", True)
+
+        # Signature preservation for introspection tools
+        try:
+            wrapped_init.__signature__ = inspect.signature(original_init)  # type: ignore[attr-defined]
+        except (TypeError, ValueError):
+            pass
+
+        cls.__init__ = wrapped_init  # type: ignore[assignment]
+        return cls
+
+    return decorator

@@ -12,8 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .gauge_strided import StridedGaugeCopyLayout
+from .gauge_strided import GaugeCoord
 from .gauge_strided import GaugeLayout
 
 __all__ = [
+    "StridedGaugeCopyLayout",
+    "GaugeCoord",
+    # TODO: finalise deprecation
     "GaugeLayout",
 ]
