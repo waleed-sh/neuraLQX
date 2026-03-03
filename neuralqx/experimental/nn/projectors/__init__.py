@@ -12,11 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""
-Experimental VMC drivers in neuraLQX.
-"""
+from . import stmh
 
-from .mvmc import MultiStateVMC
-from .stmh_multi_vmc import SingleTrunkMultiHeadVMC
-
-__all__ = ["MultiStateVMC", "SingleTrunkMultiHeadVMC"]
+__all__ = ["stmh"]

@@ -5,7 +5,7 @@
 <div align="center">
 
 # neuraLQX
-**High-performance variational simulations for canonical Loop Quantum Gravity - built on NetKet & JAX.**
+**High-performance variational simulations for canonical Loop Quantum Gravity - built on [NetKet](https://www.github.com/netket/netket) & [JAX](https://github.com/jax-ml/jax).**
 
 [![PyPI](https://img.shields.io/pypi/v/neuralqx.svg?cachebust=1)](https://pypi.org/project/neuralqx/)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)

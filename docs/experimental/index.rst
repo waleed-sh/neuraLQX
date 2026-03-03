@@ -139,7 +139,7 @@ Pages
 Quick links
 -------------------------------------------
 
-.. grid:: 3
+.. grid:: 4
    :gutter: 2
 
    .. grid-item-card:: Experimental API Reference
@@ -155,6 +155,12 @@ Quick links
 
       Jointly optimise several variational states with an orthogonality (fidelity) penalty.
       Includes ``MultiMCState``, ``MultiStateVMC``, and the ``MultiSolver`` wrapper.
+
+   .. grid-item-card:: Single-Trunk Multi-state VMC
+      :link: stmh_vmc
+      :link-type: doc
+
+      Jointly optimise several variational states with an orthogonality (fidelity) penalty, using one neural network.
 
    .. grid-item-card:: Stable guides
       :link: guides

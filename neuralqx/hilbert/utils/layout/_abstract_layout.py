@@ -39,7 +39,6 @@ from typing import Generic
 from typing import TypeVar
 from typing import final
 
-
 # TODO: move to types
 CoordT = TypeVar("CoordT")
 

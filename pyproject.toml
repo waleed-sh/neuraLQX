@@ -11,7 +11,7 @@ build-backend = "hatchling.build"
 #   Project information
 
 [project]
-name = "neuralqx"
+name = "neuraLQX"
 dynamic = ["version"]
 description = "A high-performance simulations toolkit for loop quantum gravity."
 requires-python = ">=3.11"
@@ -119,6 +119,8 @@ profile = [
 Homepage = "https://neuralqx.readthedocs.io"
 Repository = "https://github.com/waleed-sh/neuralqx"
 Issues = "https://github.com/waleed-sh/neuralqx/issues"
+Documentation = "https://neuralqx.readthedocs.io/en/latest/documentation/api/index.html"
+Changelog = "https://neuralqx.readthedocs.io/en/latest/change_log.html"
 
 
 #

@@ -166,9 +166,7 @@ class StridedGaugeCopyLayout(AbstractBasisLayout[GaugeCoord]):
         :raises IndexError: If a field is out of range.
         """
         if not isinstance(coord, GaugeCoord):
-            raise TypeError(
-                f"coord must be a GaugeCoord, got {type(coord).__name__}."
-            )
+            raise TypeError(f"coord must be a GaugeCoord, got {type(coord).__name__}.")
         self.validate_indices(coord.gauge_copy, coord.edge_index)
 
     def validate_indices(self, gauge_copy: int, edge_index: int) -> None:
@@ -347,7 +345,9 @@ class StridedGaugeCopyLayout(AbstractBasisLayout[GaugeCoord]):
 )
 class GaugeLayout(StridedGaugeCopyLayout):
     """Deprecated alias for StridedGaugeCopyLayout."""
+
     pass
+
 
 __all__ = [
     "GaugeCoord",

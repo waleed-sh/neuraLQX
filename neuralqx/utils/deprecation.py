@@ -45,6 +45,7 @@ from typing import Callable
 # TODO: move to types
 T = TypeVar("T", bound=type)
 
+
 def deprecated(
     reason: str = None,
     func_name: str = None,
@@ -290,3 +291,14 @@ def deprecated_class(
         return cls
 
     return decorator
+
+
+def deprecated_module(module_name: str, reason: str = "") -> None:
+    msg = f"""
+    Module `{module_name}` is deprecated and will be removed in a future release.
+
+    Please update your code to stop importing `{module_name}`.
+    """
+    if reason:
+        msg += f"\n\nNotes:\n{dedent(reason)}"
+    warnings.warn(dedent(msg), category=FutureWarning, stacklevel=2)

@@ -56,7 +56,7 @@ from neuralqx.nn.projectors.group_projector import wrap_model
 from neuralqx.vqs.mc.mc_state.state import serialize_MCState
 from neuralqx.vqs.mc.mc_state.state import deserialize_MCState
 
-from neuralqx.experimental.vqs.mc.mc_state.state import MultiMCState
+from neuralqx.experimental.vqs.mc.mc_state.mtmh_state import MultiMCState
 from neuralqx.experimental.driver.mvmc import MultiStateVMC
 
 from netket.optimizer import SR
@@ -528,16 +528,6 @@ class MultiSolver(Solver):
                 except Exception:
                     pass
 
-                km = f"State[{i}] Network result (mean scalar)"
-                try:
-                    self._logger.add_field("Optimization Results", km)
-                except Exception:
-                    pass
-                try:
-                    self._logger.log(km, self.final_constraint_mean[i])
-                except Exception:
-                    pass
-
             # exact diag
             if self.lqx.has_ground_energy:
                 try:
@@ -873,5 +863,6 @@ class MultiSolver(Solver):
         else:
             plt.close()
 
+    # TODO: do something about this
     def __repr__(self) -> str:
         return "MultiSolver()"

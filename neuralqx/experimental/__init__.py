@@ -25,9 +25,11 @@ if not cfg.get("EXPERIMENTAL"):
 from . import vqs
 from . import solver
 from . import driver
+from . import nn
 
 __all__ = [
     "vqs",
     "solver",
     "driver",
+    "nn",
 ]
