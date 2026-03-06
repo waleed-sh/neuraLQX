@@ -7,7 +7,7 @@
 # neuraLQX
 **High-performance variational simulations for canonical Loop Quantum Gravity - built on [NetKet](https://www.github.com/netket/netket) & [JAX](https://github.com/jax-ml/jax).**
 
-[![PyPI](https://img.shields.io/pypi/v/neuralqx.svg?cachebust=1)](https://pypi.org/project/neuralqx/)
+[![PyPI](https://img.shields.io/pypi/v/neuraLQX.svg?cachebust=1)](https://pypi.org/project/neuraLQX/)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 [![License](https://img.shields.io/github/license/waleed-sh/neuraLQX.svg)](https://github.com/waleed-sh/neuraLQX/blob/main/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/neuralqx/badge/?version=latest)](https://neuralqx.readthedocs.io/en/latest/?badge=latest)
