@@ -51,6 +51,10 @@ Deprecations
   Use ``encode(gauge_copy, edge_index)`` instead. The new argument order is consistent with
   ``decode(site) -> (gauge_copy, edge_index)``.
 
+- The :mod:`neuralqx.utils.mpi` is now marked to be deprecated. In the next release, neuraLQX will stop MPI support in
+  favour of JAX's sharding and to support the latest NetKet releases. This means that the only mode of parallelisation
+  will be on GPUs and using JAX, and not MPI.
+
 
 Experimental
 ~~~~~~~~~~~~~

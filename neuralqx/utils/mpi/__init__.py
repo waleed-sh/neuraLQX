@@ -31,6 +31,19 @@ Disable CUDA-aware MPI::
     export NQX_MPI_CUDA=0
 """
 
+from neuralqx import cfg
+
+if cfg.get("MPI") or cfg.get("MPI_CUDA"):
+    from neuralqx.utils.deprecation import deprecated_module
+
+    deprecated_module(
+        __name__,
+        "neuraLQX is stopping MPI support as of version 1.1.0 in favour of JAX's sharding and to support the "
+        "latest NetKet versions. This means that neuraLQX will be parallelisable by default only on GPU and only using "
+        "JAX (no MPI). If you need MPI support, use a version of neuraLQX which is < 1.1.0. Note that in this case, "
+        "new features will not be available.",
+    )
+
 from .core import (
     available,
     MPI,
