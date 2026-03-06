@@ -229,6 +229,7 @@ filterwarnings = [
     "ignore:distutils package is deprecated:DeprecationWarning",
     "ignore:jax.core.ConcretizationTypeError is deprecated:DeprecationWarning",
     "ignore::neuralqx.utils.errors.IncompatibleModdedOperatorWarning",
+    "ignore:.*Module `neuralqx.utils.mpi` is deprecated.*:FutureWarning"
 ]
 
 
