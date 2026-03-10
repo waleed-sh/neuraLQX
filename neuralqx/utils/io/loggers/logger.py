@@ -31,7 +31,7 @@ from ._abstract_logger import AbstractLogger
 from ....utils.misc.auth import Authenticator
 from ...._version import __version__
 from ..printing import NQXPrinter
-from ....utils import mpi as _mpi
+from ....utils import distributed as _dist
 
 console = Console()
 
@@ -878,8 +878,8 @@ class Logger(AbstractLogger):
       - Human-readable display using Rich panels
       - Persistent export to a signed HTML file
 
-    The logger is MPI-aware: all logging, display, and file output operations are performed
-    exclusively on the global master rank to avoid duplicated output.
+    The logger is distributed-aware: all logging, display, and file output operations are
+    performed exclusively on process 0 to avoid duplicated output.
     """
 
     def __init__(
@@ -924,7 +924,7 @@ class Logger(AbstractLogger):
                 "Sampler type": None,
                 "Number of samples": None,
                 "Number of chains": None,
-                "Number of chains per MPI rank": None,
+                "Number of chains per process": None,
                 "Number of sweeps": None,
                 "Machine power": None,
                 "Reset chains": None,
@@ -946,15 +946,18 @@ class Logger(AbstractLogger):
                 "Indexable Hilbert space": None,
                 "Gauge invariant Hilbert space": None,
             },
-            "MPI": {
-                "Enabled": None,
-                "Number of nodes": None,
-                "Number of tasks per node": None,
-                "Number of CPUs per task": None,
+            "Distributed Runtime": {
+                "Backend": None,
+                "Distributed enabled": None,
+                "Process index": None,
+                "Process count": None,
+                "Local process index": None,
+                "Number of hosts": None,
+                "Processes on this host": None,
+                "CPUs per process": None,
                 "Total number of CPUs": None,
                 "Available GPUs": None,
-                "mpi4py | MPI version": None,
-                "mpi4py | MPI library_version": None,
+                "JAX version": None,
                 "Python implementation": None,
                 "Python version": None,
             },
@@ -981,7 +984,7 @@ class Logger(AbstractLogger):
         """
 
         # skip on all workers
-        if not _mpi.is_global_master():
+        if not _dist.is_global_master():
             return
 
         if parent_key in self._LOG_ITEMS:
@@ -1008,7 +1011,7 @@ class Logger(AbstractLogger):
         """
 
         # skip on workers
-        if not _mpi.is_global_master():
+        if not _dist.is_global_master():
             return
 
         if isinstance(field_key, list) and isinstance(value, list):
@@ -1102,12 +1105,12 @@ class Logger(AbstractLogger):
         cryptographically signed, and written to the specified directory. The output file name
         includes the random seed and a timestamp.
 
-        This operation is performed only on the global MPI master rank.
+        This operation is performed only on the global master process.
 
         :param path: Directory where the HTML log file should be written.
         """
 
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
 
             auth = Authenticator()
 
@@ -1155,8 +1158,8 @@ class Logger(AbstractLogger):
 
             self._p.print("Data exported to disk.")
 
-        # wait for rank-0 to finish I/O
-        _mpi.barrier()
+        # wait for process-0 to finish I/O
+        _dist.barrier()
 
     def display_log(self) -> None:
         """
@@ -1165,11 +1168,11 @@ class Logger(AbstractLogger):
         The log is sanitized prior to display and rendered as a nested table structure for
         interactive inspection in the console.
 
-        This operation is performed only on the global MPI master rank.
+        This operation is performed only on the global master process.
         """
 
         # silent on worker ranks
-        if not _mpi.is_global_master():
+        if not _dist.is_global_master():
             return
 
         # sanitize the log first
@@ -1217,7 +1220,7 @@ class Logger(AbstractLogger):
         """
 
         # skip on all workers
-        if not _mpi.is_global_master():
+        if not _dist.is_global_master():
             return
 
         if parent not in self._LOG_ITEMS:

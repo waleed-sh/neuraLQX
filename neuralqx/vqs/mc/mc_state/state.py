@@ -63,21 +63,20 @@ from netket.utils import (
 from netket.utils.types import PyTree, SeedT, NNInitFunc
 from netket.optimizer import LinearOperator
 from netket.optimizer.qgt import QGTAuto
-from netket.jax import sharding
 from netket import config
 from netket.vqs.mc.mc_state.state import MCState as NKMCState
 
-from netket.vqs.base import VariationalState  # , expect, expect_and_grad, expect_and_forces
-# from netket.vqs.mc import get_local_kernel, get_local_kernel_arguments
+from netket.vqs.base import VariationalState
 
 import flax.core as flax_core
 
 from ...mc import get_local_kernel, get_local_kernel_arguments
 from ....debug import timeit
-from ....utils.errors import MPIStateImportInSerialModeError, MPIStateImportMismatchError
+from ....utils.errors import DistributedStateImportInSerialModeError
+from ....utils.errors import DistributedStateImportMismatchError
 from neuralqx.utils.experimental import experimental
 from ....vqs.base import expect, expect_and_grad, expect_and_forces
-from ....utils import mpi as _mpi
+from ....utils import distributed as _dist
 from .utils import to_array_numpy
 from ....nn.projectors.group_projector.group_projector import wrap_model
 
@@ -90,12 +89,12 @@ def compute_chain_length(n_chains, n_samples):
     chain_length = int(np.ceil(n_samples / n_chains))
 
     n_samples_new = chain_length * n_chains
-    n_samples_per_rank_new = n_samples_new // sharding.device_count()
+    n_samples_per_rank_new = n_samples_new // jax.device_count()
 
     if n_samples_new != n_samples:
-        n_samples_per_rank = n_samples // sharding.device_count()
+        n_samples_per_rank = n_samples // jax.device_count()
 
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             warnings.warn(
                 f"n_samples={n_samples} ({n_samples_per_rank} per device/MPI rank) "
                 f"does not divide n_chains={n_chains}, increased to {n_samples_new} "
@@ -108,7 +107,7 @@ def compute_chain_length(n_chains, n_samples):
 
 
 def check_chunk_size(n_samples, chunk_size):
-    n_samples_per_rank = n_samples // sharding.device_count()
+    n_samples_per_rank = n_samples // jax.device_count()
 
     if chunk_size is not None:
         if chunk_size < n_samples_per_rank and n_samples_per_rank % chunk_size != 0:
@@ -391,7 +390,7 @@ class MCState(VariationalState):
 
     @n_samples_per_rank.setter
     def n_samples_per_rank(self, n_samples_per_rank: int):
-        self.n_samples = n_samples_per_rank * sharding.device_count()
+        self.n_samples = n_samples_per_rank * jax.device_count()
 
     @property
     def chain_length(self) -> int:
@@ -1009,13 +1008,20 @@ def serialize_MCState(vstate):
     else:
         sampler_state = vstate.sampler_state
 
+    dist_info = _dist.get_distributed_info_dict()
     state_dict = {
         "variables": serialization.to_bytes(vstate.variables),
         "sampler_state": serialization.to_state_dict(sampler_state),
         "n_samples": vstate.n_samples,
         "n_discard_per_chain": vstate.n_discard_per_chain,
         "chunk_size": vstate.chunk_size,
-        "mpi_info": _mpi.get_mpi_info_dict(),
+        # legacy checkpoint key retained for backward compatibility.
+        "mpi_info": {
+            "enabled": dist_info.get("enabled", False),
+            "n_nodes": dist_info.get("size", 1),
+            "ranks_per_node": dist_info.get("processes_on_host", 1),
+        },
+        "distributed_info": dist_info,
     }
 
     return state_dict
@@ -1025,30 +1031,45 @@ def deserialize_MCState(vstate, state_dict, force_load_mpi: bool = False):
     import copy
 
     if not force_load_mpi:
-        # backward compatibility: older states won't have mpi_info
-        saved_mpi = state_dict.get("mpi_info", {"enabled": False, "n_nodes": 1, "ranks_per_node": 1})
-        current_mpi = _mpi.get_mpi_info_dict()
+        # Preferred metadata key is distributed_info.
+        # Backward compatibility: older checkpoints carry only mpi_info.
+        saved_dist = state_dict.get("distributed_info")
+        if saved_dist is None:
+            saved_mpi = state_dict.get(
+                "mpi_info",
+                {"enabled": False, "n_nodes": 1, "ranks_per_node": 1},
+            )
+            saved_dist = {
+                "enabled": bool(saved_mpi.get("enabled", False)),
+                "size": int(saved_mpi.get("n_nodes", 1)),
+                "processes_on_host": int(saved_mpi.get("ranks_per_node", 1)),
+                "backend": "mpi",
+            }
 
-        # check if saved with MPI but loading without MPI
-        if saved_mpi.get("enabled", False) and not _mpi.available:
-            raise MPIStateImportInSerialModeError(
-                saved_mpi.get('n_nodes'),
-                saved_mpi.get('ranks_per_node'),
+        current_dist = _dist.get_distributed_info_dict()
+
+        # check if saved distributed but loading without distributed runtime
+        if bool(saved_dist.get("enabled", False)) and not _dist.available:
+            raise DistributedStateImportInSerialModeError(
+                saved_dist.get("size"),
+                saved_dist.get("processes_on_host"),
             )
 
-        # check if MPI is enabled but the current config mismatches
-        if saved_mpi.get("enabled", False):
-            if saved_mpi["n_nodes"] != current_mpi["n_nodes"]:
-                raise MPIStateImportMismatchError(
+        # check if distributed is enabled but current config mismatches
+        if bool(saved_dist.get("enabled", False)):
+            if int(saved_dist.get("size", 1)) != int(current_dist.get("size", 1)):
+                raise DistributedStateImportMismatchError(
                     "nodes",
-                    saved_mpi['n_nodes'],
-                    current_mpi['n_nodes'],
+                    saved_dist.get("size"),
+                    current_dist.get("size"),
                 )
-            if saved_mpi["ranks_per_node"] != current_mpi["ranks_per_node"]:
-                raise MPIStateImportMismatchError(
+            if int(saved_dist.get("processes_on_host", 1)) != int(
+                current_dist.get("processes_on_host", 1)
+            ):
+                raise DistributedStateImportMismatchError(
                     "ranks",
-                    saved_mpi['ranks_per_node'],
-                    current_mpi['ranks_per_node']
+                    saved_dist.get("processes_on_host"),
+                    current_dist.get("processes_on_host"),
                 )
 
     new_vstate = copy.copy(vstate)

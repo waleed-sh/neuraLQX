@@ -100,12 +100,12 @@ def lqx_system():
 def solver_env(monkeypatch, tmp_output_dir, lqx_system, mpi_world):
 
     import neuralqx.solver.solver as solver_mod
-    import neuralqx.utils.mpi as mpi_mod
+    import neuralqx.utils.distributed as dist_mod
 
-    monkeypatch.setattr(mpi_mod, "available", False)
-    monkeypatch.setattr(mpi_mod, "n_nodes", 1)
-    monkeypatch.setattr(mpi_mod, "is_global_master", lambda: True)
-    monkeypatch.setattr(mpi_mod, "barrier", lambda: None)
+    monkeypatch.setattr(dist_mod, "available", False)
+    monkeypatch.setattr(dist_mod, "n_nodes", 1)
+    monkeypatch.setattr(dist_mod, "is_global_master", lambda: True)
+    monkeypatch.setattr(dist_mod, "barrier", lambda: None)
 
     solver = solver_mod.Solver(
         lqx_system,

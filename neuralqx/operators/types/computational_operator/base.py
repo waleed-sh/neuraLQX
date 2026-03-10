@@ -16,6 +16,7 @@ from abc import abstractmethod
 
 import numpy as np
 
+import jax
 import jax.numpy as jnp
 from jax.experimental.sparse import BCOO
 from jax.experimental.sparse import BCSR
@@ -31,13 +32,12 @@ from neuralqx.utils.numbers import hermitian_flag_for_sum_with_scalar
 from neuralqx.utils.numbers import promote_constant_for_op_dtype
 
 from .._discrete_operator import DiscreteOperator
-from neuralqx import cfg
 
 
 class ComputationalOperator(DiscreteOperator):
 
     def __init__(self, hilbert: DiscreteHilbert):
-        if cfg.get("MPI_CUDA"):
+        if jax.default_backend() == "gpu":
             SuboptimalOperatorForGPUWarning()
         super().__init__(hilbert)
 

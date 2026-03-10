@@ -27,7 +27,6 @@ from netket.operator import AbstractOperator
 from netket.optimizer import LinearOperator
 from netket.sampler import Sampler
 from netket.stats import Stats
-from netket.utils import mpi as nk_mpi
 from netket.utils.types import NNInitFunc
 from netket.utils.types import PRNGKeyT
 from netket.utils.types import PyTree
@@ -37,31 +36,20 @@ from neuralqx.vqs.mc.mc_state.state import MCState
 from neuralqx.vqs.mc.mc_state.state import jit_evaluate
 from neuralqx.vqs.mc.mc_state.state import local_estimators
 
-try:
-    from neuralqx.utils import mpi as _mpi  # type: ignore
-except Exception:  # pragma: no cover
-    _mpi = None  # type: ignore
+from neuralqx.utils import distributed as _dist
 
 
-# Note: this is also defined in neuralqx.utils.mpi, but we will keep things self contained for now
 def _is_master() -> bool:
     """
     Determine whether the current process should act as the global master for user-facing output.
 
     The master process is the one that should print logs, progress bars, and diagnostics in
-    distributed runs. This helper prefers :mod:`neuralqx.utils.mpi` (when available) and
-    otherwise falls back to NetKet's MPI metadata combined with the JAX process index.
-
-    This function is intentionally conservative: it returns ``True`` only for the single
-    rank/process that is expected to be unique across the whole job.
+    distributed runs.
 
     :return: ``True`` if this process is the global master, otherwise ``False``.
     """
 
-    if _mpi is not None and hasattr(_mpi, "is_global_master"):
-        return bool(_mpi.is_global_master())
-    # NetKet's notion of root
-    return bool(nk_mpi.node_number == 0 and jax.process_index() == 0)
+    return bool(_dist.is_global_master())
 
 
 def _get_stats_mean_sigma(stats_obj: Any) -> Tuple[float, float]:

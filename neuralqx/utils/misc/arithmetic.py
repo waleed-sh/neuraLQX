@@ -19,6 +19,11 @@ import jax
 import numpy as np
 
 
+def _dtype_like(x):
+    dt = getattr(x, "dtype", None)
+    return dt if dt is not None else np.asarray(x).dtype
+
+
 def mod_add(
     m: Union[np.ndarray, int, float, jax.Array],
     n: Union[np.ndarray, int, float, jax.Array],
@@ -82,7 +87,7 @@ def mod_add(
 
     if domain_is_integer:
         # safe to cast back to integer type
-        target_dtype = np.result_type(m, n)
+        target_dtype = np.result_type(_dtype_like(m), _dtype_like(n))
 
         if isinstance(res, np.ndarray):
             res = res.astype(target_dtype)

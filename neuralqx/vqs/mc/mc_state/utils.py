@@ -19,7 +19,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from netket.utils import get_afun_if_module, mpi
+from netket.utils import get_afun_if_module
+from neuralqx.utils import distributed as _dist
 from netket.utils.types import Array, PyTree
 from netket.hilbert import DiscreteHilbert
 
@@ -44,7 +45,7 @@ def to_array_numpy(
       - Returns a NumPy ndarray (not a JAX DeviceArray).
       - Internally processes states in chunks and never creates a
         giant JAX array of shape (n_states,).
-      - Currently supports only single-process (mpi.n_nodes == 1)
+      - Currently supports only single-process (_dist.n_nodes == 1)
         and no experimental sharding.
 
     It works for both real and complex amplitudes: dtype is inferred from
@@ -54,9 +55,9 @@ def to_array_numpy(
     if not hilbert.is_indexable:
         raise RuntimeError("The hilbert space is not indexable")
 
-    if mpi.n_nodes != 1:
+    if _dist.n_nodes != 1:
         raise NotImplementedError(
-            "to_array_numpy currently supports only mpi.n_nodes == 1 "
+            "to_array_numpy currently supports only distributed n_nodes == 1 "
             "(no MPI splitting)."
         )
 

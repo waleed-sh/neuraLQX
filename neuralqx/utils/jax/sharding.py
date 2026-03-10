@@ -20,65 +20,105 @@ from functools import partial
 
 import jax
 from jax import ShapeDtypeStruct, pure_callback
-from jax.experimental.shard_map import shard_map
-from jax.sharding import Mesh, NamedSharding, PartitionSpec as P, PositionalSharding
+from jax import shard_map
+from jax.sharding import NamedSharding, PartitionSpec as P
+import netket.jax._utils_tree as _nk_tree
 
-_AXIS = "d"
+_AXIS = "S"
+
+
+def _mesh_axis_name(mesh) -> str:
+    names = tuple(getattr(mesh, "axis_names", ()) or ())
+    if names:
+        return str(names[0])
+    return _AXIS
+
+
+def get_abstract_mesh():
+    """
+    Return the active abstract mesh installed by NetKet/JAX.
+
+    NetKet 3.20+ uses a single mesh axis named 'S'.
+    """
+    return jax.sharding.get_abstract_mesh()
 
 
 def _replicate_shmap_callback(f_py, x):
     """
-    This is a decorator which is used in JAX-compatible custom LocalOperator types. It is designed
-    to call the .get_conn_padded() of the Numba version of the operator and return its result.
-
-    So it executes a Python callback `f_py` (returns xp, mels) on every host with its local shard of
-    `x`, then stitch results together.
+    Execute a Python callback `f_py` on each shard of `x` and stitch the result
+    back together using the currently active abstract mesh.
     """
 
-    # dev: when supporting NetKet 3.19+, the commented lines should be used
+    x_sharding = getattr(x, "sharding", None)
+    x_mesh = getattr(x_sharding, "mesh", None)
+    active_mesh = get_abstract_mesh()
 
-    mesh = Mesh(jax.devices(), axis_names=("d",))
-    # mesh = jax.sharding.get_abstract_mesh()
+    # When the input was manually placed on a mesh that differs from the
+    # process-global abstract mesh (e.g. axis "d" vs "S"), avoid shard_map
+    # because JAX rejects mixed meshes in one traced program.
+    if x_mesh is not None and active_mesh is not None:
+        if _mesh_axis_name(x_mesh) != _mesh_axis_name(active_mesh):
+            bsz, n_sites = x.shape
+            xp_spec = ShapeDtypeStruct(
+                (bsz, f_py.max_conn, n_sites),
+                x.dtype,
+            )
+            mels_spec = ShapeDtypeStruct(
+                (bsz, f_py.max_conn),
+                f_py.mel_dtype,
+            )
+            return pure_callback(
+                f_py,
+                (xp_spec, mels_spec),
+                x,
+                vmap_method="legacy_vectorized",
+            )
 
-    # @partial(jax.shard_map, axis_names={'S'}, in_specs=(jax.P('S')), out_specs=(jax.P('S'), jax.P('S')))
-    @partial(shard_map, mesh=mesh, in_specs=(P("d"),), out_specs=(P("d"), P("d")))
-    def _per_shard(x_shard):
+    mesh = x_mesh or active_mesh
+    axis = _mesh_axis_name(mesh)
 
-        local_batch, n_sites = x_shard.shape
-
-        xp_spec = ShapeDtypeStruct((local_batch, f_py.max_conn, n_sites), x_shard.dtype)
-
-        mels_spec = ShapeDtypeStruct((local_batch, f_py.max_conn), f_py.mel_dtype)
-
-        xp_loc, mels_loc = pure_callback(
+    def _callback_full(x_full):
+        bsz, n_sites = x_full.shape
+        xp_spec = ShapeDtypeStruct(
+            (bsz, f_py.max_conn, n_sites),
+            x_full.dtype,
+        )
+        mels_spec = ShapeDtypeStruct(
+            (bsz, f_py.max_conn),
+            f_py.mel_dtype,
+        )
+        return pure_callback(
             f_py,
             (xp_spec, mels_spec),
-            x_shard,
+            x_full,
             vmap_method="legacy_vectorized",
         )
 
-        return xp_loc, mels_loc
+    @partial(
+        shard_map,
+        mesh=mesh,
+        in_specs=(P(axis),),
+        out_specs=(P(axis), P(axis)),
+    )
+    def _per_shard(x_shard):
+        return _callback_full(x_shard)
 
-    return _per_shard(x)
+    try:
+        return _per_shard(x)
+    except ValueError as e:
+        # Fallback for mesh-context mismatches between global abstract mesh and
+        # incoming NamedSharding (seen with mixed 'S'/'d' axis names).
+        if "mesh" in str(e).lower():
+            return _callback_full(x)
+        raise
 
 
 def replicate_sharding(f_py):
     """
-    A decorator to replicate the sharding mechanism for jax.pure_callback of get_conn_padded()
-    of Numba types from their JAX-compatible types
+    Decorator replicating the sharding mechanism for jax.pure_callback-based
+    get_conn_padded() implementations.
     """
     return partial(_replicate_shmap_callback, f_py)
-
-
-def get_abstract_mesh():
-
-    return Mesh(jax.devices(), axis_names=("d",))
-    #
-    #
-    #   uncomment when supporting latest NetKet
-    # if hasattr(jax, "distributed") and hasattr(jax.distributed, "get_abstract_mesh"):
-    #     return jax.distributed.get_abstract_mesh()
-    # return jax.sharding.get_abstract_mesh()
 
 
 def replicated_sharding():
@@ -88,7 +128,7 @@ def replicated_sharding():
 
 def sharded_sharding_1d():
     mesh = get_abstract_mesh()
-    return NamedSharding(mesh, P(_AXIS))
+    return NamedSharding(mesh, P(_mesh_axis_name(mesh)))
 
 
 def normalize_pspec(pspec, ndim: int) -> tuple:
@@ -98,41 +138,34 @@ def normalize_pspec(pspec, ndim: int) -> tuple:
     return ps
 
 
-def derive_output_shardings(in_sharding, in_ndim: int, x_shape=None):
+def derive_output_shardings(in_sharding, in_ndim: int):
+    """
+    Derive output shardings for:
+      xp  : (batch, max_conn, n_sites)
+      mels: (batch, max_conn)
 
-    # NamedSharding path (mesh + PartitionSpec)
-    if isinstance(in_sharding, NamedSharding):
-        in_pspec = normalize_pspec(in_sharding.spec, in_ndim)
+    assuming the input x has shape:
+      x   : (batch, n_sites)
 
-        # Never allow sharding along site axis (last axis)
-        if in_pspec[-1] is not None:
-            return None, None
+    We preserve sharding of the batch axis and never shard the sites axis
+    or the inserted max_conn axis.
+    """
+    if not isinstance(in_sharding, NamedSharding):
+        return None, None
 
-        xp_pspec = in_pspec[:-1] + (None,) + in_pspec[-1:]
-        ml_pspec = in_pspec[:-1] + (None,)
+    in_pspec = normalize_pspec(in_sharding.spec, in_ndim)
 
-        return (
-            NamedSharding(in_sharding.mesh, P(*xp_pspec)),
-            NamedSharding(in_sharding.mesh, P(*ml_pspec)),
-        )
+    # Never allow sharding along the site axis (last axis of x)
+    if in_pspec[-1] is not None:
+        return None, None
 
-    # PositionalSharding path (heuristic)
-    if PositionalSharding is not None and isinstance(in_sharding, PositionalSharding):
-        if x_shape is not None:
-            M = x_shape[-1]
-            full_last = slice(0, M)
-            dev_map = in_sharding.devices_indices_map(x_shape)
-            for _, slc in dev_map.items():
-                if slc is None:
-                    continue
-                if slc[-1] != full_last:
-                    return None, None
+    xp_pspec = in_pspec[:-1] + (None,) + in_pspec[-1:]
+    ml_pspec = in_pspec[:-1] + (None,)
 
-        # PositionalSharding shards leading axes only, inserting K near the end
-        # does not change leading-axis sharding. Reuse it
-        return in_sharding, in_sharding
-
-    return None, None
+    return (
+        NamedSharding(in_sharding.mesh, P(*xp_pspec)),
+        NamedSharding(in_sharding.mesh, P(*ml_pspec)),
+    )
 
 
 def is_distributed_array(x: jax.Array) -> bool:
@@ -148,14 +181,28 @@ def is_distributed_array(x: jax.Array) -> bool:
 
 
 def is_sharded_array(x: jax.Array) -> bool:
-
     sh = getattr(x, "sharding", None)
     if sh is None:
         return False
     if not is_distributed_array(x):
         return False
-
     if getattr(sh, "is_fully_replicated", False):
         return False
-
     return True
+
+
+@jax.jit
+def _tree_ax_fixed(a, x):
+    if hasattr(a, "ndim") and a.ndim == 0:
+        return jax.tree_util.tree_map(lambda x_: a * x_, x)
+    return jax.tree_util.tree_map(lambda a_, x_: a_ * x_, a, x)
+
+
+@jax.jit
+def _tree_axpy_fixed(a, x, y):
+    ax = _tree_ax_fixed(a, x)
+    return jax.tree_util.tree_map(lambda ax_, y_: ax_ + y_, ax, y)
+
+
+_nk_tree.tree_ax = _tree_ax_fixed
+_nk_tree.tree_axpy = _tree_axpy_fixed

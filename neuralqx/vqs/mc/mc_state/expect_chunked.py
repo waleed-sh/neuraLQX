@@ -47,7 +47,7 @@ from jax import Array, numpy as jnp
 
 from netket.operator._abstract_observable import AbstractObservable
 
-from netket.stats import Stats, statistics as mpi_statistics
+from netket.stats import Stats, statistics as statistics
 from netket.utils.types import PyTree
 from netket import jax as nkjax
 from netket.utils.dispatch import dispatch
@@ -329,7 +329,7 @@ def _expect_chunking(
     if penalty_factor is not None:
         L_σ = penalty_factor * L_σ
 
-    Ō_stats = mpi_statistics(L_σ.reshape((n_chains, -1)))
+    Ō_stats = statistics(L_σ.reshape((n_chains, -1)))
 
     return Ō_stats
 
@@ -420,7 +420,7 @@ def expect_mcstate_operator_chunked_sequence(
         L_σ_sum = L_σ_sum + L_σ
 
     # now the loop is done, return the Stats for the entire sum of local operators
-    return mpi_statistics(L_σ_sum.reshape((n_chains, -1)))
+    return statistics(L_σ_sum.reshape((n_chains, -1)))
 
 @partial(jax.jit, static_argnums=(0, 1, 2))
 def _expect_sequence_chunked(

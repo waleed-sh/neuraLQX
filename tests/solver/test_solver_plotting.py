@@ -20,7 +20,7 @@ def test_plot_results_creates_images(solver_env, nk):
     s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
 
     s.set_sampler(sampler_type="U1 Gauge Sampler", number_of_samples=16)
-    s.set_optimizer(optimizer_type="adam", learning_rate=0.01, use_sr=True)
+    s.set_optimizer(optimizer_type="adam", learning_rate=0.01, use_sr=False)
     s.set_network(nk.models.RBM(alpha=1))
     s.initialize_vmc()
 

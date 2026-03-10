@@ -43,7 +43,6 @@ from flax.core.scope import CollectionFilter, DenyList  # noqa: F401
 
 from netket import jax as nkjax
 from netket.stats import Stats, statistics
-from netket.utils import mpi
 from netket.utils.types import PyTree
 from netket.utils.dispatch import dispatch
 
@@ -224,7 +223,7 @@ def forces_expect_hermitian_sequence(
     if σ.ndim >= 3:
         σ = jax.lax.collapse(σ, 0, 2)
 
-    n_samples = σ.shape[0] * mpi.n_nodes
+    n_samples = σ.shape[0]
 
     O_loc = local_value_kernel(
         model_apply_fun,
@@ -258,7 +257,7 @@ def forces_expect_hermitian_sequence(
     return (
         # Ō,
         O_loc_copy,
-        jax.tree_util.tree_map(lambda x: mpi.mpi_sum_jax(x)[0], Ō_grad),
+        Ō_grad,
         new_model_state,
     )
 
@@ -283,7 +282,7 @@ def forces_expect_hermitian(
     if σ.ndim >= 3:
         σ = jax.lax.collapse(σ, 0, 2)
 
-    n_samples = σ.shape[0] * mpi.n_nodes
+    n_samples = σ.shape[0]
 
     O_loc = local_value_kernel(
         model_apply_fun,
@@ -315,6 +314,6 @@ def forces_expect_hermitian(
 
     return (
         Ō,
-        jax.tree_util.tree_map(lambda x: mpi.mpi_sum_jax(x)[0], Ō_grad),
+        Ō_grad,
         new_model_state,
     )

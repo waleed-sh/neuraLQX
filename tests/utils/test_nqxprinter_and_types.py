@@ -36,7 +36,7 @@ class FakeCfg:
         return False
 
 
-class FakeMPI:
+class FakeDistributed:
     def __init__(self, is_master=True):
         self._is_master = is_master
 
@@ -99,7 +99,9 @@ def make_printer(monkeypatch, pmod, tmod, fixed_time):
 
     def _make(*, verbose=True, is_master=True, hash_fn=None):
         monkeypatch.setattr(pmod, "cfg", FakeCfg(verbose=verbose), raising=True)
-        monkeypatch.setattr(pmod, "_mpi", FakeMPI(is_master=is_master), raising=True)
+        monkeypatch.setattr(
+            pmod, "_dist", FakeDistributed(is_master=is_master), raising=True
+        )
 
         if hash_fn is None:
             hash_fn = FixedHashFn()

@@ -20,7 +20,7 @@ from rich.table import Table
 
 from ._abstract_printer import AbstractPrinter
 from .... import cfg
-from ....utils import mpi as _mpi
+from ....utils import distributed as _dist
 
 
 class NQXPrinter(AbstractPrinter):
@@ -50,9 +50,8 @@ class NQXPrinter(AbstractPrinter):
         :param message: The message to display and log.
         """
 
-        # MPI guard: only rank-0 prints unless we run in serial
-        # works whether mpi4py is actually present or we are on the stub
-        if not _mpi.is_global_master():
+        # distributed guard: only process-0 prints unless we run in serial
+        if not _dist.is_global_master():
             # silent worker ranks
             return
 
@@ -112,8 +111,8 @@ class NQXPrinter(AbstractPrinter):
         Displays all logged messages in a formatted Rich panel
         """
 
-        # honour the same MPI rule as .print()
-        if not _mpi.is_global_master():
+        # honour the same distributed rule as .print()
+        if not _dist.is_global_master():
             return
 
         if not self.logger.logs:

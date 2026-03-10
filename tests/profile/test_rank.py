@@ -14,11 +14,27 @@
 
 
 from neuralqx.profile import _rank
+from neuralqx.utils.distributed import RuntimeInfo
 
 
-def test_serial_backend_when_no_mpi_no_jax(monkeypatch):
-    monkeypatch.setattr(_rank, "_detect_mpi", lambda: None, raising=True)
-    monkeypatch.setattr(_rank, "_detect_jax_process", lambda: None, raising=True)
+def _runtime(rank: int, size: int, *, local_rank: int = 0, backend: str = "serial"):
+    return RuntimeInfo(
+        backend=backend,
+        rank=rank,
+        size=size,
+        local_rank=local_rank,
+        jax_available=True,
+        multihost_utils_available=True,
+    )
+
+
+def test_serial_backend_when_single_process(monkeypatch):
+    monkeypatch.setattr(
+        _rank._dist,
+        "runtime_info",
+        lambda: _runtime(0, 1, backend="serial"),
+        raising=True,
+    )
     _rank.get_rank_info.cache_clear()
 
     info = _rank.get_rank_info()
@@ -26,29 +42,24 @@ def test_serial_backend_when_no_mpi_no_jax(monkeypatch):
     assert info.rank == 0 and info.size == 1
 
 
-def test_mpi_backend_when_initialized(monkeypatch):
-    monkeypatch.setattr(_rank, "_detect_mpi", lambda: (3, 8), raising=True)
-    monkeypatch.setattr(_rank, "_detect_jax_process", lambda: (0, 1), raising=True)
-    _rank.get_rank_info.cache_clear()
-
-    info = _rank.get_rank_info()
-    assert info.backend == "mpi"
-    assert info.rank == 3 and info.size == 8
-
-
 def test_jax_backend_when_process_count_gt_1(monkeypatch):
-    monkeypatch.setattr(_rank, "_detect_mpi", lambda: None, raising=True)
-    monkeypatch.setattr(_rank, "_detect_jax_process", lambda: (2, 4), raising=True)
+    monkeypatch.setattr(
+        _rank._dist, "runtime_info", lambda: _runtime(3, 8, backend="jax"), raising=True
+    )
     _rank.get_rank_info.cache_clear()
 
     info = _rank.get_rank_info()
     assert info.backend == "jax"
-    assert info.rank == 2 and info.size == 4
+    assert info.rank == 3 and info.size == 8
 
 
 def test_local_rank_env_priority(monkeypatch):
-    monkeypatch.setattr(_rank, "_detect_mpi", lambda: None, raising=True)
-    monkeypatch.setattr(_rank, "_detect_jax_process", lambda: None, raising=True)
+    monkeypatch.setattr(
+        _rank._dist,
+        "runtime_info",
+        lambda: _runtime(0, 1, backend="serial"),
+        raising=True,
+    )
     _rank.get_rank_info.cache_clear()
 
     monkeypatch.setenv("SLURM_LOCALID", "7")

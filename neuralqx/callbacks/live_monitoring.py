@@ -51,7 +51,7 @@ from dash.dependencies import State
 
 from flask import request
 
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 
 #
 #
@@ -1209,7 +1209,7 @@ class LiveMonitoringCallback:
         :param objective_label: Display label for the objective/loss trace.
         """
 
-        if not _mpi.is_global_master():
+        if not _dist.is_global_master():
             self.monitor = None
             return
         self.monitor = LiveMonitor(host, port, objective_label=objective_label)

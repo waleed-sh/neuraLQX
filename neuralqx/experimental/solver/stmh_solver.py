@@ -32,7 +32,7 @@ from neuralqx.solver.solver import reject_outliers
 
 from neuralqx.vqs import MCState
 
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 from neuralqx.utils.serialization import load_from_file
 from neuralqx.utils.serialization import save_to_file
 from neuralqx.utils.parsing import log_module_attributes
@@ -55,7 +55,6 @@ except Exception:  # pragma: no cover
 
 from netket.optimizer import SR
 from netket.utils import is_probably_holomorphic
-from netket.utils.mpi import mpi_bcast
 
 if TYPE_CHECKING:
     from flax.linen import Module as FlaxModule
@@ -87,36 +86,34 @@ class _LocalSTMHHeadView(nn.Module):
             ) from exc
 
 
-def serialize_SharedParamsMultiMCState(vstate: SharedParamsMultiMCState) -> dict:
+def serialize_STMultiMCState(vstate: STMultiMCState) -> dict:
     """
-    Serialize a :class:`SharedParamsMultiMCState` into a plain Python dictionary.
+    Serialize a :class:`STMultiMCState` into a plain Python dictionary.
 
     Each head ``MCState`` is serialized using ``serialize_MCState``. Parameters are shared, but we
     intentionally keep the per-head payload format because it is robust and backward-compatible.
     """
 
     return {
-        "kind": "SharedParamsMultiMCState",
+        "kind": "STMultiMCState",
         "n_states": vstate.n_states,
         "canonical_state": int(getattr(vstate, "canonical_state", 0)),
         "sync_model_state": bool(getattr(vstate, "_sync_model_state", False)),
         "states": [serialize_MCState(s) for s in vstate.states],
-        "mpi_info": (
-            _mpi.get_mpi_info_dict() if hasattr(_mpi, "get_mpi_info_dict") else None
-        ),
+        "distributed_info": _dist.get_distributed_info_dict(),
     }
 
 
-def deserialize_SharedParamsMultiMCState(
-    template: SharedParamsMultiMCState,
+def deserialize_STMultiMCState(
+    template: STMultiMCState,
     state_dict: dict,
     *,
     force_load_mpi: bool = False,
-) -> SharedParamsMultiMCState:
+) -> STMultiMCState:
     """
     Deserialize a shared-parameter multi-head state from a checkpoint dictionary.
 
-    :param template: Existing ``SharedParamsMultiMCState`` used to reconstruct each contained ``MCState``.
+    :param template: Existing ``STMultiMCState`` used to reconstruct each contained ``MCState``.
     :param state_dict: Raw dict loaded from disk.
     :param force_load_mpi: Forwarded to ``deserialize_MCState``.
     """
@@ -126,7 +123,7 @@ def deserialize_SharedParamsMultiMCState(
         new_single = deserialize_MCState(
             template.states[0], state_dict, force_load_mpi=force_load_mpi
         )
-        return SharedParamsMultiMCState(
+        return STMultiMCState(
             [new_single],
             canonical_state=int(getattr(template, "canonical_state", 0)),
             sync_model_state=bool(getattr(template, "_sync_model_state", False)),
@@ -135,7 +132,7 @@ def deserialize_SharedParamsMultiMCState(
     saved_states = state_dict["states"]
     if len(saved_states) != template.n_states:
         raise ValueError(
-            f"Loaded SharedParamsMultiMCState has n_states={len(saved_states)} but current template "
+            f"Loaded STMultiMCState has n_states={len(saved_states)} but current template "
             f"has n_states={template.n_states}. Make sure you set the same number of heads before loading."
         )
 
@@ -143,7 +140,7 @@ def deserialize_SharedParamsMultiMCState(
     for tmpl, sd in zip(template.states, saved_states):
         new_states.append(deserialize_MCState(tmpl, sd, force_load_mpi=force_load_mpi))
 
-    out = SharedParamsMultiMCState(
+    out = STMultiMCState(
         new_states,
         canonical_state=int(
             state_dict.get("canonical_state", getattr(template, "canonical_state", 0))
@@ -164,7 +161,7 @@ class STMultiSolver(Solver):
 
     Compared to ``MultiSolver`` (MT-MH / independent networks), this solver builds one shared
     multi-head Flax model and exposes one ``MCState`` per head using head-selector wrappers. The
-    variational state is a :class:`SharedParamsMultiMCState`, and optimization is performed by
+    variational state is a :class:`STMultiMCState`, and optimization is performed by
     :class:`SingleTrunkMultiHeadVMC`, which aggregates energy and orthogonality gradients into a
     single shared parameter update.
     """
@@ -212,8 +209,8 @@ class STMultiSolver(Solver):
             Same semantics as in ``MultiSolver``. For ST-MH, diffeo wrapping is applied to the
             *head models* during ``initialize_vmc``.
         :param lambda_ortho: Orthogonality/fidelity penalty strength.
-        :param canonical_state: Forwarded to ``SharedParamsMultiMCState``.
-        :param sync_model_state: Forwarded to ``SharedParamsMultiMCState``.
+        :param canonical_state: Forwarded to ``STMultiMCState``.
+        :param sync_model_state: Forwarded to ``STMultiMCState``.
         """
 
         if getattr(self, "_network_flag", False):
@@ -361,7 +358,7 @@ class STMultiSolver(Solver):
         Initialise the shared-parameter ST-MH variational state and driver.
 
         Builds one ``MCState`` per head (head-selector view), then wraps them in
-        ``SharedParamsMultiMCState`` and constructs ``SingleTrunkMultiHeadVMC``.
+        ``STMultiMCState`` and constructs ``SingleTrunkMultiHeadVMC``.
         """
 
         if not self._sampler_flag or not self._opt_flag or not self._network_flag:
@@ -542,7 +539,7 @@ class STMultiSolver(Solver):
     def export_state(
         self,
         *,
-        state: Optional[SharedParamsMultiMCState] = None,
+        state: Optional[STMultiMCState] = None,
         silent: bool = False,
         marker: str = "",
         **kwargs,
@@ -550,15 +547,13 @@ class STMultiSolver(Solver):
         """Export a shared-parameter ST-MH checkpoint to disk."""
 
         vstate = state or self._variational_state
-        if not isinstance(vstate, SharedParamsMultiMCState):
-            raise TypeError(
-                "STMultiSolver.export_state expects a SharedParamsMultiMCState."
-            )
+        if not isinstance(vstate, STMultiMCState):
+            raise TypeError("STMultiSolver.export_state expects a STMultiMCState.")
 
-        serialised_state = serialize_SharedParamsMultiMCState(vstate)
+        serialised_state = serialize_STMultiMCState(vstate)
 
-        _mpi.barrier()
-        if _mpi.is_global_master():
+        _dist.barrier()
+        if _dist.is_global_master():
             os.makedirs(self.output_path, exist_ok=True)
             if marker:
                 marker = "_" + marker
@@ -572,7 +567,7 @@ class STMultiSolver(Solver):
             if not silent and self.printer is not None:
                 self.printer.print("ST-MH shared state serialised to disk.")
 
-        _mpi.barrier()
+        _dist.barrier()
         return None
 
     def import_state(
@@ -580,24 +575,24 @@ class STMultiSolver(Solver):
         state_path: str,
         *,
         force_load_mpi: bool = False,
-    ) -> SharedParamsMultiMCState:
+    ) -> STMultiMCState:
         """Import a shared-parameter ST-MH checkpoint from disk."""
 
-        _mpi.barrier()
-        if _mpi.is_global_master():
+        _dist.barrier()
+        if _dist.is_global_master():
             nvs = load_from_file(state_path, raw=True)
         else:
             nvs = None
 
-        nvs = mpi_bcast(nvs, root=0)
+        nvs = _dist.mpi_bcast(nvs, root=0)
 
-        if not isinstance(self.variational_state, SharedParamsMultiMCState):
+        if not isinstance(self.variational_state, STMultiMCState):
             raise RuntimeError(
-                "STMultiSolver.import_state requires an existing SharedParamsMultiMCState template. "
+                "STMultiSolver.import_state requires an existing STMultiMCState template. "
                 "Call initialize_vmc() after setting network/sampler/optimizer before loading."
             )
 
-        return deserialize_SharedParamsMultiMCState(
+        return deserialize_STMultiMCState(
             self.variational_state,
             nvs,
             force_load_mpi=force_load_mpi,
@@ -802,7 +797,7 @@ class STMultiSolver(Solver):
             os.path.join(self.output_path, f"{self.hash}_LogData_{dt_str}")
         )
 
-        if (not silent_plot) and (_mpi.n_nodes == 1):
+        if (not silent_plot) and (_dist.n_nodes == 1):
             plt.show()
         else:
             plt.close()

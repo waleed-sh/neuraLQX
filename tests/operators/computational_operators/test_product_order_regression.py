@@ -50,15 +50,15 @@ def test_noncommuting_products_order_and_means_match(vstate, site, nk):
 
     psi, _ = exact_wavefunction(vstate)
 
-    exact_SpSm = exact_expectation_from_dense(psi, _dense(SpL * SmL))
-    exact_SmSp = exact_expectation_from_dense(psi, _dense(SmL * SpL))
+    exact_SpSm = exact_expectation_from_dense(psi, _dense(SpL @ SmL))
+    exact_SmSp = exact_expectation_from_dense(psi, _dense(SmL @ SpL))
     assert not np.allclose(
         exact_SpSm, exact_SmSp
     ), "Expected non-commuting products to differ"
 
     for opL, opC, opJ, exact in [
-        (SpL * SmL, SpC * SmC, SpJ * SmJ, exact_SpSm),
-        (SmL * SpL, SmC * SpC, SmJ * SpJ, exact_SmSp),
+        (SpL @ SmL, SpC * SmC, SpJ * SmJ, exact_SpSm),
+        (SmL @ SpL, SmC * SpC, SmJ * SpJ, exact_SmSp),
     ]:
         sL = vstate.expect(opL)
         sC = vstate.expect(opC)

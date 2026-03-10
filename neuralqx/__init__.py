@@ -19,19 +19,24 @@ import sys
 #   Version and environment/cfg variables init
 
 from ._version import __version__
-from .configs import cfg
+from .configs import cfg, _should_init_jax_distributed
 
 #
 #
 #   Force import order check
 
-if "jax" in sys.modules or "netket" in sys.modules:
-    if not cfg.get("TESTING"):
-        raise ImportError(
-            "You must load neuraLQX before importing NetKet or JAX.\n"
-            "If you are using Jupyter, you will need to restart the Jupyter kernel after fixing the import order."
-        )
+if ("jax" in sys.modules or "netket" in sys.modules) and not cfg.get("TESTING"):
+    raise ImportError(
+        "You must load neuraLQX before importing NetKet or JAX.\n"
+        "If you are using Jupyter, restart the kernel after fixing import order."
+    )
 
+if _should_init_jax_distributed():
+    import jax
+
+    if not jax.distributed.is_initialized():
+        jax.distributed.initialize()
+    del jax
 
 #
 #
@@ -60,18 +65,6 @@ from . import driver
 from . import vqs
 from . import profile
 from ._cite import cite
-
-#
-#
-#   Check for proper GPU support
-
-# dev: currently this is just CUDA-aware but should be also for JAX distributed when done
-if cfg.get("MPI_CUDA"):
-    import jax
-
-    if len([d.device_kind for d in jax.devices() if d.platform == "gpu"]) == 0:
-        utils.errors.NoGPUSFoundWarning()
-    del jax
 
 
 def __getattr__(name):

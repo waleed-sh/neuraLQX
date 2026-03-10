@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import numpy as np
 
 from typing import Any
 from typing import Dict
@@ -57,6 +58,18 @@ class Sampler:
         number_of_samples: int = 250,
         **sampler_kwargs,
     ):
+        # NetKet expects a scalar descriptor, normalize array-like inputs.
+        try:
+            arr = np.asarray(machine_pow)
+            if arr.size == 1:
+                machine_pow = arr.reshape(()).item()
+        except Exception:
+            if hasattr(machine_pow, "item"):
+                try:
+                    machine_pow = machine_pow.item()
+                except Exception:
+                    pass
+
         event(
             msg="SAMPLER_REGISTRY",
             tag="SAMPLER:INIT",

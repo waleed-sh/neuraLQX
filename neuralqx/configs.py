@@ -167,7 +167,6 @@ class ConfigManager:
         "PROFILE_MPI_AGG",
         "PROFILE_JAX_ANNOTATIONS",
         "PROFILE_JAX_TRACE",
-        "TESTING_MPI",
     ]
     """Additional envvars which may be set for profiling but we do not need to store them explicitly."""
 
@@ -257,106 +256,17 @@ class ConfigManager:
 
     def _sync_external_envars(self):
         """
-        Propagate our MPI flag into external environment variables once.
+        Propagate runtime-related flags into external environment variables once.
 
-        If `NQX_MPI` is truthy, then NETKET_MPI will be truthy, and we explicitly disable the
-        other experimental sharding paths as they are currently not supported package-wide in
-        neuraLQX.
-
-        Otherwise, if `NQX_MPI` is falsey,then NETKET_MPI will be falsey.
-
-        Because this runs during package init, the env-vars are in place before any user (or we)
-        might import netket.
+        neuraLQX now relies on JAX sharding/distributed execution and no longer
+        manages an MPI execution mode from config.
         """
 
-        mpi_enabled = bool(int(self._config.get("MPI", 0)))
-        mpi_cuda_enabled = bool(int(self._config.get("MPI_CUDA", 0)))
-        djax_enabled = bool(int(self._config.get("JAX_DISTRIBUTED", 0)))
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
 
-        if (mpi_enabled or mpi_cuda_enabled) and djax_enabled:
-            raise ConfigError(
-                f"You cannot neuraLQX with both MPI and distributed JAX support "
-                f"\nenabled."
-                f"\nPlease choose only one of them and make sure the other is turned off."
-            )
-
-        if mpi_enabled and mpi_cuda_enabled:
-            raise ConfigError(
-                f"You cannot neuraLQX with both MPI and CUDA-aware MPI support"
-                f"\nenabled."
-                f"\nPlease choose only one of them and make sure the other is turned off."
-            )
-
-        # NOTE: following flags are valid for NetKet v3.17.1
-
-        # main switch (deprecated for NetKet v3.19.0+)
-        # this should be set for 1 for either vanilla or CUDA-aware MPI
-        os.environ["NETKET_MPI"] = "1" if (mpi_enabled or mpi_cuda_enabled) else "0"
-
-        if mpi_enabled and not mpi_cuda_enabled:
-
-            # we explicitly defeat the experimental sharding flags
-            os.environ.setdefault("NETKET_EXPERIMENTAL_SHARDING", "False")
-
-            # not needed here
-            os.environ.setdefault("NETKET_MPI_AUTODETECT_LOCAL_GPU", "0")
-
-            # instruct mpi4jax to look for only CPUs
-            os.environ.setdefault("MPI4JAX_USE_CUDA_MPI", "0")
-
-            # currently, MPI is tested package-wide for JAX with CPU support
-            os.environ.setdefault("JAX_PLATFORM_NAME", "cpu")
-
-            # avoid over subscription via JAX
-            os.environ.setdefault("OMP_NUM_THREADS", "1")
-
-        if mpi_cuda_enabled and not mpi_enabled:
-
-            # we explicitly defeat the experimental sharding flags
-            os.environ.setdefault("NETKET_EXPERIMENTAL_SHARDING", "False")
-
-            # automatically assigns only 1 GPU per rank (MPI cannot use more than 1)
-            os.environ.setdefault("NETKET_MPI_AUTODETECT_LOCAL_GPU", "1")
-
-            # use fast direct gpu-to-gpu communication
-            os.environ.setdefault("MPI4JAX_USE_CUDA_MPI", "1")
-
-            # tell JAX that we want to use GPUs
-            os.environ.setdefault("JAX_PLATFORM_NAME", "gpu")
-
-            # avoid over subscription via JAX
-            os.environ.setdefault("OMP_NUM_THREADS", "1")
-
-            # optional but helpful, avoid JAX's big upfront prealloc unless user overrides it
-            os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
-
-        if djax_enabled:
-
-            # explicitly enable JAX for GPU with fallback to CPU
-            # os.environ.setdefault("JAX_PLATFORM_NAME", "gpu")
-
-            # tell NetKet to use experimental sharding
-            # os.environ.setdefault("NETKET_EXPERIMENTAL_SHARDING", "1")
-            # os.environ.setdefault("NETKET_EXPERIMENTAL_SHARDING_CPU", "1")
-
-            # import jax
-            # jax.config.update("jax_cpu_collectives_implementation", "gloo")
-            # jax.distributed.initialize(cluster_detection_method="mpi4py")
-            # del jax
-
-            raise ConfigError(
-                f"Compatibility with JAX sharding is still a feature under "
-                f"\ndevelopment and will be released soon."
-                f"\n\n"
-                f"If you want to use your code in parallel, please restart your script, "
-                f"\nset the `NQX_JAX_DISTRIBUTED` configuration variable to `0` and set the "
-                f"\n`NQX_MPI` configuration variable to `1`. "
-                f"This will enable MPI based CPU-CPU "
-                f"\nparallelisation. If you want CUDA-aware MPI parallelisation, "
-                f"\nplease set the `NQX_MPI_CUDA` configuration variable to `1`."
-                f"\n\nPlease refer to the documentation on parallelisation "
-                f"for more details."
-            )
+        os.environ.setdefault("JAX_PLATFORMS", "")
+        os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
+        os.environ.setdefault("NETKET_EXPERIMENTAL_SHARDING", "True")
 
         if bool(int(self._config.get("ENABLE_X64", 0))):
             # set NetKet to x64, which will set JAX to x64
@@ -492,14 +402,6 @@ class ConfigManager:
         )
 
         self._schema.register(
-            env_name="MPI_TESTS",
-            env_val_type=int,
-            env_default_val=0,
-            env_desc="Enable MPI testing for neuraLQX.",
-            runtime=True,
-        )
-
-        self._schema.register(
             env_name="CACHE",
             env_val_type=int,
             env_default_val=0,
@@ -508,34 +410,10 @@ class ConfigManager:
         )
 
         self._schema.register(
-            env_name="MPI",
-            env_val_type=int,
-            env_default_val=0,
-            env_desc="Enable MPI (CPU) for neuraLQX.",
-            runtime=False,
-        )
-
-        self._schema.register(
-            env_name="MPI_CUDA",
-            env_val_type=int,
-            env_default_val=0,
-            env_desc="Enable CUDA-aware MPI for neuraLQX.",
-            runtime=False,
-        )
-
-        self._schema.register(
             env_name="ENABLE_X64",
             env_val_type=int,
             env_default_val=self._parse_bool(os.getenv("JAX_ENABLE_X64", "True")),
             env_desc="Enable 64-bit floating point operations in neuraLQX.",
-            runtime=False,
-        )
-
-        self._schema.register(
-            env_name="JAX_DISTRIBUTED",
-            env_val_type=int,
-            env_default_val=0,
-            env_desc="Enable experimental JAX distributed computations for neuraLQX.",
             runtime=False,
         )
 
@@ -795,4 +673,36 @@ class ConfigManager:
         return f"<ConfigManager {self._config}>"
 
 
+def _should_init_jax_distributed() -> bool:
+    import os
+
+    def _env_int(name, default=0):
+        try:
+            return int(os.environ.get(name, default))
+        except Exception:
+            return default
+
+    # explicit JAX distributed env
+    if os.environ.get("JAX_COORDINATOR_ADDRESS"):
+        return True
+    if _env_int("JAX_PROCESS_COUNT", 1) > 1:
+        return True
+
+    # common launcher envs
+    if _env_int("SLURM_NTASKS", 1) > 1:
+        return True
+    if _env_int("OMPI_COMM_WORLD_SIZE", 1) > 1:
+        return True
+    if _env_int("PMI_SIZE", 1) > 1:
+        return True
+
+    return False
+
+
 cfg = ConfigManager()
+
+# disable NK tips
+os.environ["NETKET_NO_TIPS"] = "True"
+
+# disable C++ backend warnings
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"

@@ -17,6 +17,18 @@ import numpy as np
 import pytest
 from pathlib import Path
 import os
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"Setting `jax_pmap_shmap_merge` is deprecated.*",
+    category=DeprecationWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r"Implicit conversion of an array to a dtype is deprecated.*",
+    category=DeprecationWarning,
+)
 
 
 def _enable_experimental():
@@ -25,12 +37,6 @@ def _enable_experimental():
 
 
 if os.getenv("NQX_TESTING") == "1":
-    _enable_experimental()
-
-if os.getenv("NQX_MPI_TESTS") == "1":
-    os.environ["NQX_MPI"] = "1"
-    os.environ["NQX_MPI_TESTS"] = "1"
-    os.environ["NQX_TESTING_MPI"] = "1"
     _enable_experimental()
 
 

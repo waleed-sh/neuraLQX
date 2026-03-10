@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/waleed-sh/neuraLQX/blob/1b53438720fd3411dac0e562e5b08fe6ea021162/docs/_static/_logo.png" alt="neuraLQX logo" width="420" />
+  <img src="https://raw.githubusercontent.com/waleed-sh/neuraLQX/main/docs/_static/_logo.png" width="420">
 </div>
 
 <div align="center">
@@ -51,7 +51,13 @@ pip install -e .
 pip install --upgrade "neuralqx[dev]"
 ```
 
-#### MPI (local use only, requires an MPI toolchain)
+#### GPU support (Linux only)
+
+```bash
+pip install --upgrade "neuralqx[cuda]"
+```
+
+#### MPI support (for versions prior to v1.1.0)
 
 ```bash
 mpicc --showme:link

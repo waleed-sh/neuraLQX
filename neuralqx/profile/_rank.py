@@ -20,8 +20,7 @@ import socket
 from dataclasses import dataclass
 from functools import lru_cache
 
-from typing import Optional
-from typing import Tuple
+from neuralqx.utils import distributed as _dist
 
 
 @dataclass(frozen=True)
@@ -31,7 +30,7 @@ class RankInfo:
     local_rank: int
     hostname: str
     pid: int
-    backend: str  # "mpi", "jax", or "serial"
+    backend: str  # "jax" or "serial"
 
 
 def _get_env_int(keys, default: int = 0) -> int:
@@ -46,41 +45,11 @@ def _get_env_int(keys, default: int = 0) -> int:
     return default
 
 
-def _detect_mpi() -> Optional[Tuple[int, int]]:
-    try:
-        from mpi4py import MPI  # type: ignore
-
-        if not MPI.Is_initialized():
-            return None
-        comm = MPI.COMM_WORLD
-        return int(comm.Get_rank()), int(comm.Get_size())
-    except Exception:
-        return None
-
-
-def _detect_jax_process() -> Optional[Tuple[int, int]]:
-    try:
-        import jax  # type: ignore
-
-        return int(jax.process_index()), int(jax.process_count())
-    except Exception:
-        return None
-
-
 @lru_cache(maxsize=1)
 def get_rank_info() -> RankInfo:
-    mpi = _detect_mpi()
-    if mpi is not None:
-        rank, size = mpi
-        backend = "mpi"
-    else:
-        jaxp = _detect_jax_process()
-        if jaxp is not None and jaxp[1] > 1:
-            rank, size = jaxp
-            backend = "jax"
-        else:
-            rank, size = 0, 1
-            backend = "serial"
+    runtime = _dist.runtime_info()
+    rank, size = int(runtime.rank), int(runtime.size)
+    backend = "jax" if size > 1 else "serial"
 
     local_rank = _get_env_int(
         [

@@ -67,10 +67,10 @@ def test_algebraic_expressions_match_means_and_exact(vstate, site, nk):
         "E": Spl + Sml,
         "F": Spl - Sml,
         "G": Zl + Spl - 0.2,
-        "H": (Spl + Sml) * (Zl + 0.1),
-        "I": Spl * Sml,
-        "J": Sml * Spl,
-        "K": Zl * Zl,
+        "H": (Spl + Sml) @ (Zl + 0.1),
+        "I": Spl @ Sml,
+        "J": Sml @ Spl,
+        "K": Zl @ Zl,
     }
     exprs_comp = {
         "A": Zc + 0.3,

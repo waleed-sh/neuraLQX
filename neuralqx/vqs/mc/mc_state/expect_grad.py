@@ -134,7 +134,6 @@ def _variance_vjp_and_local(
         variance_expect, params, has_aux=True, conjugate=True,
     )
     grad = vjp_fun(jnp.ones_like(var_val))[0]
-    grad = jax.tree_util.tree_map(lambda x: mpi.mpi_sum_jax(x)[0], grad)
 
     # local estimator L_σ for downstream summation
     O_loc = local_kernel_O(afun, {"params": params, **model_state}, σ_flat, args_O)
@@ -531,7 +530,7 @@ def _grad_expect_nonherm_kernel_sequence(
     return (
         L_op,
         Ō_stats,
-        jax.tree_util.tree_map(lambda x: mpi.mpi_mean_jax(x)[0], Ō_pars_grad),
+        Ō_pars_grad,
         new_model_state,
     )
 
@@ -588,7 +587,7 @@ def _grad_expect_nonherm_kernel(
 
     return (
         Ō_stats,
-        jax.tree_util.tree_map(lambda x: mpi.mpi_mean_jax(x)[0], Ō_pars_grad),
+        Ō_pars_grad,
         new_model_state,
     )
 

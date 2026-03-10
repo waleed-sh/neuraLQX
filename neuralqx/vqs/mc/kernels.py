@@ -49,7 +49,6 @@ from netket.operator import DiscreteJaxOperator
 
 from neuralqx.debug import event
 from neuralqx.operators.types import ComputationalJaxOperator
-from neuralqx.utils.experimental import experimental
 
 
 def batch_discrete_kernel(kernel):

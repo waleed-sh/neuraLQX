@@ -183,13 +183,11 @@ def _parse_level(v: Any, default: int = logging.INFO) -> int:
 
 
 def _mpi_rank_world() -> Tuple[int, int]:
-    # prefer mpi4py if available, otherwise single-process
-    # we are keeping this intentionally disconnected from neuraLQX MPI module
+    # Legacy name kept, but rank/size now come from the distributed runtime.
     try:
-        from mpi4py import MPI  # type: ignore
+        from neuralqx.utils import distributed as _dist
 
-        comm = MPI.COMM_WORLD
-        return int(comm.Get_rank()), int(comm.Get_size())
+        return int(_dist.process_index()), int(_dist.process_count())
     except Exception:
         return 0, 1
 

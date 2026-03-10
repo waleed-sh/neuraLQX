@@ -1106,14 +1106,13 @@ To fix this, use non-planar graphs.
    <hr style="margin: 30px 0;">
 
 
-MPIUnavailableWarning
+DistributedRuntimeUnavailableWarning
 -----------------------------------
 
 **Description**
 
-CPU based parallelisation in neuraLQX runs using MPI. This requires some specific dependencies. If you are
-trying to use MPI enabled neuraLQX but have some missing dependencies (e.g. ``mpi4py`` is not installed)
-then you will see this error.
+This warning indicates that distributed execution was requested but neuraLQX could not initialise
+the distributed runtime, so execution falls back to serial mode.
 
 **Cause**
 
@@ -1122,37 +1121,34 @@ The following
 .. code-block:: python
 
     import os
-    os.environ['NQX_MPI'] = '1'
+    os.environ['NQX_JAX_DISTRIBUTED'] = '1'
 
     import neuralqx as nqx
 
-will raise an ``MPIUnavailableWarning`` error **if** your MPI stack is not installed correctly.
+can trigger this warning when the distributed launch/runtime environment is not set up correctly.
 
 **Fix**
 
-To fix this, please follow the install instructions for MPI enabled neuraLQX in the
-`Parallelisation <https://www.github.com/waleed-sh/neuralqx>`_. documentation.
+Use a proper distributed launch setup and ensure JAX distributed initialisation works on your system.
+If you intend to run locally, disable distributed mode and run in serial.
 
 .. raw:: html
 
    <hr style="margin: 30px 0;">
 
 
-MPIStateImportInSerialModeError
+DistributedStateImportInSerialModeError
 -----------------------------------
 
 **Description**
 
-Currently, if you run a simulation in an MPI environment and export some states, you can only load them
-in an MPI environment. This means if you run a simulation on an HPC using MPI, you will not be able to
-load it on your computer unless you re-create the simulation environment and use the same MPI configurations
-used (e.g. if you used 2 tasks on the HPC, you need to run the simulation on your laptop with 2 tasks).
+If you export a state from a distributed run, loading that state in a serial run is currently not allowed.
 
-Simply put, MPI exported states cannot be used in serial mode (for now).
+Simply put, distributed-exported states cannot be loaded in serial mode (for now).
 
 .. note::
-    We are aware that this may defy the whole point of MPI, as the states exported from a simulation
-    on an HPC may become difficult to use on your personal laptop. **This is currently something we are
+    We are aware this can be restrictive when moving checkpoints between HPC and local environments.
+    **This is currently something we are
     actively fixing and should be cleared in a later release.**
 
 .. raw:: html
@@ -1160,16 +1156,15 @@ Simply put, MPI exported states cannot be used in serial mode (for now).
    <hr style="margin: 30px 0;">
 
 
-MPIStateImportMismatchError
+DistributedStateImportMismatchError
 -----------------------------------
 
 **Description**
 
-Currently, if you run a simulation in an MPI environment and export some states, you can only load them
-in an MPI environment with the **same** configuration (e.g. a state exported from an MPI simulation
-with 2 tasks can only be loaded in an MPI simulation with 2 tasks).
+Currently, if you run a simulation in distributed mode and export a state, you can only load it with
+the **same** distributed layout (for example, matching total processes and processes per host).
 
-Simply put, MPI exported states can only be loaded in simulations with identical MPI setup as the
+Simply put, distributed-exported states can only be loaded in simulations with identical runtime setup as the
 one they were exported from.
 
 .. note::
@@ -1179,44 +1174,6 @@ one they were exported from.
 
    <hr style="margin: 30px 0;">
 
-
-
-NoGPUSFoundWarning
------------------------------------
-
-**Description**
-
-If you want to use CUDA-aware MPI, Jax needs to be able to see the GPUs available. If for some reason
-(e.g. you set ``NQX_MPI_CUDA = 1``) but there are no GPUs visible to Jax, you will see this error.
-
-**Fix**
-
-To resolve this, please ensure that you have correctly setup your CUDA-aware MPI ecosystem (see the
-`Parallelisation <https://www.github.com/waleed-sh/neuralqx>`_. documentation for more).
-
-.. raw:: html
-
-   <hr style="margin: 30px 0;">
-
-
-NetKetMPIUnavailableWarning
------------------------------------
-
-**Description**
-
-When you use MPI, whether CUDA-aware or not, we duplicate NetKet's MPI communicator as to not result in
-conflicts between different communicators running on the same program. If for some reason neuraLQX was
-not able to do so, you will see this error.
-
-
-**Fix**
-
-To resolve this, please ensure that you have correctly setup your MPI ecosystem (see the
-`Parallelisation <https://www.github.com/waleed-sh/neuralqx>`_. documentation for more).
-
-.. raw:: html
-
-   <hr style="margin: 30px 0;">
 
 
 NonHermitianInverseCostError

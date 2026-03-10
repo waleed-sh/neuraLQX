@@ -47,7 +47,7 @@ from jax import Array, numpy as jnp
 from netket.utils import mpi
 from netket.operator._abstract_observable import AbstractObservable
 
-from netket.stats import Stats, statistics as mpi_statistics
+from netket.stats import Stats, statistics as statistics
 from netket.utils.types import PyTree
 from netket.utils.dispatch import dispatch
 
@@ -311,9 +311,6 @@ def get_local_kernel_arguments(
     V_loc = inner_kernel(vstate._apply_fun, W, σ_collapsed, inner_args)
     V_mean = jnp.mean(jnp.real(V_loc))
 
-    # scalar
-    V_mean = mpi.mpi_mean_jax(V_mean)[0]
-
     # scalars for the affine correction
     denom = Ô.alpha + V_mean + Ô.eps
     fprime = (-2.0 * Ô.factor) / (denom ** 3)
@@ -443,7 +440,7 @@ def expect(
         L_σ_sum = L_σ_sum + L_σ
 
     # now the loop is done, return the Stats for the entire sum of local operators
-    return mpi_statistics(L_σ_sum.reshape((n_chains, -1)))
+    return statistics(L_σ_sum.reshape((n_chains, -1)))
 
 
 @partial(jax.jit, static_argnums=(0, 1))
@@ -473,25 +470,7 @@ def _expect_sequence(
     def logpsi(w, σ):
         return model_apply_fun({"params": w, **model_state}, σ)
 
-    # this is removed because it is used only in the removed code block below
-    # def log_pdf(w, σ):
-    #     return machine_pow * model_apply_fun({"params": w, **model_state}, σ).real
-
-    # TODO: Broken until google/jax#11916 is resolved.
-    # should uncomment and remove code below once this is fixed
-    # _, Ō_stats = nkjax.expect(
-    #    log_pdf,
-    #    partial(local_value_kernel, logpsi),
-    #    parameters,
-    #    σ,
-    #    local_value_args,
-    #    n_chains=n_chains,
-    # )
-
     L_σ = local_value_kernel(logpsi, parameters, σ, local_value_args)
-
-    # removed because we want to return raw estimators per operator in the sequence
-    # Ō_stats = mpi_statistics(L_σ.reshape((n_chains, -1)))
 
     return L_σ
 
@@ -514,25 +493,11 @@ def _expect(
     def logpsi(w, σ):
         return model_apply_fun({"params": w, **model_state}, σ)
 
-    def log_pdf(w, σ):
-        return machine_pow * model_apply_fun({"params": w, **model_state}, σ).real
-
-    # TODO: Broken until google/jax#11916 is resolved.
-    # should uncomment and remove code below once this is fixed
-    # _, Ō_stats = nkjax.expect(
-    #    log_pdf,
-    #    partial(local_value_kernel, logpsi),
-    #    parameters,
-    #    σ,
-    #    local_value_args,
-    #    n_chains=n_chains,
-    # )
-
     L_σ = local_value_kernel(logpsi, parameters, σ, local_value_args)
 
     if penalty_factor is not None:
         L_σ = penalty_factor * L_σ
 
-    Ō_stats = mpi_statistics(L_σ.reshape((n_chains, -1)))
+    Ō_stats = statistics(L_σ.reshape((n_chains, -1)))
 
     return Ō_stats

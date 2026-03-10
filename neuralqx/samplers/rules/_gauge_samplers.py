@@ -59,10 +59,7 @@ class RandomU1GaugeSampler(MetropolisRule):
         A function which generates random states for the sampler which obey the given gauge
         criterion
         """
-        if isinstance(sampler, ParallelTemperingSampler):
-            f = sampler.n_batches
-        else:
-            f = sampler.n_chains_per_rank
+        f = sampler.n_batches
 
         return sampler.hilbert.random_state(
             key=key,
@@ -136,10 +133,7 @@ class U1GaugeSampler(MetropolisRule):
         A function which generates random states for the sampler which obey the given gauge
         criterion
         """
-        if isinstance(sampler, ParallelTemperingSampler):
-            f = sampler.n_batches
-        else:
-            f = sampler.n_chains_per_rank
+        f = sampler.n_batches
 
         return sampler.hilbert.random_state(
             key=key,
@@ -226,10 +220,7 @@ class U1InvariantPlaquetteSampler(MetropolisRule):
         A function which generates random states for the sampler which obey the given gauge
         criterion
         """
-        if isinstance(sampler, ParallelTemperingSampler):
-            f = sampler.n_batches
-        else:
-            f = sampler.n_chains_per_rank
+        f = sampler.n_batches
 
         return sampler.hilbert.random_state(
             key=key,
@@ -284,7 +275,6 @@ class U1GaugeSamplerNonzero(MetropolisRule):
     ) -> Optional[Any]:
 
         def is_all_zero(x):
-            # x has shape (B, dimH) or (dimH,)
             return jnp.all(x == 0, axis=-1)
 
         hilb = sampler.hilbert
@@ -295,7 +285,7 @@ class U1GaugeSamplerNonzero(MetropolisRule):
 
         def cond_fun(carry):
             key, x = carry
-            return is_all_zero(x)[0]  # shape (1,) → pick scalar
+            return is_all_zero(x)[0]
 
         def body_fun(carry):
             key, _ = carry
@@ -304,20 +294,16 @@ class U1GaugeSamplerNonzero(MetropolisRule):
         key, x0 = sample(key)
         key, x = jax.lax.while_loop(cond_fun, body_fun, (key, x0))
 
-        return x  # shape (1, dimH)
+        return x
 
     def random_state(self, sampler, machine, params, sampler_state, key):
 
         def is_all_zero(x):
-            # x has shape (B, dimH) or (dimH,)
             return jnp.all(x == 0, axis=-1)
 
         hilb = sampler.hilbert
 
-        if isinstance(sampler, ParallelTemperingSampler):
-            f = sampler.n_batches
-        else:
-            f = sampler.n_chains_per_rank
+        f = sampler.n_batches
 
         def propose(key):
             key, k = jax.random.split(key)
@@ -325,7 +311,7 @@ class U1GaugeSamplerNonzero(MetropolisRule):
 
         def cond_fun(carry):
             key, x = carry
-            # if ANY chain is all zero → reject batch
+            # if ANY chain is all zero, reject batch
             return jnp.any(is_all_zero(x))
 
         def body_fun(carry):

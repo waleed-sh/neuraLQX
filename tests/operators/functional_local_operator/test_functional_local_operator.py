@@ -15,12 +15,14 @@
 
 import numpy as np
 import pytest
+import warnings
 
 pytest.importorskip("netket")
 pytest.importorskip("jax")
 pytest.importorskip("numba")
 
 import jax.numpy as jnp
+import netket as nk
 
 from tests.operators.functional_local_operator.helpers import (
     make_local_operator,
@@ -114,14 +116,21 @@ def test_operator_arithmetic_is_not_disabled(hilbert, site, complex_single_site_
     for expr in [
         lambda: opF + op0,
         lambda: op0 + opF,
-        lambda: opF * op0,
-        lambda: op0 * opF,
+        lambda: opF @ op0,
         lambda: 2.0 * opF,
         lambda: opF * 2.0,
         lambda: opF - op0,
         lambda: op0 - opF,
     ]:
         _ = expr()
+
+    # NetKet deprecates operator*operator on some combinations; keep test warning-clean.
+    with warnings.catch_warnings():
+        warnings.simplefilter(
+            "ignore", nk.errors.OperatorMultiplicationDeprecationWarning
+        )
+        _ = opF * op0
+        _ = op0 * opF
 
 
 def test_expectation_matches_reference_operator_exact_and_mc(

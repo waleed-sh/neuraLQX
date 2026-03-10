@@ -25,7 +25,7 @@ class AbstractLogger(abc.ABC):
     runtime metadata, and numerical results.
 
     Concrete implementations may differ in storage backend, output format, user interface, or
-    execution context (e.g. serial vs MPI), but must expose the same public behavioral contract
+    execution context (e.g. serial vs distributed), but must expose the same public behavioral contract
     defined by this interface.
 
     This abstraction intentionally does not prescribe how logs are stored or rendered, it only

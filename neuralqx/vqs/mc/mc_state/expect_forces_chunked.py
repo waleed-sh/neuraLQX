@@ -46,7 +46,6 @@ from flax.core.scope import CollectionFilter, DenyList  # noqa: F401
 
 from netket import jax as nkjax
 from netket.stats import Stats, statistics
-from netket.utils import mpi
 from netket.utils.types import PyTree
 from netket.utils.dispatch import dispatch
 
@@ -321,7 +320,7 @@ def forces_expect_hermitian_chunked(
     if jnp.ndim(σ) != 2:
         σ = σ.reshape((-1, σ_shape[-1]))
 
-    n_samples = σ.shape[0] * mpi.n_nodes
+    n_samples = σ.shape[0]
 
     O_loc = local_value_kernel_chunked(
         model_apply_fun,
@@ -343,23 +342,22 @@ def forces_expect_hermitian_chunked(
     # mutable state (if it's there)
     if mutable is False:
         vjp_fun_chunked = nkjax.vjp_chunked(
-            lambda w, σ: model_apply_fun({"params": w, **model_state}, σ),
+            lambda w, ms, σ: model_apply_fun({"params": w, **ms}, σ),
             parameters,
+            model_state,
             σ,
             conjugate=True,
             chunk_size=chunk_size,
-            chunk_argnums=1,
-            nondiff_argnums=1,
+            chunk_argnums=2,
+            nondiff_argnums=(1, 2),
         )
         new_model_state = None
     else:
         raise NotImplementedError
 
-    Ō_grad = vjp_fun_chunked(
+    (Ō_grad,) = vjp_fun_chunked(
         (jnp.conjugate(O_loc) / n_samples),
-    )[0]
-
-    Ō_grad, _ = mpi.mpi_sum_jax(Ō_grad)
+    )
 
     return Ō, Ō_grad, new_model_state
 
@@ -379,7 +377,7 @@ def forces_expect_hermitian_sequence_chunked(
     if jnp.ndim(σ) != 2:
         σ = σ.reshape((-1, σ_shape[-1]))
 
-    n_samples = σ.shape[0] * mpi.n_nodes
+    n_samples = σ.shape[0]
 
     O_loc = local_value_kernel_chunked(
         model_apply_fun,
@@ -402,22 +400,21 @@ def forces_expect_hermitian_sequence_chunked(
     # mutable state (if it's there)
     if mutable is False:
         vjp_fun_chunked = nkjax.vjp_chunked(
-            lambda w, σ: model_apply_fun({"params": w, **model_state}, σ),
+            lambda w, ms, σ: model_apply_fun({"params": w, **ms}, σ),
             parameters,
+            model_state,
             σ,
             conjugate=True,
             chunk_size=chunk_size,
-            chunk_argnums=1,
-            nondiff_argnums=1,
+            chunk_argnums=2,
+            nondiff_argnums=(1, 2),
         )
         new_model_state = None
     else:
         raise NotImplementedError
 
-    Ō_grad = vjp_fun_chunked(
+    (Ō_grad, ) = vjp_fun_chunked(
         (jnp.conjugate(O_loc) / n_samples),
-    )[0]
-
-    Ō_grad, _ = mpi.mpi_sum_jax(Ō_grad)
+    )
 
     return O_loc_copy, Ō_grad, new_model_state

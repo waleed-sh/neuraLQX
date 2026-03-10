@@ -47,7 +47,7 @@ from neuralqx.solver.solver import reject_outliers
 
 from neuralqx.vqs import MCState
 
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 from neuralqx.utils.serialization import load_from_file
 from neuralqx.utils.serialization import save_to_file
 from neuralqx.utils.parsing import log_module_attributes
@@ -61,7 +61,6 @@ from neuralqx.experimental.driver.mvmc import MultiStateVMC
 
 from netket.optimizer import SR
 from netket.utils import is_probably_holomorphic
-from netket.utils.mpi import mpi_bcast
 
 if TYPE_CHECKING:
     from flax.linen import Module as FlaxModule
@@ -86,10 +85,8 @@ def serialize_MultiMCState(vstate: MultiMCState) -> dict:
         "kind": "MultiMCState",
         "n_states": vstate.n_states,
         "states": [serialize_MCState(s) for s in vstate.states],
-        # optional top-level mpi info, per-state dict already has mpi_info too
-        "mpi_info": (
-            _mpi.get_mpi_info_dict() if hasattr(_mpi, "get_mpi_info_dict") else None
-        ),
+        # optional top-level distributed info, per-state dict already has metadata too
+        "distributed_info": _dist.get_distributed_info_dict(),
     }
 
 
@@ -566,9 +563,9 @@ class MultiSolver(Solver):
 
         serialised_state = serialize_MultiMCState(vstate)
 
-        _mpi.barrier()
+        _dist.barrier()
 
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             os.makedirs(self.output_path, exist_ok=True)
             if marker:
                 marker = "_" + marker
@@ -582,7 +579,7 @@ class MultiSolver(Solver):
             if not silent and self.printer is not None:
                 self.printer.print("MultiState serialised to disk.")
 
-        _mpi.barrier()
+        _dist.barrier()
         return None
 
     def import_state(
@@ -605,14 +602,14 @@ class MultiSolver(Solver):
         :raises RuntimeError: If no `MultiMCState` template exists in the solver.
         """
 
-        _mpi.barrier()
+        _dist.barrier()
 
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             nvs = load_from_file(state_path, raw=True)
         else:
             nvs = None
 
-        nvs = mpi_bcast(nvs, root=0)
+        nvs = _dist.mpi_bcast(nvs, root=0)
 
         if not isinstance(self.variational_state, MultiMCState):
             raise RuntimeError(
@@ -858,7 +855,7 @@ class MultiSolver(Solver):
         )
 
         # display plot if requested
-        if (not silent_plot) and (_mpi.n_nodes == 1):
+        if (not silent_plot) and (_dist.n_nodes == 1):
             plt.show()
         else:
             plt.close()

@@ -29,7 +29,7 @@ from netket.jax import tree_cast
 from netket.operator import AbstractOperator
 from netket.optimizer import PreconditionerT
 from netket.optimizer import identity_preconditioner
-from netket.utils import mpi
+from neuralqx.utils import distributed as _dist
 from netket.utils.types import Optimizer
 
 from neuralqx.driver import VMC
@@ -118,9 +118,6 @@ def fidelity_expect_and_grad_joint_tied(
         closure, pars0, has_aux=True, conjugate=True
     )
     grads_pair = vjp_fun(jnp.ones_like(fid_val))[0]
-
-    # nkjax.expect backward uses mpi_mean(). Restore rank-independent gradients.
-    grads_pair = jax.tree_util.tree_map(lambda x: mpi.mpi_sum_jax(x)[0], grads_pair)
 
     grad_shared = jax.tree_util.tree_map(
         lambda gi, gj: gi + gj,

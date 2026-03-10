@@ -17,7 +17,6 @@ This module includes several miscellaneous functions grouped in different files 
 functionality and purpose
 """
 
-from . import mpi
 from . import module
 from . import misc
 from . import jax
@@ -31,9 +30,9 @@ from ._info import SystemInfoManager
 from . import numbers
 from . import jit
 from . import parsing
+from . import distributed
 
 __all__ = [
-    "mpi",
     "misc",
     "jax",
     "module",
@@ -47,4 +46,5 @@ __all__ = [
     "numbers",
     "jit",
     "parsing",
+    "distributed",
 ]

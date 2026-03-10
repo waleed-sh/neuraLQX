@@ -21,7 +21,7 @@ It is useful for diagnosing frustration between objectives, for example between 
 constraint and an added penalty term.
 
 The callback can both log values into the driver log data and optionally print a
-human readable summary on the global MPI master process.
+readable summary on the global MPI master process.
 """
 
 import jax.numpy as jnp
@@ -30,7 +30,7 @@ from jax._src.flatten_util import ravel_pytree
 from netket.operator import AbstractOperator
 from netket.utils import struct
 
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 from neuralqx.utils.io.printing import NQXPrinter
 from neuralqx.utils.experimental import experimental
 
@@ -139,9 +139,9 @@ class GradientGradientCosineCallback(struct.Pytree, mutable=True):
         # expectation value of B
         expect_B = driver.state.expect(self.B)
 
-        _mpi.barrier()
+        _dist.barrier()
 
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             log_data["GradientGradientCosine"] = float(cos_phi)
             log_data["expectB"] = expect_B
 
@@ -154,6 +154,6 @@ class GradientGradientCosineCallback(struct.Pytree, mutable=True):
                 f"<B> = {expect_B}"
             )
 
-        _mpi.barrier()
+        _dist.barrier()
 
         return True

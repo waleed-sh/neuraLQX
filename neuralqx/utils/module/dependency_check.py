@@ -147,11 +147,9 @@ _DEFAULT_POLICIES = (
     ),
     DependencyPolicy(
         name="netket",
-        minimum=(3, 17, 0),
-        maximum=(3, 18, 1),
+        minimum=(3, 19, 0),
         rationale=(
-            "Only NetKet 3.17.1 is compatible with the MPI execution model "
-            "used by neuraLQX."
+            "neuraLQX requires a NetKet version above 3.19.0 for JAX sharding support."
         ),
     ),
     DependencyPolicy(

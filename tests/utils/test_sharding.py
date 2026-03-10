@@ -57,9 +57,18 @@ def _maybe_put_sharded(jax, x):
     try:
         from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 
+        axis = "S"
+        try:
+            abstract_mesh = jax.sharding.get_abstract_mesh()
+            names = tuple(getattr(abstract_mesh, "axis_names", ()) or ())
+            if names:
+                axis = str(names[0])
+        except Exception:
+            pass
+
         devices = jax.devices()
-        mesh = Mesh(devices, axis_names=("d",))
-        sharding = NamedSharding(mesh, P("d"))
+        mesh = Mesh(devices, axis_names=(axis,))
+        sharding = NamedSharding(mesh, P(axis))
 
         return jax.device_put(x, sharding)
     except Exception:

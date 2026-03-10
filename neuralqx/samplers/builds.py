@@ -21,6 +21,7 @@ from typing import Tuple
 from plum import dispatch
 
 import netket as nk
+import numpy as np
 
 from .types import MetropolisLocal
 from .types import MuLocal
@@ -51,13 +52,30 @@ WeightedSamplerRule = nk.sampler.rules.MultipleRules
 #   helpers
 
 
+def _machine_pow_scalar(value):
+    try:
+        arr = np.asarray(value)
+        if arr.size == 1:
+            return arr.reshape(()).item()
+    except Exception:
+        pass
+
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except Exception:
+            pass
+
+    return value
+
+
 def _mk_kwargs_base(cfg, **rt) -> Dict[str, Any]:
     # common fields for (Parallel) Metropolis
     d = dict(
         hilbert=rt["hilbert"],
         n_chains_per_rank=cfg.n_chains_per_rank,
         sweep_size=cfg.sweep_size,
-        machine_pow=cfg.machine_pow,
+        machine_pow=_machine_pow_scalar(cfg.machine_pow),
         reset_chains=cfg.reset_chains,
     )
     return d
@@ -115,7 +133,7 @@ def build_sampler(cfg: MetropolisHamiltonian, hilbert, **rt):
         hamiltonian=rt["hamiltonian"],
         n_chains_per_rank=cfg.n_chains_per_rank,
         sweep_size=cfg.sweep_size,
-        machine_pow=cfg.machine_pow,
+        machine_pow=_machine_pow_scalar(cfg.machine_pow),
         reset_chains=cfg.reset_chains,
     )
     s = nk.sampler.MetropolisHamiltonian(**kw)
@@ -131,7 +149,7 @@ def build_sampler(cfg: MetropolisExchange, hilbert, **rt):
         d_max=cfg.d_max,
         n_chains_per_rank=cfg.n_chains_per_rank,
         sweep_size=cfg.sweep_size,
-        machine_pow=cfg.machine_pow,
+        machine_pow=_machine_pow_scalar(cfg.machine_pow),
         reset_chains=cfg.reset_chains,
     )
     s = nk.sampler.MetropolisExchange(**kw)
@@ -246,7 +264,7 @@ def build_sampler(cfg: Weighted, hilbert, **rt):
         hilbert=hilbert,
         n_chains_per_rank=cfg.n_chains_per_rank,
         sweep_size=cfg.sweep_size,
-        machine_pow=cfg.machine_pow,
+        machine_pow=_machine_pow_scalar(cfg.machine_pow),
         reset_chains=cfg.reset_chains,
         rule=rule,
     )
@@ -320,7 +338,7 @@ def build_sampler(cfg: PTWeighted, hilbert, **rt):
         betas=cfg.betas,
         n_chains_per_rank=cfg.n_chains_per_rank,
         sweep_size=cfg.sweep_size,
-        machine_pow=cfg.machine_pow,
+        machine_pow=_machine_pow_scalar(cfg.machine_pow),
         reset_chains=cfg.reset_chains,
     )
     return _ret(s, kw)

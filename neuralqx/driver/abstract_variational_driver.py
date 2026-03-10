@@ -46,7 +46,7 @@ from netket.driver.abstract_variational_driver import apply_gradient
 from netket.logging import AbstractLog
 from netket.logging import JsonLog
 from netket.operator._abstract_observable import AbstractObservable
-from netket.utils import mpi
+from neuralqx.utils import distributed as _dist
 from netket.utils import timing
 from netket.jax import tree_cast
 
@@ -217,7 +217,7 @@ class AbstractVariationalDriver(NKDriver):
                                 logger(self.step_count, log_data, self.state)
 
                     if len(callbacks) > 0:
-                        if mpi.mpi_any(callback_stop):
+                        if _dist.mpi_any(callback_stop):
                             break
 
                     # Reset the timing of tqdm after the first step, to ignore compilation time

@@ -5,8 +5,47 @@ Change Log
 ============================================
 
 
-Unreleased
+neuraLQX v1.1.0 (March 10, 2026)
+------------------------------------
+
+Breaking changes
+~~~~~~~~~~~~~~~~~
+- neuraLQX now requires a NetKet version of 3.19+, and no longer supports earlier versions. This means that, thanks to
+  NetKet's latest versions, neuraLQX simulations now run substantially faster than the previous version.
+
+- **neuraLQX no longer support MPI based parallelisation.** The only mode of parallelisation is now through JAX's sharding,
+  and only for Linux systems, as currently supported by the latest NetKet versions. This means that older neuraLQX scripts
+  are not going to be compatible with this version.
+
+- The ``NQX_MPI`` and ``NQX_MPI_CUDA`` configuration variables are now removed. neuraLQX will use all available
+  GPUs automatically and if none are available, it will fallback to CPU execution.
+
+
+New features
+~~~~~~~~~~~~~
+- A new module :mod:`~neuralqx.utils.distributed` is now responsible for all parallelisation related utils.
+
+
+Changes
+~~~~~~~~
+- None.
+
+
+Deprecations
+~~~~~~~~~~~~~
+- Module :mod:`~neuralqx.utils.mpi` has been removed as neuraLQX no longer supports MPI based parallelisation.
+
+
+Experimental
+~~~~~~~~~~~~~
+- None.
+
+
 ------------
+
+
+neuraLQX v1.0.1 (March 6, 2026)
+------------------------------------
 
 Breaking changes
 ~~~~~~~~~~~~~~~~~

@@ -185,9 +185,6 @@ def test_defaults_are_set_in_os_environ_on_import(cfgmod_factory):
     m = cfgmod_factory()
     assert "NQX_DEBUG" in os.environ
     assert "NQX_VERBOSE" in os.environ
-    assert "NQX_MPI" in os.environ
-    assert "NQX_MPI_CUDA" in os.environ
-    assert "NQX_JAX_DISTRIBUTED" in os.environ
 
 
 def test_get_unknown_key_raises_configerror(cfgmod_factory):
@@ -316,65 +313,9 @@ def test_get_static_missing_key_raises(cfgmod_factory):
         m.cfg.get_static("NOPE")
 
 
-def test_sync_external_env_sets_netket_flags_for_serial_default(cfgmod_factory):
-    _ = cfgmod_factory()
-    assert os.environ["NETKET_MPI"] == "0"
+def test_sync_external_env_sets_expected_defaults_for_cuda(cfgmod_factory):
 
-
-def test_sync_external_env_sets_expected_defaults_for_mpi_cpu(cfgmod_factory):
-    _ = cfgmod_factory(env={"NQX_MPI": "1"})
-    assert os.environ["NETKET_MPI"] == "1"
-
-    assert os.environ.get("NETKET_EXPERIMENTAL_SHARDING") == "False"
-
-    assert os.environ.get("NETKET_MPI_AUTODETECT_LOCAL_GPU") == "0"
-    assert os.environ.get("MPI4JAX_USE_CUDA_MPI") == "0"
-    assert os.environ.get("JAX_PLATFORM_NAME") == "cpu"
-    assert os.environ.get("OMP_NUM_THREADS") == "1"
-
-
-def test_sync_external_env_does_not_override_user_preset_values(cfgmod_factory):
-    _ = cfgmod_factory(
-        env={
-            "NQX_MPI": "1",
-            "NETKET_EXPERIMENTAL_SHARDING": "True",
-            "OMP_NUM_THREADS": "8",
-        }
-    )
-    assert os.environ["NETKET_MPI"] == "1"
-
-    assert os.environ["NETKET_EXPERIMENTAL_SHARDING"] == "True"
-
-    assert os.environ["OMP_NUM_THREADS"] == "8"
-
-
-def test_sync_external_env_sets_expected_defaults_for_mpi_cuda(cfgmod_factory):
-    _ = cfgmod_factory(env={"NQX_MPI_CUDA": "1"})
-    assert os.environ["NETKET_MPI"] == "1"
-    assert os.environ.get("NETKET_EXPERIMENTAL_SHARDING") == "False"
-    assert os.environ.get("NETKET_MPI_AUTODETECT_LOCAL_GPU") == "1"
-    assert os.environ.get("MPI4JAX_USE_CUDA_MPI") == "1"
-    assert os.environ.get("JAX_PLATFORM_NAME") == "gpu"
+    assert os.environ.get("JAX_PLATFORMS") == ""
     assert os.environ.get("OMP_NUM_THREADS") == "1"
     assert os.environ.get("XLA_PYTHON_CLIENT_PREALLOCATE") == "false"
-
-
-def test_sync_external_env_rejects_mpi_and_djax_enabled(cfgmod_factory):
-    with pytest.raises(Exception) as ex:
-        _ = cfgmod_factory(env={"NQX_MPI": "1", "NQX_JAX_DISTRIBUTED": "1"})
-
-    assert "distributed JAX" in str(ex.value) or "JAX sharding" in str(ex.value)
-
-
-def test_sync_external_env_rejects_mpi_and_mpi_cuda_enabled(cfgmod_factory):
-    with pytest.raises(Exception) as ex:
-        _ = cfgmod_factory(env={"NQX_MPI": "1", "NQX_MPI_CUDA": "1"})
-    assert "both MPI and CUDA-aware MPI" in str(ex.value)
-
-
-def test_sync_external_env_rejects_djax_enabled_even_without_mpi(cfgmod_factory):
-    with pytest.raises(Exception) as ex:
-        _ = cfgmod_factory(env={"NQX_JAX_DISTRIBUTED": "1"})
-    assert "still a feature under" in str(
-        ex.value
-    ) or "Compatibility with JAX sharding" in str(ex.value)
+    assert os.environ.get("NETKET_EXPERIMENTAL_SHARDING") == "True"

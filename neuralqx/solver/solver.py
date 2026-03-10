@@ -92,7 +92,7 @@ from neuralqx.utils.serialization import save_to_file
 from neuralqx.utils.parsing import log_module_attributes
 from neuralqx.utils.parsing import required_kwargs
 from neuralqx.vqs import MCState
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 from neuralqx.vqs.mc.mc_state.state import serialize_MCState
 from neuralqx.vqs.mc.mc_state.state import deserialize_MCState
 from neuralqx.samplers import Sampler as SamplerNQX
@@ -109,7 +109,6 @@ import jax.numpy as jnp
 from netket.logging import RuntimeLog
 from netket.optimizer import SR, identity_preconditioner
 from netket.utils import is_probably_holomorphic
-from netket.utils.mpi import mpi_bcast
 
 if TYPE_CHECKING:
     # these imports are only for type checking/docs
@@ -401,7 +400,7 @@ class Solver(AbstractSolver):
 
             # we also do NOT export/plot/log here
             # just a minimal trace:
-            if _mpi.is_global_master():
+            if _dist.is_global_master():
                 try:
                     self._write_abort_marker(ctx)
                 except Exception:
@@ -483,7 +482,7 @@ class Solver(AbstractSolver):
         # prepare live monitoring callback
         live_cb = None
         if live_monitoring:
-            if cfg.get("MPI_CUDA") or cfg.get("MPI") or cfg.get("JAX_DISTRIBUTED"):
+            if _dist.process_count() > 1:
                 LiveMonitoringUnavailableWarning()
             else:
                 live_cb = LiveMonitoringCallback()
@@ -623,10 +622,10 @@ class Solver(AbstractSolver):
         ctx.performed_iters = int(getattr(self.vmc_driver, "step_count", 0))
 
         # Multi-rank safety: hard abort
-        if getattr(_mpi, "available", False) and getattr(_mpi, "n_nodes", 1) > 1:
+        if getattr(_dist, "available", False) and getattr(_dist, "n_nodes", 1) > 1:
 
             # try to write a lightweight marker from rank-0 without barriers
-            if _mpi.is_global_master():
+            if _dist.is_global_master():
                 self._write_abort_marker(ctx)
 
             # hard abort all ranks
@@ -687,22 +686,16 @@ class Solver(AbstractSolver):
         """
 
         # if we're not actually in multi-rank mode, just exit
-        if not getattr(_mpi, "available", False) or getattr(_mpi, "n_nodes", 1) <= 1:
+        if not getattr(_dist, "available", False) or getattr(_dist, "n_nodes", 1) <= 1:
             exit(exit_code)
 
         try:
-            # preferred: abort the active communicator
-            if hasattr(_mpi, "comm") and hasattr(_mpi.comm, "Abort"):
-                _mpi.comm.Abort(exit_code)
-                return
-
-            # fallback: abort world explicitly if exposed
-            if hasattr(_mpi, "MPI") and hasattr(_mpi.MPI, "COMM_WORLD"):
-                _mpi.MPI.COMM_WORLD.Abort(exit_code)
-                return
+            # No generic hard-abort primitive exists in the JAX distributed runtime.
+            # We therefore force-terminate this process.
+            os._exit(exit_code)
 
         finally:
-            # if MPI abort didn't immediately terminate, force kill this process
+            # force kill as a final fallback
             exit(exit_code)
 
     def _finalise_run(self, ctx: _RunContext) -> None:
@@ -786,7 +779,7 @@ class Solver(AbstractSolver):
             pass
 
         # optional user-facing log display / plot
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             if hasattr(self, "_logger") and self._logger is not None:
                 # always export
                 try:
@@ -807,7 +800,7 @@ class Solver(AbstractSolver):
                 self.printer.print(f"Failed to plot/export results: {exc}")
 
         else:
-            _mpi.barrier()
+            _dist.barrier()
 
         # shut down live monitoring cleanly
         if ctx.live_callback is not None:
@@ -819,7 +812,7 @@ class Solver(AbstractSolver):
         self._solved = not ctx.aborted and (ctx.performed_iters >= ctx.n_iters)
 
         # final barrier for orderly exit in normal cases
-        _mpi.barrier()
+        _dist.barrier()
 
     def _final_constraint_estimate(self) -> None:
         """
@@ -1173,10 +1166,10 @@ class Solver(AbstractSolver):
         serialised_state = serialize_MCState(vstate)
 
         # everyone synchronise here
-        _mpi.barrier()
+        _dist.barrier()
 
         # rank-0 only, workers skip export
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             if marker != "":
                 marker = "_" + marker
 
@@ -1193,7 +1186,7 @@ class Solver(AbstractSolver):
                 self.printer.print("State serialised to disc.")
 
         # all other workers wait here
-        _mpi.barrier()
+        _dist.barrier()
 
         return None
 
@@ -1231,16 +1224,16 @@ class Solver(AbstractSolver):
         """
 
         # synchronise every worker
-        _mpi.barrier()
+        _dist.barrier()
 
         # load the state from file, only rank-0
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             nvs = load_from_file(state_path, raw=True)
         else:
             nvs = None
 
         # broadcast to all workers
-        nvs = mpi_bcast(nvs, root=0)
+        nvs = _dist.mpi_bcast(nvs, root=0)
 
         # reconstruct and return a new MCState
         return deserialize_MCState(
@@ -1454,7 +1447,7 @@ class Solver(AbstractSolver):
         )
 
         # display plot if requested
-        if (not silent_plot) and (_mpi.n_nodes == 1):
+        if (not silent_plot) and (_dist.n_nodes == 1):
             plt.show()
         else:
             plt.close()

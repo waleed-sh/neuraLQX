@@ -196,7 +196,7 @@ class U1GaugeGroup(AbstractGaugeGroup):
                 Gv -= get_quantum_number(H, G.edge_to_index(edge), False, False)
 
             # Add G_v^2 to the total
-            total += Gv * Gv
+            total += Gv @ Gv
 
             # reset for next vertex
             Gv = lop_type(H.hilbert, dtype=jnp.float64)

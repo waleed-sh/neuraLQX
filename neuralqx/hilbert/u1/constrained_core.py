@@ -1105,8 +1105,8 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
 
         # make a key per (B,G) slice
 
-        # (-1) = key width (usually 2)
-        keys = jax.random.split(key, B * G).reshape((B * G, -1))
+        # Keep JAX typed keys as scalar-key arrays, do not reshape the key axis.
+        keys = jax.random.split(key, B * G)
         vflat = v.reshape((B * G, v.shape[-1]))
         vflat2 = jax.vmap(_flip_one_state)(vflat, keys)
         v2 = vflat2.reshape(v.shape)
@@ -1311,8 +1311,8 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
 
         v = self._view(sigma)
 
-        # key per (B,G)
-        keys = jax.random.split(key, B * G).reshape((B * G, -1))
+        # key per (B,G), preserving typed-key scalar shape.
+        keys = jax.random.split(key, B * G)
         vflat = v.reshape((B * G, v.shape[-1]))
 
         vflat2 = jax.vmap(self._apply_random_plaquette_on_state)(vflat, keys)

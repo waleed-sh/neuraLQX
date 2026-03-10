@@ -38,7 +38,7 @@ from netket.jax import tree_cast
 from netket.operator import AbstractOperator
 from netket.optimizer import PreconditionerT
 from netket.optimizer import identity_preconditioner
-from netket.utils import mpi
+from neuralqx.utils import distributed as _dist
 from netket.utils.types import Optimizer
 
 from neuralqx.driver import VMC
@@ -191,12 +191,20 @@ def fidelity_expect_and_grad_joint(
         closure, pars0, has_aux=True, conjugate=True
     )
     grads = vjp_fun(jnp.ones_like(fid_val))[0]
-    # IMPORTANT under MPI:
-    # nkjax.expect's backward contains mpi_mean(), so AD gradients are scaled by 1/n_ranks.
-    # Compensate by summing across ranks (see netket.jax.expect docstring).
-    grads = jax.tree_util.tree_map(lambda x: mpi.mpi_sum_jax(x)[0], grads)
 
     return fid_val, fid_stats, grads
+
+
+"""
+    is_mutable = mutable is not False
+    _, vjp_fun, *new_model_state = nkjax.vjp(
+        lambda w: model_apply_fun({"params": w, **model_state}, σ, mutable=mutable),
+        parameters,
+        conjugate=True,
+        has_aux=is_mutable,
+    )
+    Ō_grad = vjp_fun(jnp.conjugate(O_loc) / n_samples)[0]
+"""
 
 
 class MultiStateVMC(VMC):

@@ -137,7 +137,7 @@ class WeightedSamplerRule(MetropolisRule):
         indices = jax.random.choice(
             keys[-1],
             N,
-            shape=(sampler.n_chains_per_rank,),
+            shape=(sampler.n_batches,),
             p=self.probabilities,
         )
 

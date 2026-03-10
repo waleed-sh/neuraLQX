@@ -414,70 +414,52 @@ class NonExistentNonPlanarVerticesError(neuralqxError):
         )
 
 
-class MPIUnavailableWarning(neuralqxWarning):
+class DistributedRuntimeUnavailableWarning(neuralqxWarning):
     def __init__(self, stack_level: int = 2):
         super().__init__(
             "\n"
-            "MPI was requested (the environment variable `NQX_MPI` was set to `1`) but the Python "
-            "package `mpi4py` is not installed.  Falling back to serial mode."
+            "Distributed execution was requested but the distributed runtime is not available. "
+            "Falling back to serial mode."
             "\n"
-            "Install mpi4py (≥ 5.0) and relaunch your script with:"
+            "Please make sure your JAX distributed launch is correctly configured and retry."
             "\n\n"
-            "\t>>> mpirun -n <ranks> python your_script.py"
+            "\t>>> python your_script.py"
             "\n\n"
-            "to enable MPI support.",
+            "to run in serial mode, or launch with your cluster/distributed runner to enable "
+            "multi-process execution.",
             stack_level=stack_level,
         )
 
 
-class MPIStateImportInSerialModeError(neuralqxError):
+class DistributedStateImportInSerialModeError(neuralqxError):
 
     def __init__(self, n_nodes, ranks_per_node):
         super().__init__(
             "\n"
-            f"Attempted to load a state saved with MPI enabled (Total nodes = {n_nodes}, "
-            f"MPI ranks per node = {ranks_per_node}) in a non-MPI environment. "
+            f"Attempted to load a state saved in distributed mode (Total processes = {n_nodes}, "
+            f"processes per host = {ranks_per_node}) in a serial environment. "
             f"\n\n"
-            f"This is currently not allowed. Please configure your MPI setup to match the one the "
-            f"state was exported from and try again."
+            f"This is currently not allowed. Please configure your distributed runtime to match the "
+            f"one the state was exported from and try again."
         )
 
 
-class MPIStateImportMismatchError(neuralqxError):
+class DistributedStateImportMismatchError(neuralqxError):
 
     def __init__(self, mismatch_type: str, saved_data, current_data):
 
-        qualifier = "Total nodes" if mismatch_type == "nodes" else "MPI ranks per node"
+        qualifier = (
+            "Total processes" if mismatch_type == "nodes" else "Processes per host"
+        )
 
         super().__init__(
             "\n"
-            f"Attempted to load a state saved with different MPI configuration."
+            f"Attempted to load a state saved with a different distributed configuration."
             f"\n\n"
             f"The state was saved with {qualifier} = {saved_data} but the current "
             f"{qualifier} = {current_data}. "
-            f"This is currently not allowed. Please configure your MPI setup to match the one the "
+            f"This is currently not allowed. Please configure your runtime to match the one the "
             f"state was exported from and try again."
-        )
-
-
-class NoGPUSFoundWarning(neuralqxWarning):
-    def __init__(self, stack_level: int = 2):
-        super().__init__(
-            "\n"
-            "CUDA-aware MPI was requested (the environment variable `NQX_MPI_CUDA` was set "
-            "\nto `1`) but no GPUs were found by Jax. "
-            "\n\nFalling back to CPU based parallelisation based on the number of "
-            "\nallocated MPI ranks.",
-            stack_level=stack_level,
-        )
-
-
-class NetKetMPIUnavailableWarning(neuralqxWarning):
-    def __init__(self, stack_level: int = 2):
-        super().__init__(
-            "\n"
-            "Unable to adopt NetKet's MPI stack. Falling back to a default MPI communicator.",
-            stack_level=stack_level,
         )
 
 
@@ -647,17 +629,15 @@ __all__ = [
     "IncorrectGaugeFixingArrayError",
     "NonHermitianInverseCostError",
     "AutoConstraintGaugeFixingConflictError",
-    "MPIStateImportMismatchError",
+    "DistributedStateImportMismatchError",
     "OutOfRangeIndexError",
     "CrossProductInHigherDimensionsError",
-    "MPIStateImportInSerialModeError",
-    "NoGPUSFoundWarning",
-    "MPIUnavailableWarning",
+    "DistributedStateImportInSerialModeError",
+    "DistributedRuntimeUnavailableWarning",
     "AreaDifferenceEdgesError",
     "DuplicateEdgesError",
     "OrientationValenceMismatchError",
     "AreaDifferenceSurfacesError",
-    "NetKetMPIUnavailableWarning",
     "ExpectationValueError",
     "MissingPenaltyFactorError",
     "NonExistentNonPlanarEdgesError",

@@ -76,10 +76,10 @@ def test_composite_dense_matches_local(hilbert_tiny, site, nk):
         "B": Zl - 0.7,
         "C": Spl + Sml,
         "D": Spl - Sml,
-        "E": Zl * Zl,
-        "F": Spl * Sml,
-        "G": Sml * Spl,
-        "H": (Spl + Sml) * (Zl + 0.1),
+        "E": Zl @ Zl,
+        "F": Spl @ Sml,
+        "G": Sml @ Spl,
+        "H": (Spl + Sml) @ (Zl + 0.1),
     }
     exprs_comp = {
         "A": Zc + 0.3,

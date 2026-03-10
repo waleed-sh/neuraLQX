@@ -54,6 +54,42 @@ Environment Variables
      - ``False``
      - Enable or disable debugging mode throughout various parts of neuraLQX
      - Yes
+   * - ``NQX_PROFILE``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable profiling in neuraLQX.
+     - No
+   * - ``NQX_PROFILE_NVTX``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable nvidia-smi profiling in neuraLQX.
+     - No
+   * - ``NQX_PROFILE_METRICS``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable profiling telemetry (CPU/memory + GPU via NVML when available).
+     - No
+   * - ``NQX_PROFILE_TRACE``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable Perfetto UI traces in neuraLQX.
+     - No
+   * - ``NQX_PROFILE_SYNC``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable device-accurate timing (forces synchronisation and can slow execution).
+     - No
+   * - ``NQX_PROFILE_DIR``
+     - ``str``
+     - Any valid path
+     - ``<project>/.neuralqx_profiling/neuralqx_<YYYYMMDD>``
+     - Override the directory where profiling artifacts are written.
+     - No
    * - ``NQX_VERBOSE``
      - ``bool``
      - ``False`` | ``True``
@@ -71,30 +107,18 @@ Environment Variables
      - ``0`` | ``1``
      - ``0``
      - Enable experimental functions throughout the neuralqx and netket packages
-     - No
+     - Yes
+   * - ``NQX_TESTING``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Relax some neuraLQX features for testing purposes.
+     - Yes
    * - ``NQX_CACHE``
      - ``int``
      - ``0`` | ``1``
      - ``0``
      - Enable caching when possible
-     - No
-   * - ``NQX_MPI``
-     - ``int``
-     - ``0`` | ``1``
-     - ``0``
-     - Enable MPI (CPU) for neuraLQX
-     - No
-   * - ``NQX_MPI_CUDA``
-     - ``int``
-     - ``0`` | ``1``
-     - ``0``
-     - Enable CUDA-aware MPI for neuraLQX
-     - No
-   * - ``NQX_JAX_DISTRIBUTED``
-     - ``int``
-     - ``0`` | ``1``
-     - ``0``
-     - Enable Jax distributed computations for neuraLQX
      - No
    * - ``NQX_ENABLE_X64``
      - ``int``

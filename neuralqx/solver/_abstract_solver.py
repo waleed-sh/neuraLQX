@@ -29,7 +29,7 @@ all neuraLQX “solver” implementations. A solver glues together:
 - runtime logging and run metadata (MPI, platform info, run hash, output paths).
 
 Concrete solvers should implement the abstract methods to provide a consistent user-facing workflow:
-configure sampler/optimiser/network → initialise VMC → run/continue → export/import → plot results.
+configure sampler/optimiser/network -> initialise VMC -> run/continue -> export/import -> plot results.
 """
 
 import abc
@@ -61,7 +61,7 @@ from neuralqx.utils.io.printing import NQXPrinter
 from neuralqx.utils.io.loggers import Logger
 from neuralqx.utils.misc.auth import get_hash
 from neuralqx.vqs import MCState
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 
 from netket.sampler import Sampler
 
@@ -304,8 +304,8 @@ class AbstractSolver(abc.ABC):
 
         # generate hash on rank-0 only, then broadcast to all ranks
         # this guarantees that `self.hash` and any derived paths are identical everywhere
-        _hash = get_hash() if _mpi.is_global_master() else None
-        self._hash = _mpi.mpi_bcast(_hash, root=0)
+        _hash = get_hash() if _dist.is_global_master() else None
+        self._hash = _dist.bcast(_hash, root=0)
 
         # determine the solver seed:
         # - if user provided `seed`, we respect it
@@ -316,8 +316,8 @@ class AbstractSolver(abc.ABC):
         if seed is not None:
             _seed = int(seed)
         else:
-            _seed = secrets.randbits(30) if _mpi.is_global_master() else None
-        self._seed = _mpi.mpi_bcast(_seed, root=0)
+            _seed = secrets.randbits(30) if _dist.is_global_master() else None
+        self._seed = _dist.bcast(_seed, root=0)
 
         # check the output path
         if output_path is None:
@@ -339,22 +339,22 @@ class AbstractSolver(abc.ABC):
 
         # create the output data path
         # avoid rave conditions, only rank-0 does this
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             os.makedirs(
                 os.path.join(self.output_path, str(self.hash)),
                 exist_ok=True,
             )
 
         # make sure the path exists for everyone
-        _mpi.barrier()
+        _dist.barrier()
 
         # remove any directories which are from previous simulations that have been stopped (e.g.
         # empty directories in output path)
         # this works only on rank-0 for MPI enabled
-        if _mpi.is_global_master():
+        if _dist.is_global_master():
             if clean_up:
                 self._clean_up()
-        _mpi.barrier()
+        _dist.barrier()
 
         # now we can set the final output directory including the simulation hash
         self._output_path = os.path.join(self.output_path, str(self.hash))
@@ -413,95 +413,63 @@ class AbstractSolver(abc.ABC):
             ],
         )
 
-        # logging MPI data
-        if _mpi.available:
+        # logging distributed runtime data (JAX process semantics)
+        rt = _dist.runtime_info()
+        local_gpu_count = len([d for d in jax.devices() if d.platform == "gpu"])
+        gathered_gpu_counts = _dist.allgather(local_gpu_count)
+        try:
+            global_gpu_count = int(sum(int(x) for x in gathered_gpu_counts))
+        except Exception:
+            global_gpu_count = int(local_gpu_count)
 
-            # version
-            v_major, v_minor = _mpi.MPI.Get_version()
+        hostnames = _dist.allgather(platform.node())
+        try:
+            n_hosts = len(set(hostnames))
+            processes_on_this_host = sum(1 for h in hostnames if h == platform.node())
+        except Exception:
+            n_hosts = 1
+            processes_on_this_host = 1
 
-            # library version, strip the C style EOL
-            try:
-                mpi_lib_ver = _mpi.MPI.Get_library_version().rstrip("\x00")
-            except AttributeError:
-                mpi_lib_ver = "Unknown"
+        cpus_per_process = int(os.cpu_count() or 1)
 
-            # log the MPI section
-            self._logger.log(
-                [
-                    "Enabled",
-                    "Number of nodes",
-                    "Number of tasks per node",
-                    "Number of CPUs per task",
-                    "Available GPUs",
-                    "Total number of CPUs",
-                    "mpi4py | MPI version",
-                    "mpi4py | MPI library_version",
-                    "Python implementation",
-                    "Python version",
-                ],
-                [
-                    True,
-                    len(set(_mpi.all_hostnames())),
-                    _mpi.local_ranks(),
-                    _mpi.detect_cpus_per_task(),
-                    str(
-                        len(
-                            [
-                                d.device_kind
-                                for d in jax.devices()
-                                if d.platform == "gpu"
-                            ]
-                        )
-                    ),
-                    _mpi.n_nodes * _mpi.detect_cpus_per_task(),
-                    f"({v_major}, {v_minor})",
-                    mpi_lib_ver,
-                    platform.python_implementation(),
-                    platform.python_version(),
-                ],
-            )
-        else:
-            # MPI is disabled
-            self._logger.log(
-                [
-                    "Enabled",
-                    "Number of nodes",
-                    "Number of tasks per node",
-                    "Number of CPUs per task",
-                    "Total number of CPUs",
-                    "mpi4py | MPI version",
-                    "mpi4py | MPI library_version",
-                    "Python implementation",
-                    "Python version",
-                    "Available GPUs",
-                ],
-                [
-                    False,
-                    1,
-                    1,
-                    _mpi.detect_cpus_per_task(),
-                    _mpi.detect_cpus_per_task(),
-                    "N/A",
-                    "N/A",
-                    platform.python_implementation(),
-                    platform.python_version(),
-                    str(
-                        len(
-                            [
-                                d.device_kind
-                                for d in jax.devices()
-                                if d.platform == "gpu"
-                            ]
-                        )
-                    ),
-                ],
-            )
+        self._logger.log(
+            [
+                "Backend",
+                "Distributed enabled",
+                "Process index",
+                "Process count",
+                "Local process index",
+                "Number of hosts",
+                "Processes on this host",
+                "CPUs per process",
+                "Total number of CPUs",
+                "Available GPUs",
+                "JAX version",
+                "Python implementation",
+                "Python version",
+            ],
+            [
+                rt.backend,
+                bool(rt.size > 1),
+                rt.rank,
+                rt.size,
+                rt.local_rank,
+                n_hosts,
+                processes_on_this_host,
+                cpus_per_process,
+                rt.size * cpus_per_process,
+                str(global_gpu_count),
+                getattr(jax, "__version__", "Unknown"),
+                platform.python_implementation(),
+                platform.python_version(),
+            ],
+        )
 
     def _clean_up(self):
         """Delete all empty directories in the output path, except the current run directory."""
 
         # rank-0 only
-        if not _mpi.is_global_master():
+        if not _dist.is_global_master():
             return
 
         current_run_dir = os.path.join(self.output_path, str(self.hash))

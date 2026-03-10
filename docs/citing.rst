@@ -4,9 +4,9 @@
 Citing neuraLQX
 =======================
 
-neuraLQX is built *on top of* NetKet. If you got results with neuraLQX, then NetKet is part of the
+neuraLQX would not exist without NetKet. If you got results with neuraLQX, then NetKet is part of the
 scientific and engineering chain that produced those results: sampling, VMC drivers, SR/QGT machinery,
-operator interfaces, logging, MPI integration patterns, and the surrounding ecosystem.
+operator interfaces, logging, distributed computing integration patterns, and the surrounding ecosystem.
 
 **You have to always cite NetKet whenever you cite neuraLQX!**
 
@@ -15,8 +15,8 @@ This page gives ready-to-use citation text and BibTeX snippets for common usage 
 
 .. important::
 
-   If you publish work that used neuraLQX, cite **neuraLQX + NetKet** at minimum.
-   If you used MPI-distributed runs, also cite **mpi4jax**.
+   If you publish work that used neuraLQX, **you have to cite neuraLQX and you absolutely have to cite NetKet at minimum**.
+   If you used MPI-distributed runs with older neuraLQX versions, also cite **mpi4jax**.
    You should additionally cite **JAX** (and **Flax**) as it is the main workhorse behind everything.
 
 
@@ -100,7 +100,7 @@ Bundle A: neuraLQX + NetKet
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.0.0},
+        version = {1.1.0},
         year = {2026},
       }
 
@@ -136,7 +136,7 @@ Bundle B: neuraLQX + NetKet + MPI
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.0.0},
+        version = {1.1.0},
         year = {2026},
       }
 
@@ -183,7 +183,7 @@ Bundle C: neuraLQX + NetKet + JAX/Flax
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.0.0},
+        version = {1.1.0},
         year = {2026},
       }
 
@@ -231,7 +231,7 @@ Bundle D: Full stack (everything on this page)
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.0.0},
+        version = {1.1.0},
         year = {2026},
       }
 
@@ -302,10 +302,9 @@ FAQ
 
 **What if I used neuraLQX for prototyping but rewrote the final code?**
   Cite neuraLQX as an implementation reference (see the "Built with / derived from" sentence above)
-  **and still cite NetKet** *esepcially* if NetKet's APIs, methods, or implementation details were part of the chain
-  that enabled the work.
+  **and still cite NetKet!**
 
 **What if my journal has a strict citation limit?**
-  Use Bundle A at minimum (neuraLQX + NetKet). If MPI was essential for feasibility, prefer Bundle B
+  Use Bundle A at minimum, you have to cite neuraLQX, and you also must cite NetKet. If MPI was essential for feasibility, prefer Bundle B
   over adding JAX/Flax.
 

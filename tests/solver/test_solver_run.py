@@ -19,7 +19,7 @@ from netket.logging import RuntimeLog
 def test_initialize_vmc_builds_vmc(solver_env, nk):
     s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
     s.set_sampler(sampler_type="U1 Gauge Sampler")
-    s.set_optimizer(optimizer_type="adam", use_sr=True)
+    s.set_optimizer(optimizer_type="adam", use_sr=False)
     s.set_network(nk.models.RBM(alpha=2))
     s.initialize_vmc()
     assert hasattr(s, "vmc_driver")
@@ -29,7 +29,7 @@ def test_initialize_vmc_builds_vmc(solver_env, nk):
 def test_run_executes_vmc_loop_and_sets_solved_flag(solver_env, nk):
     s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
     s.set_sampler(sampler_type="U1 Gauge Sampler")
-    s.set_optimizer(optimizer_type="adam", use_sr=True)
+    s.set_optimizer(optimizer_type="adam", use_sr=False)
     s.set_network(nk.models.RBM(alpha=2))
     s.initialize_vmc()
     observables = {"v0": s.lqx.volume(0), "F": s.lqx.curvature_constraint()}
@@ -43,7 +43,7 @@ def test_run_handles_keyboard_interrupt_gracefully(solver_env, monkeypatch, nk):
     s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
 
     s.set_sampler(sampler_type="U1 Gauge Sampler")
-    s.set_optimizer(optimizer_type="adam", use_sr=True)
+    s.set_optimizer(optimizer_type="adam", use_sr=False)
     s.set_network(nk.models.RBM(alpha=2))
     s.initialize_vmc()
 

@@ -88,6 +88,12 @@ def _diag_element_from_get_conn(op, state):
     if xp.ndim == 1:
         xp = xp[None, :]
 
+    # NetKet may drop explicit zero-valued diagonal entries from get_conn.
+    # For a diagonal constraint this means "no connections" can represent a
+    # zero diagonal matrix element.
+    if len(mels) == 0:
+        return 0.0
+
     if len(mels) != 1:
         raise AssertionError(
             f"Expected diagonal operator with 1 connected state, got {len(mels)}"

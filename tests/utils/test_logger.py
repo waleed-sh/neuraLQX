@@ -50,9 +50,9 @@ class DummyConsole:
         self.calls.append(obj)
 
 
-def _set_mpi_master(lmod, monkeypatch, is_master: bool):
-    monkeypatch.setattr(lmod._mpi, "is_global_master", lambda: is_master, raising=True)
-    monkeypatch.setattr(lmod._mpi, "barrier", lambda: None, raising=True)
+def _set_dist_master(lmod, monkeypatch, is_master: bool):
+    monkeypatch.setattr(lmod._dist, "is_global_master", lambda: is_master, raising=True)
+    monkeypatch.setattr(lmod._dist, "barrier", lambda: None, raising=True)
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def logger_factory(lmod, monkeypatch):
     monkeypatch.setattr(lmod, "console", dummy_console, raising=True)
 
     def _make(seed="SEED", is_master=True, solver_seed="SOLVER_SEED"):
-        _set_mpi_master(lmod, monkeypatch, is_master)
+        _set_dist_master(lmod, monkeypatch, is_master)
         lg = lmod.Logger(random_seed=seed, solver_seed=solver_seed)
         return lg, lmod
 
@@ -174,7 +174,7 @@ def test_logger_default_schema_present(logger_factory):
     lg, _ = logger_factory(seed="S", is_master=True)
     log = lg.get_log()
     assert "Network Configs" in log
-    assert "MPI" in log
+    assert "Distributed Runtime" in log
     assert isinstance(log["Network Configs"], dict)
 
 

@@ -38,6 +38,7 @@ from typing import Tuple
 from typing import Union
 
 from neuralqx.debug import errors_only
+from .distributed import safe_replicate_for_io
 
 # attempt to import JAX/NumPy if available (we won't crash if they're missing...)
 try:
@@ -228,6 +229,22 @@ class SerializerEngine:
         return data
 
     @staticmethod
+    def _is_jax_array(value: Any) -> bool:
+        """Return True if value looks like a JAX array leaf."""
+        if not _HAS_jax:
+            return False
+        try:
+            jax_array_type = getattr(jax, "Array", None)
+            if jax_array_type is not None and isinstance(value, jax_array_type):
+                return True
+        except Exception:
+            pass
+        try:
+            return isinstance(value, jnp.ndarray)
+        except Exception:
+            return False
+
+    @staticmethod
     def _serialize_any(value: Any) -> Any:
         """
         Recursively serialize an arbitrary Python value
@@ -256,9 +273,15 @@ class SerializerEngine:
             return {"__is_bytes__": True, "data": value}
 
         # Second: check for JAX array
-        if _HAS_jax and isinstance(value, jnp.ndarray):
-            # convert JAX array to CPU-backed NumPy array
-            cpu_arr = np.array(value)
+        if _HAS_jax and _HAS_NUMPY and SerializerEngine._is_jax_array(value):
+            # convert JAX array to replicated CPU-backed NumPy array for I/O safety
+            cpu_arr = np.asarray(
+                safe_replicate_for_io(
+                    value,
+                    replicate_to_all_processes=False,
+                    block_until_ready=True,
+                )
+            )
 
             # return a dict with markers for shape, dtype, data
             return {
@@ -452,6 +475,14 @@ class SerializerEngine:
         :param obj: the Python object to be serialized or a serialised dict
         :param filename:the path to the file where data will be saved
         """
+
+        # ensure all JAX-backed leaves are materialised on host before serialisation.
+        # this keeps I/O deterministic in distributed runs.
+        obj = safe_replicate_for_io(
+            obj,
+            replicate_to_all_processes=False,
+            block_until_ready=True,
+        )
 
         # convert object to a nested dictionary
         if not isinstance(obj, dict):
@@ -707,6 +738,13 @@ def save_multi_partial(
         # partial_serialize for each object
         partial_dict = partial_serialize(the_obj, attr_names)
         master_data[label] = partial_dict
+
+    # ensure all leaves are host-backed before packing bytes
+    master_data = safe_replicate_for_io(
+        master_data,
+        replicate_to_all_processes=False,
+        block_until_ready=True,
+    )
 
     # convert master_data to msgpack bytes
     snapshot_bytes = msgpack.packb(master_data, use_bin_type=True)

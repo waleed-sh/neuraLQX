@@ -19,7 +19,7 @@ from __future__ import annotations
 def test_export_info_label_depends_on_mpi_available(monkeypatch, sampler_modules):
     _, _, _, emod = sampler_modules
 
-    monkeypatch.setattr(emod._mpi, "available", False, raising=True)
+    monkeypatch.setattr(emod._dist, "available", False, raising=True)
     f, v = emod.export_info(
         sampler_type="Metropolis Local",
         number_of_samples=10,
@@ -29,10 +29,10 @@ def test_export_info_label_depends_on_mpi_available(monkeypatch, sampler_modules
         reset_chains=True,
     )
     assert "Number of chains" in f
-    assert "Number of chains per MPI rank" not in f
+    assert "Number of chains per process" not in f
     assert v[f.index("Number of chains")] == "7"
 
-    monkeypatch.setattr(emod._mpi, "available", True, raising=True)
+    monkeypatch.setattr(emod._dist, "available", True, raising=True)
     f2, v2 = emod.export_info(
         sampler_type="Metropolis Local",
         number_of_samples=10,
@@ -41,8 +41,8 @@ def test_export_info_label_depends_on_mpi_available(monkeypatch, sampler_modules
         machine_pow=2,
         reset_chains=True,
     )
-    assert "Number of chains per MPI rank" in f2
-    assert v2[f2.index("Number of chains per MPI rank")] == "7"
+    assert "Number of chains per process" in f2
+    assert v2[f2.index("Number of chains per process")] == "7"
 
 
 def test_export_info_exact_sampler_special_case_is_string_exact(
@@ -51,7 +51,7 @@ def test_export_info_exact_sampler_special_case_is_string_exact(
 
     _, _, _, emod = sampler_modules
 
-    monkeypatch.setattr(emod._mpi, "available", True, raising=True)
+    monkeypatch.setattr(emod._dist, "available", True, raising=True)
 
     f, v = emod.export_info(
         sampler_type="Exact Sampler",
@@ -75,5 +75,5 @@ def test_export_info_exact_sampler_special_case_is_string_exact(
         reset_chains=True,
     )
 
-    assert "Number of chains per MPI rank" in f2
-    assert v2[f2.index("Number of chains per MPI rank")] == "7"
+    assert "Number of chains per process" in f2
+    assert v2[f2.index("Number of chains per process")] == "7"

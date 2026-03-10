@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from neuralqx.utils import mpi as _mpi
+from neuralqx.utils import distributed as _dist
 
 
 def export_info(
@@ -46,7 +46,7 @@ def export_info(
         return fields, values
 
     fields.append(
-        "Number of chains per MPI rank" if _mpi.available else "Number of chains"
+        "Number of chains per process" if _dist.available else "Number of chains"
     )
     values.append(str(number_of_chains))
 

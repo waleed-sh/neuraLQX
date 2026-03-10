@@ -150,7 +150,7 @@ def test_u1_gauge_nonzero_init_and_random_state_never_return_vacuum(u1_theta_gi_
     H_nqx, hilb = u1_theta_gi_system
     rule = U1GaugeSamplerNonzero()
 
-    sampler = _DummySampler(hilb, n_chains_per_rank=12)
+    sampler = _DummySampler(hilb, n_batches=12)
 
     key = jax.random.PRNGKey(0)
     x0 = rule.init_state(sampler, machine=None, params=None, key=key)
@@ -159,7 +159,7 @@ def test_u1_gauge_nonzero_init_and_random_state_never_return_vacuum(u1_theta_gi_
 
     key, sub = jax.random.split(key)
     xs = rule.random_state(sampler, None, None, None, sub)
-    assert xs.shape[0] == sampler.n_chains_per_rank
+    assert xs.shape[0] == sampler.n_batches
     assert not bool(
         jnp.any(jnp.all(xs == 0, axis=1))
     ), "random_state returned vacuum for at least one chain"
