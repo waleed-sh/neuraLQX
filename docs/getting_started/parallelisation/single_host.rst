@@ -125,11 +125,11 @@ single-host runs).
 Further Reading
 -----------------
 
-- JAX multi-process and sharding concepts:
-  https://docs.jax.dev/en/latest/multi_process.html
+- JAX sharding concepts:
+  https://docs.jax.dev/en/latest/sharded-computation.html
 
 - NetKet distributed-parallelisation guides:
-  https://netket.readthedocs.io/en/latest/parallelization.html
+  https://netket.readthedocs.io/en/stable/parallel.html
 
 - Legacy neuraLQX MPI documentation:
   :doc:`mpi_deprecated/index`

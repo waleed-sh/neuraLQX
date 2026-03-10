@@ -155,7 +155,7 @@ Further Reading
   https://docs.jax.dev/en/latest/multi_process.html
 
 - NetKet distributed-parallelisation docs:
-  https://netket.readthedocs.io/en/latest/parallelization.html
+  https://netket.readthedocs.io/en/stable/parallel.html
 
 - Legacy neuraLQX MPI documentation:
   :doc:`mpi_deprecated/index`
