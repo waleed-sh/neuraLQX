@@ -36,6 +36,7 @@ NOTE: part(s) of, or the entire content, of this file is obtained from NetKet's 
 
 from functools import partial
 from typing import Callable, Sequence, Union
+from weakref import WeakKeyDictionary
 
 import jax
 from jax import numpy as jnp
@@ -53,9 +54,112 @@ from netket.operator import (
 from netket.vqs.mc.mc_state.state import MCState
 
 from ...mc import get_local_kernel, get_local_kernel_arguments
+from ..kernels import resolve_factored_local_kernel
 from ....operators import PenaltyCost
 from ....utils.errors import ExpectationValueError
 from ....vqs.mc.mc_state.state import MCState as NQXMCState
+from ....profile import section as prof_section
+
+
+_LOCAL_KERNEL_CACHE_WEAK = WeakKeyDictionary()
+_LOCAL_KERNEL_CACHE_FALLBACK = {}
+
+
+def _get_local_kernel_cached(vstate, operator):
+    """
+    Resolve and cache local-kernel dispatch for a (vstate type, operator instance) pair.
+    """
+    key = (type(vstate),)
+
+    def _factory():
+        return get_local_kernel(vstate, operator)
+
+    try:
+        cache = _LOCAL_KERNEL_CACHE_WEAK.get(operator)
+        if cache is None:
+            cache = {}
+            _LOCAL_KERNEL_CACHE_WEAK[operator] = cache
+        kernel = cache.get(key)
+        if kernel is None:
+            kernel = _factory()
+            cache[key] = kernel
+        return kernel
+    except TypeError:
+        # Fallback for objects not supporting weak references.
+        fb_key = (id(operator), type(vstate))
+        kernel = _LOCAL_KERNEL_CACHE_FALLBACK.get(fb_key)
+        if kernel is None:
+            kernel = _factory()
+            _LOCAL_KERNEL_CACHE_FALLBACK[fb_key] = kernel
+        return kernel
+
+
+@partial(jax.jit, static_argnums=(0, 1, 2, 3, 4))
+def _forces_expect_hermitian_sequence_fused(
+    local_value_kernels: tuple[Callable, ...],
+    local_value_factored_kernels: tuple[Callable | None, ...],
+    use_factored_kernels: tuple[bool, ...],
+    model_apply_fun: Callable,
+    mutable: CollectionFilter,
+    parameters: PyTree,
+    model_state: PyTree,
+    σ: jnp.ndarray,
+    local_value_args: tuple[PyTree, ...],
+    local_scales: tuple[float, ...],
+) -> tuple[Stats, PyTree, PyTree]:
+    """
+    Compute forces for a sequence of Hermitian operators with one VJP.
+
+    Per-operator local estimators are evaluated separately on the same sample batch
+    and accumulated as:
+        L_total = sum_i scale_i * L_i
+    then a single covariance/VJP is performed on L_total.
+    """
+    n_chains = σ.shape[0]
+    if σ.ndim >= 3:
+        σ = jax.lax.collapse(σ, 0, 2)
+
+    n_samples = σ.shape[0]
+    if model_state is None:
+        model_state = {}
+
+    is_mutable = mutable is not False
+    log_sigma, vjp_fun, *new_model_state = nkjax.vjp(
+        lambda w: model_apply_fun({"params": w, **model_state}, σ, mutable=mutable),
+        parameters,
+        conjugate=True,
+        has_aux=is_mutable,
+    )
+    logpsi = lambda pars, sigma: model_apply_fun({"params": pars, **model_state}, sigma)
+    variables = {"params": parameters, **model_state}
+    total_loc = jnp.zeros((σ.shape[0],), dtype=jnp.result_type(float))
+
+    for i, local_value_kernel in enumerate(local_value_kernels):
+        if use_factored_kernels[i]:
+            loc_i = local_value_factored_kernels[i](
+                log_sigma,
+                logpsi,
+                parameters,
+                σ,
+                local_value_args[i],
+            )
+        else:
+            loc_i = local_value_kernel(
+                model_apply_fun,
+                variables,
+                σ,
+                local_value_args[i],
+            )
+        scale_i = jnp.asarray(local_scales[i], dtype=loc_i.dtype)
+        total_loc = total_loc + scale_i * loc_i
+
+    Ō = statistics(total_loc.reshape((n_chains, -1)))
+    centered = total_loc - Ō.mean
+
+    Ō_grad = vjp_fun(jnp.conjugate(centered) / n_samples)[0]
+    new_model_state = new_model_state[0] if is_mutable else None
+
+    return Ō, Ō_grad, new_model_state
 
 
 @dispatch
@@ -80,101 +184,57 @@ def expect_and_forces(
     # get the vstate.samples to ensure that we use the same ones for every Ô
     σ = vstate.samples
 
-    # store the number of MC chains
-    n_chains = σ.shape[0]
+    local_kernels: list[Callable] = []
+    local_factored_kernels: list[Callable | None] = []
+    use_factored_kernels: list[bool] = []
+    local_args: list[PyTree] = []
+    local_scales: list[float] = []
 
-    if σ.ndim >= 3:
-        # flatten the chain dimension if needed
-        σ = jax.lax.collapse(σ, 0, 2)
+    with prof_section(
+        "expect_and_forces.sequence.prepare",
+        cat="vqs.forces",
+        args={"n_operators": int(len(Ô_list))},
+    ):
+        for i, ô in enumerate(Ô_list):
+            with prof_section(
+                "expect_and_forces.sequence.operator",
+                cat="vqs.forces",
+                args={"index": int(i), "operator_type": type(ô).__name__},
+            ):
+                # Discard σ returned by the argument builder: we enforce one shared sample batch.
+                _, args_op = get_local_kernel_arguments(vstate, ô)
+                local_kernel = _get_local_kernel_cached(vstate, ô)
+                factored_kernel = resolve_factored_local_kernel(local_kernel, chunked=False)
+                local_kernels.append(local_kernel)
+                local_factored_kernels.append(factored_kernel)
+                use_factored_kernels.append(factored_kernel is not None)
+                local_args.append(args_op)
+                local_scales.append(
+                    float(ô.factor) if isinstance(ô, PenaltyCost) else 1.0
+                )
 
-    # the get_local_kernel which returns the local estimator we want to store for every Ô will
-    # return a JAX array of shape (σ.shape[0], ), so we create an empty one with that shape
-    # this array will hold the sum of all local estimators L_σ returned from every operator
-    # dev: this was weak, essentially wrong... we were creating just a scalar zero, and later
-    #      JAX changed it into an array after the first sum with the first L_σ, now it should be
-    #      more "stable", aka less error prone
-    # L_σ_sum = jnp.zeros_like(σ.shape[0])
-    L_σ_sum = jnp.zeros((σ.shape[0],), dtype = jnp.result_type(float))
-
-    # we will accumulate the total gradient here
-    grad_sum = None
-
-    # to keep track of the updated model_state only once at the end (if mutable)
-    # for now, we do not change `vstate.model_state` at each operator
-    final_model_state = vstate.model_state
-
-    # a boolean to track if we are at the last operator in the list, to which we then update
-    # the model_state
-    idx_last_op = len(Ô_list) - 1
-
-    # now we want to call the dedicated JAX jitted function to compute L_σ per operator and
-    # aggregate the values
-    for i, ô in enumerate(Ô_list):
-        # discared the σ returned from the get_local_kernel_arguments as we want to avoid any
-        # potential mismatch in using different σ for different operators in case it changes
-        # somewhere during execution
-        _, args_op = get_local_kernel_arguments(vstate, ô)
-        local_estimator_fun = get_local_kernel(vstate, ô)
-
-        # single-operator estimator and gradient
-        # here, we call the dedicated modified forces_expect_hermitian() but pass `mutable=False`
-        # so that we do not do partial updates.
-        # we might want to do something else if we truly need partial model_state updates
-        #
-        # Notes
-        # - For model_state: we keep the current model_state for read-only and only update the
-        #                    actual vstate's model state at the last ô, this is changeable
-        # - For mutable: we avoid partial updates after every operator unless it is the last one
-        #                in the list, this is changeable
-        L_op, grad_i, _new_model_state = forces_expect_hermitian_sequence(
-            local_estimator_fun,
+    with prof_section(
+        "expect_and_forces.sequence.kernel",
+        cat="vqs.forces",
+        args={"n_operators": int(len(Ô_list))},
+    ) as sec:
+        stats_sum, grad_sum, new_model_state = _forces_expect_hermitian_sequence_fused(
+            tuple(local_kernels),
+            tuple(local_factored_kernels),
+            tuple(use_factored_kernels),
             vstate._apply_fun,
-            mutable=True if i == idx_last_op else False,
-            parameters=vstate.parameters,
-            model_state=vstate.model_state if i == idx_last_op else final_model_state,
-            σ=σ,
-            local_value_args=args_op,
+            mutable,
+            vstate.parameters,
+            vstate.model_state,
+            σ,
+            tuple(local_args),
+            tuple(local_scales),
         )
+        sec.sync((stats_sum, grad_sum))
 
-        # check if we are doing a penalty operator of Shannon type
-        if isinstance(ô, PenaltyCost):
-            L_op = ô.factor * L_op
+    if mutable is not False:
+        vstate.model_state = new_model_state
 
-        # aggregate local estimators
-        L_σ_sum = L_σ_sum + L_op
-
-        # aggregate partial gradients
-        if grad_sum is None:
-            # check if we are doing a penalty operator of Shannon type
-            if isinstance(ô, PenaltyCost):
-                grad_i = jax.tree_util.tree_map(
-                    lambda v: ô.factor * v, grad_i
-                )
-
-            grad_sum = grad_i
-        else:
-            # check if we are doing a penalty operator of Shannon type
-            if isinstance(ô, PenaltyCost):
-                grad_i = jax.tree_util.tree_map(
-                    lambda v: ô.factor * v, grad_i
-                )
-
-            grad_sum = jax.tree_util.tree_map(
-                lambda a, b: a + b, grad_sum, grad_i
-            )
-
-        # update the model_state if we are at the last operator
-        if mutable is not False:
-            if idx_last_op == i:
-                vstate.model_state = _new_model_state
-            else:
-                final_model_state = _new_model_state
-
-    # compute the final Stats object for L_σ_sum
-    # we do "statistics(...)" on the sum of local values
-    stats_sum = statistics(L_σ_sum.reshape((n_chains, -1)))
-
-    # return the final Stats for sum(Ô_list) and the combined gradient
     return stats_sum, grad_sum
 
 
@@ -186,22 +246,38 @@ def expect_and_forces(  # noqa: F811
     *,
     mutable: CollectionFilter = False,
 ) -> tuple[Stats, PyTree]:
-    σ, args = get_local_kernel_arguments(vstate, Ô)
+    with prof_section(
+        "expect_and_forces.resolve_args",
+        cat="vqs.forces",
+        args={"operator_type": type(Ô).__name__},
+    ):
+        σ, args = get_local_kernel_arguments(vstate, Ô)
 
-    local_estimator_fun = get_local_kernel(vstate, Ô)
+    with prof_section(
+        "expect_and_forces.resolve_kernel",
+        cat="vqs.forces",
+        args={"operator_type": type(Ô).__name__},
+    ):
+        local_estimator_fun = _get_local_kernel_cached(vstate, Ô)
 
     scale_factor = Ô.factor if isinstance(Ô, PenaltyCost) else 1.0
 
-    Ō, Ō_grad, new_model_state = forces_expect_hermitian(
-        local_estimator_fun,
-        vstate._apply_fun,
-        mutable,
-        vstate.parameters,
-        vstate.model_state,
-        σ,
-        args,
-        scale_factor,
-    )
+    with prof_section(
+        "expect_and_forces.kernel",
+        cat="vqs.forces",
+        args={"operator_type": type(Ô).__name__},
+    ) as sec:
+        Ō, Ō_grad, new_model_state = forces_expect_hermitian(
+            local_estimator_fun,
+            vstate._apply_fun,
+            mutable,
+            vstate.parameters,
+            vstate.model_state,
+            σ,
+            args,
+            scale_factor,
+        )
+        sec.sync((Ō, Ō_grad))
 
     if mutable is not False:
         vstate.model_state = new_model_state

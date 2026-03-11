@@ -251,16 +251,16 @@ def test_expect_and_forces_sequence_chunked_uses_chunked_vjp_and_matches(
     import neuralqx.vqs.mc.mc_state.expect_forces_chunked as mod_forces
     import netket.jax as nkjax
 
-    called = {"seq_chunked": 0, "vjp_chunked": 0}
+    called = {"seq_fused_chunked": 0, "vjp_chunked": 0}
 
-    orig_seq = mod_forces.forces_expect_hermitian_sequence_chunked
+    orig_seq = mod_forces._forces_expect_hermitian_sequence_fused_chunked
 
     def wrapped_seq(*args, **kwargs):
-        called["seq_chunked"] += 1
+        called["seq_fused_chunked"] += 1
         return orig_seq(*args, **kwargs)
 
     monkeypatch.setattr(
-        mod_forces, "forces_expect_hermitian_sequence_chunked", wrapped_seq
+        mod_forces, "_forces_expect_hermitian_sequence_fused_chunked", wrapped_seq
     )
 
     orig_vjp = nkjax.vjp_chunked
@@ -282,7 +282,9 @@ def test_expect_and_forces_sequence_chunked_uses_chunked_vjp_and_matches(
                 mcstate.expect_and_forces, ops, mutable=False
             )
 
-    assert called["seq_chunked"] >= 1, "Chunked sequence forces kernel was not called."
+    assert (
+        called["seq_fused_chunked"] >= 1
+    ), "Fused chunked sequence forces kernel was not called."
     assert called["vjp_chunked"] >= 1, "nkjax.vjp_chunked was not called."
     _assert_no_chunk_ignored(w)
     _assert_stats_close(stats_chk, stats_ref)
@@ -309,7 +311,7 @@ def test_expect_and_forces_sequence_chunked_mixed_ops_matches(mcstate, ops_spin_
     _tree_allclose(f_chk, f_ref)
 
 
-def test_expect_and_forces_sequence_chunked_iec_is_not_chunked_warns_and_matches(
+def test_expect_and_forces_sequence_chunked_iec_warns_and_matches(
     mcstate, ops_spin_2, monkeypatch
 ):
 
@@ -320,16 +322,16 @@ def test_expect_and_forces_sequence_chunked_iec_is_not_chunked_warns_and_matches
     import neuralqx.vqs.mc.mc_state.expect_forces_chunked as mod_forces
     import netket.jax as nkjax
 
-    called = {"seq_chunked": 0, "vjp_chunked": 0}
+    called = {"seq_fused_chunked": 0, "vjp_chunked": 0}
 
-    orig_seq = mod_forces.forces_expect_hermitian_sequence_chunked
+    orig_seq = mod_forces._forces_expect_hermitian_sequence_fused_chunked
 
     def wrapped_seq(*args, **kwargs):
-        called["seq_chunked"] += 1
+        called["seq_fused_chunked"] += 1
         return orig_seq(*args, **kwargs)
 
     monkeypatch.setattr(
-        mod_forces, "forces_expect_hermitian_sequence_chunked", wrapped_seq
+        mod_forces, "_forces_expect_hermitian_sequence_fused_chunked", wrapped_seq
     )
 
     orig_vjp = nkjax.vjp_chunked
@@ -353,9 +355,9 @@ def test_expect_and_forces_sequence_chunked_iec_is_not_chunked_warns_and_matches
 
     _assert_chunk_ignored(w, match=r"chunking is not supported")
     assert (
-        called["seq_chunked"] == 0
-    ), "IEC forces should not call chunked sequence kernel."
-    assert called["vjp_chunked"] == 0, "IEC forces should not use vjp_chunked."
+        called["seq_fused_chunked"] >= 1
+    ), "IEC sequence path should still go through fused sequence kernel."
+    assert called["vjp_chunked"] >= 1, "Sequence fused forces should use vjp_chunked."
     _assert_stats_close(stats_chk, stats_ref)
     _tree_allclose(f_chk, f_ref)
 
@@ -369,15 +371,15 @@ def test_expect_and_grad_sequence_chunked_uses_chunked_forces_under_the_hood(
 
     import neuralqx.vqs.mc.mc_state.expect_forces_chunked as mod_forces
 
-    called = {"seq_chunked": 0}
-    orig_seq = mod_forces.forces_expect_hermitian_sequence_chunked
+    called = {"seq_fused_chunked": 0}
+    orig_seq = mod_forces._forces_expect_hermitian_sequence_fused_chunked
 
     def wrapped_seq(*args, **kwargs):
-        called["seq_chunked"] += 1
+        called["seq_fused_chunked"] += 1
         return orig_seq(*args, **kwargs)
 
     monkeypatch.setattr(
-        mod_forces, "forces_expect_hermitian_sequence_chunked", wrapped_seq
+        mod_forces, "_forces_expect_hermitian_sequence_fused_chunked", wrapped_seq
     )
 
     with _set_chunk_size(mcstate, None):
@@ -392,8 +394,8 @@ def test_expect_and_grad_sequence_chunked_uses_chunked_forces_under_the_hood(
             )
 
     assert (
-        called["seq_chunked"] >= 1
-    ), "Chunked sequence forces was not used inside expect_and_grad."
+        called["seq_fused_chunked"] >= 1
+    ), "Fused chunked sequence forces was not used inside expect_and_grad."
     _assert_no_chunk_ignored(w)
     _assert_stats_close(stats_chk, stats_ref)
     _tree_allclose(g_chk, g_ref)

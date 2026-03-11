@@ -72,6 +72,8 @@ import flax.core as flax_core
 
 from ...mc import get_local_kernel, get_local_kernel_arguments
 from ....debug import timeit
+from ....profile import section as prof_section
+from ....profile.decorators import profile_call
 from ....utils.errors import DistributedStateImportInSerialModeError
 from ....utils.errors import DistributedStateImportMismatchError
 from neuralqx.utils.experimental import experimental
@@ -530,24 +532,53 @@ class MCState(VariationalState):
         # Store the previous sampler state, for serialization purposes
         self._sampler_state_previous = self.sampler_state
 
-        self.sampler_state = self.sampler.reset(
-            self._sampler_model, self._sampler_variables, self.sampler_state
+        self.sampler_state = profile_call(
+            self.sampler.reset,
+            self._sampler_model,
+            self._sampler_variables,
+            self.sampler_state,
+            name="sampler.reset",
+            cat="sampling",
+            args={"n_chains": int(self.sampler.n_chains)},
+            deep=None,
+            deep_cat="sampling.python",
+            deep_include=("netket.sampler", "neuralqx.samplers"),
         )
 
         if self.n_discard_per_chain > 0:
             with timing.timed_scope("sampling n_discarded samples"):
-                _, self.sampler_state = self.sampler.sample(
+                _, self.sampler_state = profile_call(
+                    self.sampler.sample,
                     self.model,
                     self.variables,
                     state=self.sampler_state,
                     chain_length=n_discard_per_chain,
+                    name="sampler.sample.discard",
+                    cat="sampling",
+                    args={
+                        "n_chains": int(self.sampler.n_chains),
+                        "chain_length": int(n_discard_per_chain),
+                    },
+                    deep=None,
+                    deep_cat="sampling.python",
+                    deep_include=("netket.sampler", "neuralqx.samplers"),
                 )
 
-        self._samples, self.sampler_state = self.sampler.sample(
+        self._samples, self.sampler_state = profile_call(
+            self.sampler.sample,
             self._sampler_model,
             self._sampler_variables,
             state=self.sampler_state,
             chain_length=chain_length,
+            name="sampler.sample.main",
+            cat="sampling",
+            args={
+                "n_chains": int(self.sampler.n_chains),
+                "chain_length": int(chain_length),
+            },
+            deep=None,
+            deep_cat="sampling.python",
+            deep_include=("netket.sampler", "neuralqx.samplers"),
         )
         return self._samples
 
@@ -630,7 +661,18 @@ class MCState(VariationalState):
             An estimation of the quantum expectation value
             :math:`\langle O\rangle`.
         """
-        return expect(self, O, self.chunk_size)
+        with prof_section(
+            "mcstate.expect.dispatch",
+            cat="vqs",
+            args={
+                "chunk_size": (
+                    -1 if self.chunk_size is None else int(self.chunk_size)
+                ),
+                "op_is_sequence": bool(isinstance(O, Sequence)),
+            },
+        ) as sec:
+            out = expect(self, O, self.chunk_size)
+            return sec.sync(out)
 
     # override to use chunks
     @timing.timed
@@ -665,13 +707,24 @@ class MCState(VariationalState):
         if mutable is None:
             mutable = self.mutable
 
-        return expect_and_grad(
-            self,
-            O,
-            self.chunk_size,
-            mutable=mutable,
-            **kwargs,
-        )
+        with prof_section(
+            "mcstate.expect_and_grad.dispatch",
+            cat="vqs",
+            args={
+                "chunk_size": (
+                    -1 if self.chunk_size is None else int(self.chunk_size)
+                ),
+                "op_is_sequence": bool(isinstance(O, Sequence)),
+            },
+        ) as sec:
+            out = expect_and_grad(
+                self,
+                O,
+                self.chunk_size,
+                mutable=mutable,
+                **kwargs,
+            )
+            return sec.sync(out)
 
     # override to use chunks
     @timing.timed
@@ -714,7 +767,18 @@ class MCState(VariationalState):
         if mutable is None:
             mutable = self.mutable
 
-        return expect_and_forces(self, O, self.chunk_size, mutable=mutable)
+        with prof_section(
+            "mcstate.expect_and_forces.dispatch",
+            cat="vqs",
+            args={
+                "chunk_size": (
+                    -1 if self.chunk_size is None else int(self.chunk_size)
+                ),
+                "op_is_sequence": bool(isinstance(O, Sequence)),
+            },
+        ) as sec:
+            out = expect_and_forces(self, O, self.chunk_size, mutable=mutable)
+            return sec.sync(out)
 
     def quantum_geometric_tensor(
         self, qgt_T: Optional[LinearOperator] = None

@@ -64,7 +64,6 @@ from netket.experimental.observable import VarianceObservable
 
 from netket.vqs.mc.mc_state.state import MCState
 
-from .expect import _expect_sequence
 from ....debug import trace
 from ....operators import InverseExpectationCost, PenaltyCost
 from ....operators.types._discrete_operator import DiscreteOperator as DiscreteOperatorNQX
@@ -78,6 +77,7 @@ from neuralqx.vqs.mc import (
 )
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
 from ....utils.parsing import strict_type
+from ....profile import section as prof_section
 
 from neuralqx.vqs import expect
 
@@ -275,7 +275,15 @@ def expect_mcstate_operator_chunked(
     vstate: Union[MCState, NQXMCState], Ô: Union[AbstractOperator, AbstractObservable], chunk_size: int,
 ) -> Stats:  # noqa: F811
 
-    local_estimator_fun = get_local_kernel(vstate, Ô, chunk_size)
+    with prof_section(
+        "expect.chunked.resolve_kernel",
+        cat="vqs.expect",
+        args={
+            "operator_type": type(Ô).__name__,
+            "chunk_size": int(chunk_size),
+        },
+    ):
+        local_estimator_fun = get_local_kernel(vstate, Ô, chunk_size)
 
     if local_estimator_fun is NO_CHUNKING:
         warnings.warn(
@@ -285,24 +293,41 @@ def expect_mcstate_operator_chunked(
         )
         return expect(vstate, Ô, None)
 
-    σ, args = get_local_kernel_arguments(vstate, Ô)
+    with prof_section(
+        "expect.chunked.resolve_args",
+        cat="vqs.expect",
+        args={
+            "operator_type": type(Ô).__name__,
+            "chunk_size": int(chunk_size),
+        },
+    ):
+        σ, args = get_local_kernel_arguments(vstate, Ô)
 
     if strict_type(Ô) is PenaltyCost:
         penalty_factor = Ô.factor
     else:
         penalty_factor = None
 
-    return _expect_chunking(
-        chunk_size,
-        local_estimator_fun,
-        vstate._apply_fun,
-        vstate.sampler.machine_pow,
-        vstate.parameters,
-        vstate.model_state,
-        σ,
-        args,
-        penalty_factor,
-    )
+    with prof_section(
+        "expect.chunked.kernel",
+        cat="vqs.expect",
+        args={
+            "operator_type": type(Ô).__name__,
+            "chunk_size": int(chunk_size),
+        },
+    ) as sec:
+        out = _expect_chunking(
+            chunk_size,
+            local_estimator_fun,
+            vstate._apply_fun,
+            vstate.sampler.machine_pow,
+            vstate.parameters,
+            vstate.model_state,
+            σ,
+            args,
+            penalty_factor,
+        )
+        return sec.sync(out)
 
 
 @partial(jax.jit, static_argnums=(0, 1, 2))
@@ -358,72 +383,78 @@ def expect_mcstate_operator_chunked_sequence(
 
     # get the vstate.samples to ensure that we use the same ones for every Ô
     σ = vstate.samples
+    n_chains = int(σ.shape[0])
 
-    # store the number of MC chains for Stats later
-    n_chains = σ.shape[0]
+    local_kernels: list[Callable] = []
+    local_factored_kernels: list[Callable | None] = []
+    use_chunked_kernels: list[bool] = []
+    use_factored_kernels: list[bool] = []
+    local_args: list[PyTree] = []
+    local_scales: list[float] = []
 
-    # flatten the chain dimension if needed
-    if σ.ndim >= 3:
-        σ = jax.lax.collapse(σ, 0, 2)
+    with prof_section(
+        "expect.chunked.sequence.prepare",
+        cat="vqs.expect",
+        args={"n_operators": int(len(Ô_list)), "chunk_size": int(chunk_size)},
+    ):
+        for i, ô in enumerate(Ô_list):
+            with prof_section(
+                "expect.chunked.sequence.operator",
+                cat="vqs.expect",
+                args={"index": int(i), "operator_type": type(ô).__name__},
+            ):
+                # Discard σ returned by the argument builder: we enforce one shared sample batch.
+                _, args = get_local_kernel_arguments(vstate, ô)
+                local_estimator_fun = get_local_kernel(vstate, ô, chunk_size)
 
-    # the get_local_kernel which returns the local estimator we want to store for every Ô will
-    # return a JAX array of shape (σ.shape[0], ), so we create an empty one with that shape
-    # this array will hold the sum of all local estimators L_σ returned from every operator
-    # dev: this was weak, essentially wrong... we were creating just a scalar zero, and later
-    #      JAX changed it into an array after the first sum with the first L_σ, now it should be
-    #      more "stable", aka less error prone
-    # L_σ_sum = jnp.zeros_like((σ.shape[0],))
-    L_σ_sum = jnp.zeros((σ.shape[0],), dtype = jnp.result_type(float))
+                if local_estimator_fun is NO_CHUNKING:
+                    warnings.warn(
+                        f"Ignoring chunk_size={chunk_size} for operator {type(ô).__name__} "
+                        f"because chunking is not supported for this operator type.",
+                        stacklevel=2,
+                    )
+                    local_estimator_fun = get_local_kernel(vstate, ô)
+                    use_chunked_kernels.append(False)
+                    factored_kernel = kernels.resolve_factored_local_kernel(
+                        local_estimator_fun, chunked=False
+                    )
+                else:
+                    use_chunked_kernels.append(True)
+                    factored_kernel = kernels.resolve_factored_local_kernel(
+                        local_estimator_fun, chunked=True
+                    )
 
-    # now we want to call the dedicated JAX jitted function to compute L_σ per operator and
-    # aggregate the values
-    for ô in Ô_list:
-        # discared the σ returned from the get_local_kernel_arguments as we want to avoid any
-        # potential mismatch in using different σ for different operators in case it changes
-        # somewhere during execution
-        _, args = get_local_kernel_arguments(vstate, ô)
-        local_estimator_fun = get_local_kernel(vstate, ô, chunk_size)
+                local_kernels.append(local_estimator_fun)
+                local_factored_kernels.append(factored_kernel)
+                use_factored_kernels.append(factored_kernel is not None)
+                local_args.append(args)
+                local_scales.append(
+                    float(ô.factor) if strict_type(ô) is PenaltyCost else 1.0
+                )
 
-        if local_estimator_fun is NO_CHUNKING:
-            warnings.warn(
-                f"Ignoring chunk_size={chunk_size} for operator {type(ô).__name__} "
-                f"because chunking is not supported for this operator type.",
-                stacklevel=2,
-            )
-            unchunked_kernel = get_local_kernel(vstate, ô)
-            L_σ = _expect_sequence(
-                unchunked_kernel,
-                vstate._apply_fun,
-                vstate.sampler.machine_pow,
-                vstate.parameters,
-                vstate.model_state,
-                σ,
-                args,
-            )
-        else:
-            L_σ = _expect_sequence_chunked(
-                chunk_size,
-                local_estimator_fun,
-                vstate._apply_fun,
-                vstate.sampler.machine_pow,
-                vstate.parameters,
-                vstate.model_state,
-                σ,
-                args,
-            )
-
-        # check if we are doing a penalty operator of Shannon type
-        if strict_type(ô) is PenaltyCost:
-            L_σ = ô.factor * L_σ
-
-        # aggregate
-        L_σ_sum = L_σ_sum + L_σ
-
-    # now the loop is done, return the Stats for the entire sum of local operators
-    return statistics(L_σ_sum.reshape((n_chains, -1)))
+    with prof_section(
+        "expect.chunked.sequence.kernel",
+        cat="vqs.expect",
+        args={"n_operators": int(len(Ô_list)), "chunk_size": int(chunk_size)},
+    ) as sec:
+        out = _expect_sequence_chunked(
+            int(chunk_size),
+            tuple(local_kernels),
+            tuple(local_factored_kernels),
+            tuple(use_chunked_kernels),
+            tuple(use_factored_kernels),
+            vstate._apply_fun,
+            vstate.parameters,
+            vstate.model_state,
+            σ,
+            n_chains,
+            tuple(local_args),
+            tuple(local_scales),
+        )
+        return sec.sync(out)
 
 @partial(jax.jit, static_argnums=(0, 1, 2))
-def _expect_sequence_chunked(
+def _expect_sequence_chunked_single_local(
     chunk_size: int,
     local_value_kernel: Callable,
     model_apply_fun: Callable,
@@ -453,3 +484,79 @@ def _expect_sequence_chunked(
     L_σ = local_value_kernel(logpsi, parameters, σ, local_value_args, chunk_size=chunk_size)
 
     return L_σ
+
+
+@partial(jax.jit, static_argnums=(0, 1, 2, 3, 4, 5, 9))
+def _expect_sequence_chunked(
+    chunk_size: int,
+    local_value_kernels: tuple[Callable, ...],
+    local_value_factored_kernels: tuple[Callable | None, ...],
+    use_chunked_kernels: tuple[bool, ...],
+    use_factored_kernels: tuple[bool, ...],
+    model_apply_fun: Callable,
+    parameters: PyTree,
+    model_state: PyTree,
+    σ: jnp.ndarray,
+    n_chains: int,
+    local_value_args: tuple[PyTree, ...],
+    local_scales: tuple[float, ...],
+) -> Stats:
+    if σ.ndim >= 3:
+        σ = jax.lax.collapse(σ, 0, 2)
+
+    if model_state is None:
+        model_state = {}
+
+    logpsi = lambda w, sigma: model_apply_fun({"params": w, **model_state}, sigma)
+    has_factored = any(use_factored_kernels)
+    if has_factored:
+        logpsi_σ = nkjax.apply_chunked(
+            lambda sigma: logpsi(parameters, sigma),
+            in_axes=0,
+            chunk_size=chunk_size,
+        )(σ)
+    else:
+        logpsi_σ = None
+
+    variables = {"params": parameters, **model_state}
+    total_loc = jnp.zeros((σ.shape[0],), dtype=jnp.result_type(float))
+    for i, local_value_kernel in enumerate(local_value_kernels):
+        if use_factored_kernels[i]:
+            if use_chunked_kernels[i]:
+                loc_i = local_value_factored_kernels[i](
+                    logpsi_σ,
+                    logpsi,
+                    parameters,
+                    σ,
+                    local_value_args[i],
+                    chunk_size=chunk_size,
+                )
+            else:
+                loc_i = local_value_factored_kernels[i](
+                    logpsi_σ,
+                    logpsi,
+                    parameters,
+                    σ,
+                    local_value_args[i],
+                )
+        else:
+            if use_chunked_kernels[i]:
+                loc_i = local_value_kernel(
+                    logpsi,
+                    parameters,
+                    σ,
+                    local_value_args[i],
+                    chunk_size=chunk_size,
+                )
+            else:
+                loc_i = local_value_kernel(
+                    model_apply_fun,
+                    variables,
+                    σ,
+                    local_value_args[i],
+                )
+
+        scale_i = jnp.asarray(local_scales[i], dtype=loc_i.dtype)
+        total_loc = total_loc + scale_i * loc_i
+
+    return statistics(total_loc.reshape((n_chains, -1)))

@@ -44,7 +44,6 @@ from functools import partial
 import jax
 from jax import Array, numpy as jnp
 
-from netket.utils import mpi
 from netket.operator._abstract_observable import AbstractObservable
 
 from netket.stats import Stats, statistics as statistics
@@ -75,6 +74,7 @@ from ...mc import get_local_kernel_arguments, get_local_kernel
 
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
 from ....utils.parsing import strict_type
+from ....profile import section as prof_section
 
 
 @dispatch
@@ -355,24 +355,40 @@ def expect(
         Ô: Union[AbstractOperator, AbstractObservable],
         chunk_size: None
 ) -> Stats:  # noqa: F811
-    σ, args = get_local_kernel_arguments(vstate, Ô)
-    local_estimator_fun = get_local_kernel(vstate, Ô)
+    with prof_section(
+        "expect.resolve_args",
+        cat="vqs.expect",
+        args={"operator_type": type(Ô).__name__},
+    ):
+        σ, args = get_local_kernel_arguments(vstate, Ô)
+    with prof_section(
+        "expect.resolve_kernel",
+        cat="vqs.expect",
+        args={"operator_type": type(Ô).__name__},
+    ):
+        local_estimator_fun = get_local_kernel(vstate, Ô)
 
     if strict_type(Ô) is PenaltyCost:
         penalty_factor = Ô.factor
     else:
         penalty_factor = None
 
-    return _expect(
-        local_estimator_fun,
-        vstate._apply_fun,
-        vstate.sampler.machine_pow,
-        vstate.parameters,
-        vstate.model_state,
-        σ,
-        args,
-        penalty_factor,
-    )
+    with prof_section(
+        "expect.kernel",
+        cat="vqs.expect",
+        args={"operator_type": type(Ô).__name__},
+    ) as sec:
+        out = _expect(
+            local_estimator_fun,
+            vstate._apply_fun,
+            vstate.sampler.machine_pow,
+            vstate.parameters,
+            vstate.model_state,
+            σ,
+            args,
+            penalty_factor,
+        )
+        return sec.sync(out)
 
 
 @dispatch
@@ -397,50 +413,106 @@ def expect(
     # get the vstate.samples to ensure that we use the same ones for every Ô
     σ = vstate.samples
 
-    # store the number of MC chains for Stats later
-    n_chains = σ.shape[0]
+    local_kernels: list[Callable] = []
+    local_factored_kernels: list[Callable | None] = []
+    use_factored_kernels: list[bool] = []
+    local_args: list[PyTree] = []
+    local_scales: list[float] = []
 
-    # flatten the chain dimension if needed
+    with prof_section(
+        "expect.sequence.prepare",
+        cat="vqs.expect",
+        args={"n_operators": int(len(Ô_list))},
+    ):
+        for i, ô in enumerate(Ô_list):
+            with prof_section(
+                "expect.sequence.operator",
+                cat="vqs.expect",
+                args={"index": int(i), "operator_type": type(ô).__name__},
+            ):
+                # Discard σ returned by the argument builder: we enforce one shared sample batch.
+                _, args = get_local_kernel_arguments(vstate, ô)
+                local_kernel = get_local_kernel(vstate, ô)
+                factored_kernel = kernels.resolve_factored_local_kernel(
+                    local_kernel, chunked=False
+                )
+
+                local_kernels.append(local_kernel)
+                local_factored_kernels.append(factored_kernel)
+                use_factored_kernels.append(factored_kernel is not None)
+                local_args.append(args)
+                local_scales.append(
+                    float(ô.factor) if strict_type(ô) is PenaltyCost else 1.0
+                )
+
+    with prof_section(
+        "expect.sequence.kernel",
+        cat="vqs.expect",
+        args={"n_operators": int(len(Ô_list))},
+    ) as sec:
+        out = _expect_sequence_fused(
+            tuple(local_kernels),
+            tuple(local_factored_kernels),
+            tuple(use_factored_kernels),
+            vstate._apply_fun,
+            vstate.parameters,
+            vstate.model_state,
+            σ,
+            tuple(local_args),
+            tuple(local_scales),
+        )
+        return sec.sync(out)
+
+
+@partial(jax.jit, static_argnums=(0, 1, 2, 3))
+def _expect_sequence_fused(
+    local_value_kernels: tuple[Callable, ...],
+    local_value_factored_kernels: tuple[Callable | None, ...],
+    use_factored_kernels: tuple[bool, ...],
+    model_apply_fun: Callable,
+    parameters: PyTree,
+    model_state: PyTree,
+    σ: jnp.ndarray,
+    local_value_args: tuple[PyTree, ...],
+    local_scales: tuple[float, ...],
+) -> Stats:
+    n_chains = σ.shape[0]
     if σ.ndim >= 3:
         σ = jax.lax.collapse(σ, 0, 2)
 
-    # the get_local_kernel which returns the local estimator we want to store for every Ô will
-    # return a JAX array of shape (σ.shape[0], ), so we create an empty one with that shape
-    # this array will hold the sum of all local estimators L_σ returned from every operator
-    # dev: this was weak, essentially wrong... we were creating just a scalar zero, and later
-    #      JAX changed it into an array after the first sum with the first L_σ, now it should be
-    #      more "stable", aka less error prone
-    # L_σ_sum = jnp.zeros_like((σ.shape[0],))
-    L_σ_sum = jnp.zeros((σ.shape[0],), dtype = jnp.result_type(float))
+    if model_state is None:
+        model_state = {}
 
-    # now we want to call the dedicated JAX jitted function to compute L_σ per operator and
-    # aggregate the values
-    for ô in Ô_list:
-        # discared the σ returned from the get_local_kernel_arguments as we want to avoid any
-        # potential mismatch in using different σ for different operators in case it changes
-        # somewhere during execution
-        _, args = get_local_kernel_arguments(vstate, ô)
-        local_estimator_fun = get_local_kernel(vstate, ô)
+    logpsi = lambda w, sigma: model_apply_fun({"params": w, **model_state}, sigma)
+    has_factored = any(use_factored_kernels)
+    if has_factored:
+        logpsi_σ = logpsi(parameters, σ)
+    else:
+        logpsi_σ = None
 
-        L_σ = _expect_sequence(
-            local_estimator_fun,
-            vstate._apply_fun,
-            vstate.sampler.machine_pow,
-            vstate.parameters,
-            vstate.model_state,
-            σ,  # use the σ from before which we collected from vstate
-            args,
-        )
+    variables = {"params": parameters, **model_state}
+    total_loc = jnp.zeros((σ.shape[0],), dtype=jnp.result_type(float))
+    for i, local_value_kernel in enumerate(local_value_kernels):
+        if use_factored_kernels[i]:
+            loc_i = local_value_factored_kernels[i](
+                logpsi_σ,
+                logpsi,
+                parameters,
+                σ,
+                local_value_args[i],
+            )
+        else:
+            loc_i = local_value_kernel(
+                model_apply_fun,
+                variables,
+                σ,
+                local_value_args[i],
+            )
 
-        # check if we are doing a penalty operator of Shannon type
-        if strict_type(ô) is PenaltyCost:
-            L_σ = ô.factor * L_σ
+        scale_i = jnp.asarray(local_scales[i], dtype=loc_i.dtype)
+        total_loc = total_loc + scale_i * loc_i
 
-        # aggregate
-        L_σ_sum = L_σ_sum + L_σ
-
-    # now the loop is done, return the Stats for the entire sum of local operators
-    return statistics(L_σ_sum.reshape((n_chains, -1)))
+    return statistics(total_loc.reshape((n_chains, -1)))
 
 
 @partial(jax.jit, static_argnums=(0, 1))
