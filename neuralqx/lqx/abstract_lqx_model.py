@@ -131,6 +131,6 @@ class AbstractLqxModel(abc.ABC):
             f"spacetime_dimensions={self.spacetime_dimensions}, "
             f"hilbert_dimensions={self.hilbert_dimensions}, "
             f"gauge_dimensions={self.gauge_dimensions}, "
-            f"hilbert={self.hilbert.core.hilbert}"
+            f"hilbert={self.hilbert.hilbert_netket}"
             f")"
         )

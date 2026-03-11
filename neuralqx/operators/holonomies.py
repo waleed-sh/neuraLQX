@@ -44,7 +44,7 @@ def holonomy(
 
     # get the number of local states at the given vertex
     # this will determine the dimension of the matrix acting on that vertex
-    N = H.hilbert.size_at_index(site)
+    N = H.hilbert_netket.size_at_index(site)
 
     # create an array of size N of just 1's
     D = np.array([1 for _ in np.arange(1, N)])
@@ -77,4 +77,4 @@ def holonomy(
 
     # return the Netket operator defined on the Hilbert space acting on the given vertex with the
     # coordinate sparse matrix representing the holonomy operator constructed
-    return LocalOperator(H.hilbert, matrix, [site], 0)
+    return LocalOperator(H.hilbert_netket, matrix, [site], 0)

@@ -104,10 +104,10 @@ class U1HolonomyJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, edge_index: int, *, adjoint: bool = False):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # require U(1)
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) (gauge_dimensions = 1)."
             )
@@ -228,9 +228,9 @@ class NDU1HolonomyJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, edge_index: int, *, adjoint: bool = False):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
-        self.K = int(H.core.gauge_dimensions)
+        self.K = int(H.hilbert.gauge_dimensions)
         if self.K < 1:
             raise ValueError("`gauge_dimensions` must be ≥ 1.")
 

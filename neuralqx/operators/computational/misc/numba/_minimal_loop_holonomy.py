@@ -64,7 +64,7 @@ class NDMinimalLoopHolonomy(ComputationalOperator):
 
     def __init__(self, H, minimal_loop: List, *, adjoint: int = 0):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # get the gauge dimensions
         self.gauge_dim = int(H.gauge_dimensions)
@@ -179,11 +179,11 @@ class MinimalLoopHolonomy(ComputationalOperator):
     """
 
     def __init__(self, H, minimal_loop: List, *, copy: int = 0, adjoint: bool = False):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # invariants
         self._H = H
-        self.K = int(H.core.gauge_dimensions)
+        self.K = int(H.hilbert.gauge_dimensions)
 
         # width of one gauge copy
         self.n_edges_total = int(H.tiny_size)
@@ -286,11 +286,11 @@ class OneMinusHalfHolonomy(ComputationalOperator):
     """
 
     def __init__(self, H, minimal_loop: List, *, copy: int = 0):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # invariants
         self._H = H
-        self.K = int(H.core.gauge_dimensions)
+        self.K = int(H.hilbert.gauge_dimensions)
 
         # width per gauge copy
         self.n_edges_total = int(H.tiny_size)

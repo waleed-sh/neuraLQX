@@ -38,7 +38,7 @@ class SphericalEx(ComputationalOperator):
     """
 
     def __init__(self, H, vertex: int, *, gamma: float = 1.0):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # HalfLadderGraph type check
         if not isinstance(H.graph, HalfLadderGraph):

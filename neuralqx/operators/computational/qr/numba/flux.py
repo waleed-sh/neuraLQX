@@ -62,7 +62,7 @@ class QRFlux(ComputationalOperator):
         power: float = 1.0,
         inverse: bool = False,
     ):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self._H = H
         self.D = int(H.size)

@@ -18,7 +18,7 @@ import pytest
 
 
 def test_infer_netket_site_order_is_consistent_with_netket(static_range_small, nk):
-    from neuralqx.hilbert.utils.index._netket import _infer_netket_site_order
+    from neuralqx.hilbert.u1.index._netket import _infer_netket_site_order
 
     order = _infer_netket_site_order(static_range_small)
     assert order in ("C", "F")
@@ -39,7 +39,7 @@ def test_infer_netket_site_order_is_consistent_with_netket(static_range_small, n
 
 def test_infer_netket_site_order_truncates_giant_local_states(nk):
     from netket.utils import StaticRange
-    from neuralqx.hilbert.utils.index._netket import _infer_netket_site_order
+    from neuralqx.hilbert.u1.index._netket import _infer_netket_site_order
 
     big = StaticRange(start=0, step=1, length=2001)
     small = StaticRange(start=0, step=1, length=100)
@@ -48,7 +48,7 @@ def test_infer_netket_site_order_truncates_giant_local_states(nk):
 
 
 def test_local_values_to_digits_and_back_roundtrip(static_range_small):
-    from neuralqx.hilbert.utils.index._netket import (
+    from neuralqx.hilbert.u1.index._netket import (
         _local_values_to_digits,
         _local_digits_to_values,
     )
@@ -67,7 +67,7 @@ def test_local_values_to_digits_staticrange_affine_mapping_no_validation(
     static_range_small,
 ):
 
-    from neuralqx.hilbert.utils.index._netket import _local_values_to_digits
+    from neuralqx.hilbert.u1.index._netket import _local_values_to_digits
 
     x = np.array([[0, 1, 2]], dtype=np.int64)
     d = _local_values_to_digits(static_range_small, x)
@@ -78,7 +78,7 @@ def test_local_values_to_digits_out_of_basis_staticrange_wraps_due_to_dtype(
     static_range_small,
 ):
 
-    from neuralqx.hilbert.utils.index._netket import _local_values_to_digits
+    from neuralqx.hilbert.u1.index._netket import _local_values_to_digits
 
     x = np.array([[0, 1, 999]], dtype=np.int64)
     d = _local_values_to_digits(static_range_small, x)
@@ -93,7 +93,7 @@ def test_local_digits_to_values_out_of_range_does_not_raise_for_staticrange(
     static_range_small,
 ):
 
-    from neuralqx.hilbert.utils.index._netket import _local_digits_to_values
+    from neuralqx.hilbert.u1.index._netket import _local_digits_to_values
 
     L = int(static_range_small.length)
     d = np.array([[0, L, 1]], dtype=np.int64)
@@ -110,7 +110,7 @@ def test_local_digits_to_values_out_of_range_does_not_raise_for_staticrange(
 def test_local_values_to_digits_rejects_out_of_basis_future_contract(
     static_range_small,
 ):
-    from neuralqx.hilbert.utils.index._netket import _local_values_to_digits
+    from neuralqx.hilbert.u1.index._netket import _local_values_to_digits
 
     x = np.array([[0, 1, 999]], dtype=np.int64)
     with pytest.raises(ValueError):
@@ -124,7 +124,7 @@ def test_local_values_to_digits_rejects_out_of_basis_future_contract(
 def test_local_digits_to_values_rejects_invalid_digits_future_contract(
     static_range_small,
 ):
-    from neuralqx.hilbert.utils.index._netket import _local_digits_to_values
+    from neuralqx.hilbert.u1.index._netket import _local_digits_to_values
 
     L = int(static_range_small.length)
     d = np.array([[0, L, 1]], dtype=np.int64)

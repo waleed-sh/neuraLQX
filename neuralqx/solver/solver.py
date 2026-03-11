@@ -1657,7 +1657,7 @@ class Solver(AbstractSolver):
 
         # build the sampler
         self._sampler, self._aux_sampler, self._sampler_kwargs = sampler_builder.build(
-            hilbert=self.hilbert.hilbert,
+            hilbert=self.hilbert.hilbert_netket,
             hamiltonian=kwargs.get("Hamiltonian", self.lqx.constraint),
             graph=self.graph.dual_nk_graph,
         )

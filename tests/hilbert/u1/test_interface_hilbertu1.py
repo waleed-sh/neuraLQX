@@ -29,7 +29,7 @@ def test_hilbertu1_builds_constrained_and_unconstrained(graph_small):
         is_gauge_invariant=True,
         auto_constraint=True,
     )
-    assert isinstance(h_c.core, ConstrainedHilbertU1Core)
+    assert isinstance(h_c.hilbert, ConstrainedHilbertU1Core)
 
     h_u = HilbertU1(
         graph=graph_small,
@@ -37,7 +37,7 @@ def test_hilbertu1_builds_constrained_and_unconstrained(graph_small):
         gauge_dimensions=2,
         is_gauge_invariant=False,
     )
-    assert isinstance(h_u.core, UnconstrainedHilbertU1Core)
+    assert isinstance(h_u.hilbert, UnconstrainedHilbertU1Core)
 
 
 @pytest.mark.xfail(
@@ -56,7 +56,7 @@ def test_hilbertu1_accepts_gauge_invariant_alias(graph_small):
         gauge_invariant=True,
         auto_constraint=True,
     )
-    assert isinstance(h.core, ConstrainedHilbertU1Core)
+    assert isinstance(h.hilbert, ConstrainedHilbertU1Core)
 
 
 def test_edge_charges_matches_view_extraction(graph_small, jax, jnp):
@@ -70,8 +70,8 @@ def test_edge_charges_matches_view_extraction(graph_small, jax, jnp):
         auto_constraint=True,
     )
 
-    sigma = h.core.random_state(jax.random.PRNGKey(0), size=3)
-    v = h.core.view(sigma)
+    sigma = h.hilbert.random_state(jax.random.PRNGKey(0), size=3)
+    v = h.hilbert.view(sigma)
 
     e0 = (
         graph_small.edges[0]
@@ -80,10 +80,10 @@ def test_edge_charges_matches_view_extraction(graph_small, jax, jnp):
     )
 
     vals = h.edge_charges(sigma, e0)
-    assert vals.shape == (3 * int(h.core.gauge_dimensions),)
+    assert vals.shape == (3 * int(h.hilbert.gauge_dimensions),)
 
     site0 = h.edge_to_site(e0, gauge_copy=0)
-    edge_idx = int(site0) % int(h.core.tiny_size)
+    edge_idx = int(site0) % int(h.hilbert.tiny_size)
 
     expected = np.asarray(v[:, :, edge_idx]).reshape(-1)
     assert np.array_equal(np.asarray(vals), expected)
@@ -102,7 +102,7 @@ def test_edge_charges_collapses_leading_dims(graph_small, jax, jnp):
 
     B = 2
     T = 4
-    sigma = h.core.random_state(jax.random.PRNGKey(1), size=B)
+    sigma = h.hilbert.random_state(jax.random.PRNGKey(1), size=B)
     sigma3 = jnp.broadcast_to(sigma, (T,) + sigma.shape)
 
     e0 = (
@@ -112,7 +112,7 @@ def test_edge_charges_collapses_leading_dims(graph_small, jax, jnp):
     )
     vals = h.edge_charges(sigma3, e0)
 
-    G = int(h.core.gauge_dimensions)
+    G = int(h.hilbert.gauge_dimensions)
     assert vals.shape == (T * B * G,)
 
 
@@ -127,7 +127,7 @@ def test_edge_charges_invalid_edge_raises(graph_small, jax):
         is_gauge_invariant=True,
         auto_constraint=True,
     )
-    sigma = h.core.random_state(jax.random.PRNGKey(0), size=1)
+    sigma = h.hilbert.random_state(jax.random.PRNGKey(0), size=1)
 
     bad_edge = (0, 1, 999999)
 

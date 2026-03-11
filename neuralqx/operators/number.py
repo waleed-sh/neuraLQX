@@ -54,7 +54,7 @@ def _get_quantum_number_kernel(
 
     if is_complex and not complex_gc:
         # get the allowed spin
-        D = H.core.allowed_basis_states.all_states()
+        D = H.hilbert.allowed_basis_states.all_states()
 
         # get the maximum spin
         N = np.max(D)
@@ -69,13 +69,13 @@ def _get_quantum_number_kernel(
 
     elif complex_gc and not is_complex:
         # create a real value diagonal matrix with values -N to N on the diagonal
-        D = H.core.allowed_basis_states.all_states()
+        D = H.hilbert.allowed_basis_states.all_states()
         diagonal_matrix = np.diag(D, 0)
 
         dtype = jnp.complex128
     else:
         # create a real value diagonal matrix with values -N to N on the diagonal
-        D = H.core.allowed_basis_states.all_states()
+        D = H.hilbert.allowed_basis_states.all_states()
         diagonal_matrix = np.diag(D, 0)
 
         dtype = jnp.float64
@@ -113,7 +113,7 @@ def get_quantum_number(
     """
     if is_4d:
         return FunctionalLocalOperator(
-            H.hilbert,
+            H.hilbert_netket,
             _sparse.coo_matrix(matrix),
             [site],
             dtype=dtype,
@@ -122,7 +122,7 @@ def get_quantum_number(
 
     # return the local operator
     return LocalOperator(
-        H.hilbert,
+        H.hilbert_netket,
         _sparse.coo_matrix(matrix),
         [site],
         dtype=dtype,
@@ -182,7 +182,7 @@ def shifted_get_quantum_number(
     δ = _create_delta(
         is_complex,
         complex_gc,
-        H.core.allowed_basis_states.all_states(),
+        H.hilbert.allowed_basis_states.all_states(),
     )
 
     # direction factor to reverse the + or - of deltas
@@ -214,7 +214,7 @@ def shifted_get_quantum_number(
     # return the shifted matrix
     if is_4d:
         return FunctionalLocalOperator(
-            H.hilbert,
+            H.hilbert_netket,
             _sparse.coo_matrix(matrix),
             [site],
             dtype=dtype,
@@ -222,7 +222,7 @@ def shifted_get_quantum_number(
         )
 
     return LocalOperator(
-        H.hilbert,
+        H.hilbert_netket,
         _sparse.coo_matrix(matrix),
         [site],
         dtype=dtype,

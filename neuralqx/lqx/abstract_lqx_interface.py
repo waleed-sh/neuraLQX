@@ -288,7 +288,7 @@ class AbstractLqxInterface(abc.ABC):
         Note that this is a soft flag. In principle, even if the space is not indexable, the
         constraint can be exactly diagonalised given enough memory.
         """
-        if self.hilbert.core.hilbert.is_indexable:
+        if self.hilbert.hilbert_netket.is_indexable:
             return True
 
         # warning

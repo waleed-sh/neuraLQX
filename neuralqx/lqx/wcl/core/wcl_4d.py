@@ -395,7 +395,7 @@ class LqxWCL4D(LqxWCL3D):
                 # an empty area operator with the mels_func being a square root
                 # here we do not care about specialised multiplication unless specified
                 Âₑ = FunctionalLocalOperator(
-                    self.hilbert.hilbert,
+                    self.hilbert.hilbert_netket,
                     specialised=False if standalone else True,
                     mels_func=lfunc,
                     dtype=dtype,
@@ -404,11 +404,10 @@ class LqxWCL4D(LqxWCL3D):
                 # get the charges of the charge vector on the edge using number operators
 
                 # get the number of edges in one graph
-                _fact = self.hilbert._core.hi.size
+                _fact = self.hilbert.tiny_size
 
                 charge_vector_idx = [
-                    edge + i * self.hilbert.core.hi.size
-                    for i in range(self.gauge_dimensions)
+                    edge + i * _fact for i in range(self.gauge_dimensions)
                 ]
 
                 # for each charge in this charge vector, add a corresponding number operator squared
@@ -502,17 +501,17 @@ class LqxWCL4D(LqxWCL3D):
         # we need a double sum over the three components of each charge vector
 
         # get the number of edges in one graph
-        _fact = self.hilbert.core.hi.size
+        _fact = self.hilbert.tiny_size
 
         # get the indices of the components of the charge vector associated with the first edge
         cv_e1_idxs = [
-            edges_idx[0] + i * self.hilbert.core.hi.size
+            edges_idx[0] + i * self.hilbert.tiny_size
             for i in range(self.gauge_dimensions)
         ]
 
         # get the indices of the components of the charge vector associated with the second edge
         cv_e2_idxs = [
-            edges_idx[1] + i * self.hilbert.core.hi.size
+            edges_idx[1] + i * self.hilbert.tiny_size
             for i in range(self.gauge_dimensions)
         ]
 
@@ -534,7 +533,7 @@ class LqxWCL4D(LqxWCL3D):
         # in the area operator, we will get NaNs as answer, because the -2 will be inside the
         # square root
         Ae1_Ae2 = FunctionalLocalOperator(
-            self.hilbert.hilbert,
+            self.hilbert.hilbert_netket,
             specialised=False if standalone else True,
             mels_func=lambda x: np.sign(x.real)
             * np.sqrt(np.abs(x.real.astype(np.float64))),
@@ -636,7 +635,7 @@ class LqxWCL4D(LqxWCL3D):
             raise CrossProductInHigherDimensionsError
 
         # get the number of edges in one graph
-        _fact = self.hilbert.core.hi.size
+        _fact = self.hilbert.tiny_size
 
         # create a list of lists holding the component indices of the vectors in the product
         # example: [[1, 6, 11], [2, 7, 12], [3, 8, 13]] where [1, 6, 11] are the edges which when
@@ -811,7 +810,7 @@ class LqxWCL4D(LqxWCL3D):
         # define an empty operator which will hold the component operator at the end
         # using _lop_type will cause mismatch in the sign of the real and imaginary parts
         comp_op = FunctionalLocalOperator(
-            self.hilbert.hilbert,
+            self.hilbert.hilbert_netket,
             dtype=jnp.float64 if standalone else jnp.complex128,
             mels_func=lambda x: np.sqrt(np.abs(np.real(x))),
             specialised=True,

@@ -75,7 +75,7 @@ class AreaDifferenceSquaredOperatorJax(ComputationalJaxOperator):
 
     def __init__(self, H: AbstractHilbertInterface, edges):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self.gauge_dim = int(H.gauge_dimensions)
 
@@ -196,7 +196,7 @@ class AreaDifferenceSquaredSurfacesOperatorJax(ComputationalJaxOperator):
 
     def __init__(self, H: AbstractHilbertInterface, surfaces):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self.gauge_dim = int(H.gauge_dimensions)
 

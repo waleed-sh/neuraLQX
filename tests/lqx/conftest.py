@@ -40,11 +40,19 @@ class DummyHilbertInterface:
         self.graph = graph
         self.is_gauge_invariant = is_gauge_invariant
         self.gauge_dimensions = gauge_dimensions
-        self.core = types.SimpleNamespace(hilbert=nk_hilbert)
+        self.hilbert = types.SimpleNamespace(hilbert=nk_hilbert)
 
         self.dimensions = getattr(nk_hilbert, "n_states", None)
         if self.dimensions is None:
             self.dimensions = int(getattr(nk_hilbert, "size"))
+
+    @property
+    def hilbert_netket(self):
+        return self.hilbert.hilbert
+
+    @property
+    def is_indexable(self):
+        return bool(getattr(self.hilbert_netket, "is_indexable", False))
 
 
 class DummyGaugeGroup:

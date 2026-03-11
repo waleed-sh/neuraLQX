@@ -182,10 +182,10 @@ class U1GaugeGroup(AbstractGaugeGroup):
         lop_type = LocalOperator
 
         # start with a zero operator on the full space
-        total = lop_type(H.hilbert, dtype=jnp.float64)
+        total = lop_type(H.hilbert_netket, dtype=jnp.float64)
 
         # build a temporary accumulator for G_v (per vertex), then square and add to total
-        Gv = lop_type(H.hilbert, dtype=jnp.float64)
+        Gv = lop_type(H.hilbert_netket, dtype=jnp.float64)
 
         for _node, attributes in G.handler.list_of_node_connectivity.items():
             # add incoming
@@ -199,7 +199,7 @@ class U1GaugeGroup(AbstractGaugeGroup):
             total += Gv @ Gv
 
             # reset for next vertex
-            Gv = lop_type(H.hilbert, dtype=jnp.float64)
+            Gv = lop_type(H.hilbert_netket, dtype=jnp.float64)
 
         return total
 
@@ -233,7 +233,7 @@ class U1GaugeGroup(AbstractGaugeGroup):
         ]
 
         return LocalOperator(
-            H.hilbert,
+            H.hilbert_netket,
             operators=base.operators,
             acting_on=shifted_acting_on,
             dtype=base.dtype,
@@ -295,7 +295,7 @@ class U1GaugeGroup(AbstractGaugeGroup):
             return base
 
         H = self.hilbert
-        total = LocalOperator(H.hilbert, dtype=jnp.float64)
+        total = LocalOperator(H.hilbert_netket, dtype=jnp.float64)
 
         # copy 0 (unshifted)
         total += base
@@ -448,7 +448,7 @@ class U1GaugeGroup(AbstractGaugeGroup):
         return (
             f"U1GaugeGroup("
             f"dimensions={self.dimensions}, "
-            f"hilbert={self.hilbert.core.hilbert}, "
+            f"hilbert={self.hilbert.hilbert_netket}, "
             f"is_abelian={self.is_abelian}, "
             f"is_computational={self.is_computational}"
             f")"

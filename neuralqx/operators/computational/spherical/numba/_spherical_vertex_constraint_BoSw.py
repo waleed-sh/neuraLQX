@@ -134,10 +134,10 @@ class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
         # setup and class attributes
 
         # initialize parent with NetKet Hilbert
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # enforce U(1), one scalar per edge
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
             )
@@ -1024,10 +1024,10 @@ class SphericalVertexConstraintBojowaldSwiderskiFixed(ComputationalOperator):
         # setup and class attributes
 
         # initialize parent with NetKet Hilbert
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # enforce U(1), one scalar per edge
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
             )
@@ -1727,10 +1727,10 @@ class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
         immirzi: float = 1.0,
     ) -> None:
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # enforce U(1), one scalar per edge
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
             )
@@ -2239,10 +2239,10 @@ class SphericalVertexConstraintBojowaldSwiderskiFastFixed(ComputationalOperator)
         immirzi: float = 1.0,
     ) -> None:
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # enforce U(1), one scalar per edge
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
             )

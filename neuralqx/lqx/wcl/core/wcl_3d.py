@@ -411,7 +411,7 @@ class LqxWCL3D(LqxWCL1D):
             per_copy_nodes = len(self._all_graphs[0].nx_graph.nodes)
 
             # create the empty operator
-            ret = self._lop_type(self.hilbert.hilbert)
+            ret = self._lop_type(self.hilbert.hilbert_netket)
 
             # loop through all gauge dimensions/graph levels
             for k in range(self.gauge_dimensions):
@@ -489,7 +489,7 @@ class LqxWCL3D(LqxWCL1D):
             )
         else:
             # create an empty operator to hold the holonomy
-            _return_op = self._lop_type(self.hilbert.hilbert)
+            _return_op = self._lop_type(self.hilbert.hilbert_netket)
 
             # shift factor
             _shift_factor = self.graph.n_vertices
@@ -586,20 +586,22 @@ class LqxWCL3D(LqxWCL1D):
 
         # define an empty operator
         if self._is4d:
-            comp_op = FunctionalLocalOperator(self.hilbert.hilbert, specialised=True)
+            comp_op = FunctionalLocalOperator(
+                self.hilbert.hilbert_netket, specialised=True
+            )
         elif is_taylor:
-            comp_op = nk.operator.LocalOperator(self.hilbert.hilbert)
+            comp_op = nk.operator.LocalOperator(self.hilbert.hilbert_netket)
         else:
             if switcher == 0:
-                comp_op = nk.operator.LocalOperator(self.hilbert.hilbert)
+                comp_op = nk.operator.LocalOperator(self.hilbert.hilbert_netket)
             elif switcher == 1:
                 comp_op = FunctionalLocalOperator(
-                    self.hilbert.hilbert,
+                    self.hilbert.hilbert_netket,
                     mels_func=lambda x: np.sqrt(x),
                 )
             else:
                 comp_op = FunctionalLocalOperator(
-                    self.hilbert.hilbert,
+                    self.hilbert.hilbert_netket,
                     mels_func=lambda x: np.sqrt(np.sqrt(x)),
                 )
 

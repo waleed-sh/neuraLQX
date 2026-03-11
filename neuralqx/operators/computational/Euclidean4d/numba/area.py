@@ -55,7 +55,7 @@ class AreaOperator(ComputationalOperator):
     """
 
     def __init__(self, H, edges, *, squared: bool = False):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # static geometry/layout
         self.gauge_dim = int(H.gauge_dimensions)

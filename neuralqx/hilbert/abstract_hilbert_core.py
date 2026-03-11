@@ -24,29 +24,32 @@ The core is responsible for:
 - storing graph/layout metadata for flattened configurations with multiple gauge copies,
 - constructing and exposing a NetKet Hilbert instance for sampling and state representation,
 - providing indexing helpers between graph edges and flattened NetKet site indices,
-- delegating state generation and proposal moves to the dispatched operations in ``.operations``.
+- defining abstract state-generation and move-proposal hooks that concrete cores implement.
 
 The user-facing interface class wraps a concrete core instance and provides a stable public API.
 """
 
-from __future__ import annotations
-
 import abc
 import logging
+
+from typing import Any
 from typing import Literal
 from typing import Optional
+from typing import TYPE_CHECKING
 from typing import Union
 
 import jax
 import jax.numpy as jnp
+
 import netket as nk
 from netket.utils import StaticRange
 
 from neuralqx.graph.core import AbstractGraph
-from .utils.layout import StridedGaugeCopyLayout
-from .utils.index import states_to_numbers as _states_to_numbers
-from .utils.index import numbers_to_states as _numbers_to_states
 from neuralqx.debug import event
+from neuralqx.hilbert.utils.layout._abstract_layout import AbstractBasisLayout
+
+if TYPE_CHECKING:
+    from neuralqx.hilbert.utils.index._abstract import HilbertStateEnumerator
 
 
 class AbstractHilbertSpace(abc.ABC):
@@ -65,10 +68,7 @@ class AbstractHilbertSpace(abc.ABC):
     This base class provides:
 
     - consistent bookkeeping for local degrees of freedom,
-    - a standard flattened layout for multi-copy gauge dimensions,
-    - convenience helpers for mapping graph edges to flattened NetKet site indices,
-    - thin method wrappers (``random_state``, ``flip_state``) that delegate to dispatch-based
-      operations defined in ``.state_ops`` (allowing different cores to customize behavior).
+    - abstract contracts for layout/mapping/state-move operations that concrete cores implement.
 
     No public attributes are intended, access all state via properties.
 
@@ -85,19 +85,41 @@ class AbstractHilbertSpace(abc.ABC):
     :raises ValueError: If ``gauge_dimensions < 1``.
     """
 
-    __slots__ = (
-        "_graph",
-        "_cutoff",
-        "_step",
-        "_gauge_dimensions",
-        "_allowed_basis_states",
-        "_dtype",
-        "_q_min",
-        "_q_max",
-        "_q_step",
-        "_hilbert",
-        "_dimensions",
-    )
+    _graph: AbstractGraph
+    """Graph defining edge degrees of freedom and edge-index mappings."""
+
+    _cutoff: Union[int, float]
+    """Cutoff value controlling the local quantum-number range."""
+
+    _step: Union[int, float]
+    """Step size between consecutive allowed local quantum numbers."""
+
+    _gauge_dimensions: int
+    """Number of gauge copies encoded in the flattened state layout."""
+
+    _index: "HilbertStateEnumerator[AbstractHilbertSpace] | None"
+    """Concrete state enumerator attached to this Hilbert core."""
+
+    _allowed_basis_states: StaticRange
+    """Local basis domain represented as a NetKet ``StaticRange``."""
+
+    _dtype: Any
+    """JAX dtype used for internal state representation."""
+
+    _q_min: float
+    """Minimum allowed local quantum number."""
+
+    _q_max: float
+    """Maximum allowed local quantum number."""
+
+    _q_step: float
+    """Effective local quantum-number step used for modular updates."""
+
+    _hilbert: nk.hilbert.AbstractHilbert | None
+    """Underlying NetKet Hilbert object managed by the concrete core."""
+
+    _dimensions: int | None
+    """Total Hilbert-space dimension or estimated upper bound."""
 
     def __init__(
         self,
@@ -116,6 +138,7 @@ class AbstractHilbertSpace(abc.ABC):
         self._cutoff = cutoff
         self._step = step
         self._gauge_dimensions = int(gauge_dimensions)
+        self._index = None  # type: ignore[assignment]
 
         if isinstance(cutoff, float) or isinstance(step, float):
             self._dtype = jnp.float64
@@ -162,6 +185,20 @@ class AbstractHilbertSpace(abc.ABC):
         return self._graph
 
     @property
+    def index(self) -> "HilbertStateEnumerator[AbstractHilbertSpace]":
+        """
+        State enumerator associated with this core.
+
+        Concrete cores must assign ``self._index`` to a concrete subclass of
+        :class:`~neuralqx.hilbert.utils.index._abstract.HilbertStateEnumerator`.
+        """
+        if self._index is None:
+            raise RuntimeError(
+                f"{type(self).__name__} has no index enumerator configured."
+            )
+        return self._index
+
+    @property
     def cutoff(self) -> Union[int, float]:
         """
         Cutoff controlling the local quantum-number range.
@@ -202,7 +239,7 @@ class AbstractHilbertSpace(abc.ABC):
         return self._gauge_dimensions
 
     @property
-    def dtype(self):
+    def dtype(self) -> Any:
         """
         Dtype used to represent configurations.
 
@@ -316,24 +353,18 @@ class AbstractHilbertSpace(abc.ABC):
         return self._hilbert
 
     @property
-    def layout(self) -> StridedGaugeCopyLayout:
+    @abc.abstractmethod
+    def layout(self) -> AbstractBasisLayout[Any]:
         """
-        Gauge layout describing the block structure of the flattened configuration.
+        Basis-layout descriptor for the flattened configuration.
 
-        The convention is a contiguous block layout:
+        Every concrete Hilbert core must provide a layout object implementing the
+        :class:`~neuralqx.hilbert.utils.layout._abstract_layout.AbstractBasisLayout`
+        contract. This keeps the base core agnostic to U(1), SU(2), or future
+        coordinate conventions.
 
-        .. math::
-
-            \\sigma = (\\sigma^{(0)}, \\sigma^{(1)}, \\ldots, \\sigma^{(G-1)}),
-
-        where each block :math:`\\sigma^{(g)}` contains :math:`E` edge sites.
-
-        :return: A :class:`~neuralqx.hilbert.utils.layout.StridedGaugeCopyLayout` instance.
+        :return: Basis-layout object implementing flat/structured coordinate conversion.
         """
-
-        return StridedGaugeCopyLayout(
-            edges_per_copy=self.tiny_size, gauge_dimensions=self.gauge_dimensions
-        )
 
     @property
     def tiny_hilbert(self) -> nk.hilbert.AbstractHilbert:
@@ -356,85 +387,72 @@ class AbstractHilbertSpace(abc.ABC):
     #
     #   Edge/site mapping helpers
 
-    def edge_to_site(self, edge, gauge_copy: int = 0) -> int:
+    @abc.abstractmethod
+    def edge_to_site(self, edge: Any, gauge_copy: int = 0) -> int:
         """
         Map a graph edge token to a flattened site index.
 
-        This first maps the edge token to an edge index using the graph, and then embeds that index into
-        the chosen gauge-copy block.
+        Concrete cores must define how graph-edge tokens map into their flat site
+        layout for the selected gauge copy.
 
         :param edge: Edge token accepted by ``graph.edge_to_index``.
         :param gauge_copy: Gauge-copy index ``g`` with ``0 <= g < gauge_dimensions``.
         :return: Flattened site index in ``[0, size)``.
         """
 
-        edge_idx = self.graph.edge_to_index(edge)
-        return self.layout.encode(gauge_copy=gauge_copy, edge_index=edge_idx)
-
-    def site_to_edge(self, site: int):
+    @abc.abstractmethod
+    def site_to_edge(self, site: int) -> tuple[int, Any]:
         """
         Inverse map from a flattened site index to ``(gauge_copy, edge_token)``.
+
+        Concrete cores must define how a flat site index is decoded into gauge
+        copy and graph-edge identity.
 
         :param site: Flattened site index in ``[0, size)``.
         :return: A pair ``(gauge_copy, edge_token)`` where ``edge_token`` is produced by
             ``graph.index_to_edge``.
         """
 
-        _coord = self.layout.coord_of(site)
-        gd, edge_idx = _coord.gauge_copy, _coord.edge_index
-        return gd, self.graph.index_to_edge(edge_idx)
-
+    @abc.abstractmethod
     def view(self, sigma: jax.Array) -> jax.Array:
         """
         Reshape a flattened configuration into an explicit gauge-block view.
 
-        If ``sigma`` has shape ``(N,)``, this returns shape ``(G, E)``.
-        If ``sigma`` has shape ``(B, N)``, this returns shape ``(B, G, E)``.
+        Concrete cores define the structured shape associated with their layout
+        (for example U(1): ``(G, E)``).
 
         :param sigma: A single configuration or batch in flattened layout.
-        :return: A reshaped view with explicit gauge and edge axes.
+        :return: Reshaped structured view.
         """
 
-        E = self.tiny_size
-        G = self.gauge_dimensions
-        if sigma.ndim == 1:
-            return sigma.reshape(G, E)
-        return sigma.reshape(sigma.shape[0], G, E)
-
+    @abc.abstractmethod
     def flatten(self, sigma_view: jax.Array) -> jax.Array:
         """
         Flatten a gauge-block view back to the standard NetKet layout.
 
         This is the inverse of :meth:`view`.
 
-        :param sigma_view: Array of shape ``(G, E)`` or ``(B, G, E)``.
-        :return: Flattened array of shape ``(N,)`` or ``(B, N)``.
+        :param sigma_view: Structured state view.
+        :return: Flattened array in NetKet site order.
         """
-
-        if sigma_view.ndim == 2:
-            return sigma_view.reshape(-1)
-        return sigma_view.reshape(sigma_view.shape[0], -1)
 
     #
     #
     #   Public API (dispatch-backed)
 
+    @abc.abstractmethod
     def random_state(self, key: jax.Array, size: int = 1) -> jax.Array:
         """
-        Generate random basis state(s) using the dispatched random-state operation.
+        Generate random basis state(s).
 
-        Concrete core types may customise how random states are produced by providing specialised
-        implementations in ``.operations.random``.
+        Concrete cores must provide their own random-state generation logic.
 
         :param key: JAX PRNGKey.
         :param size: Number of states to generate.
         :return: A state of shape ``(N,)`` or a batch of shape ``(B, N)``.
         """
 
-        from .operations.random import random_state
-
-        return random_state(self, key, size=size)
-
+    @abc.abstractmethod
     def flip_state(
         self,
         sigma: jax.Array,
@@ -447,8 +465,7 @@ class AbstractHilbertSpace(abc.ABC):
         """
         Propose a new configuration by updating one or more local degrees of freedom.
 
-        This delegates to the dispatched flip operation in ``.operations.flip``. Constrained cores may
-        specialise the dispatched implementation to ensure proposals remain within the allowed subspace.
+        Concrete cores must provide their own proposal dynamics implementation.
 
         :param sigma: A state of shape ``(N,)`` or a batch of shape ``(B, N)``.
         :param key: JAX PRNGKey.
@@ -460,27 +477,18 @@ class AbstractHilbertSpace(abc.ABC):
         :return: Proposed state(s) with the same shape as ``sigma``.
         """
 
-        from .operations.flip import flip_state
-
-        return flip_state(
-            self,
-            sigma,
-            key,
-            number_of_edges=number_of_edges,
-            adjacency=adjacency,
-            scope=scope,
-        )
-
     def states_to_numbers(
         self,
-        states: jax.Array,
+        states: Any,
         *,
         backend: Literal["auto", "netket", "python"] = "auto",
         return_dtype: str = "auto",
         validate: bool = False,
-    ):
+    ) -> Any:
         """
         Convert basis states to sequential numbers with NetKet-compatible ordering.
+
+        Dispatch is resolved through this core's ``index`` enumerator object.
 
         :param states: A single state ``(N,)`` or a batch ``(B, N)``.
         :param backend: Conversion backend selector: ``"auto"``, ``"netket"``, or ``"python"``.
@@ -490,13 +498,15 @@ class AbstractHilbertSpace(abc.ABC):
         :return: Integer label(s) corresponding to the provided basis state(s).
         """
 
+        from .utils.index import states_to_numbers as _states_to_numbers
+
         return _states_to_numbers(
             self, states, backend=backend, return_dtype=return_dtype, validate=validate
         )
 
     def numbers_to_states(
         self,
-        numbers,
+        numbers: Any,
         *,
         backend: Literal["auto", "netket", "python"] = "auto",
         validate: bool = False,
@@ -504,11 +514,15 @@ class AbstractHilbertSpace(abc.ABC):
         """
         Convert sequential numbers to basis states with NetKet-compatible ordering.
 
+        Dispatch is resolved through this core's ``index`` enumerator object.
+
         :param numbers: Integer label or array of labels.
         :param backend: Conversion backend selector: ``"auto"``, ``"netket"``, or ``"python"``.
         :param validate: If True, validate that inputs are within the representable range.
         :return: Basis state(s) corresponding to the provided label(s).
         """
+
+        from .utils.index import numbers_to_states as _numbers_to_states
 
         return _numbers_to_states(self, numbers, backend=backend, validate=validate)
 

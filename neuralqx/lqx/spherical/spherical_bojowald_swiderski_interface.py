@@ -35,7 +35,7 @@ class LqxBojowaldSwiderski(AbstractLqxInterface):
         delta: int = 2,
     ):
         # make sure both objects have the same gauge dimensions
-        if not gauge_group.dimensions == H.core.gauge_dimensions:
+        if not gauge_group.dimensions == H.hilbert.gauge_dimensions:
             raise HilbertSpaceGaugeGroupDimensionsMismatchError
 
         self._p = NQXPrinter()

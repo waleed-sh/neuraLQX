@@ -73,7 +73,7 @@ class VolumeOperator(ComputationalOperator):
 
     def __init__(self, H, vertex):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # local copy of the Hilbert object
         self._H = H

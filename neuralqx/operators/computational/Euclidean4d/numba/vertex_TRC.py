@@ -97,7 +97,7 @@ class EuclideanVertexTRCOperator(ComputationalOperator):
         #       implementation, but we refine loop/segment holonomy data so that we have
         #       "per-copy" index sets for k=0,1,2. This lets us implement h^{(k)} actions.
 
-        super().__init__(lqx.H.hilbert)
+        super().__init__(lqx.H.hilbert_netket)
 
         # store a short-handle to H and the vertex id, coercing to int if needed
         self._H = lqx.H
@@ -566,7 +566,7 @@ class EuclideanVertexTRCOperatorFast(ComputationalOperator):
         *,
         apply_lapse: bool = True,
     ) -> None:
-        super().__init__(lqx.H.hilbert)
+        super().__init__(lqx.H.hilbert_netket)
 
         # short-handle to H and vertex id
         self._H = lqx.H

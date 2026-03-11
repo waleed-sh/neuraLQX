@@ -154,7 +154,7 @@ class RevNetComplex(nn.Module):
         # TODO: put back the number_of_cnn_blocks setup
 
         # graph‑dependent sizes
-        self.cutoff = self.lqx.H.core.cutoff
+        self.cutoff = self.lqx.hilbert.hilbert.cutoff
         self.number_of_vertices = self.lqx.graph.dual_nk_graph.n_nodes
 
         # channel schedule

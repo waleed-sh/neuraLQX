@@ -108,9 +108,9 @@ class NDMinimalLoopHolonomyJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, minimal_loop: List, *, adjoint: int = 0):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
-        self.K = int(H.core.gauge_dimensions)
+        self.K = int(H.hilbert.gauge_dimensions)
         self.D = int(H.size)
         self.n_edges_total = int(H.tiny_size)
 
@@ -239,9 +239,9 @@ class MinimalLoopHolonomyJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, minimal_loop: List, *, copy: int = 0, adjoint: bool = False):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
-        self.K = int(H.core.gauge_dimensions)
+        self.K = int(H.hilbert.gauge_dimensions)
         self.D = int(H.size)
         self.n_edges_total = int(H.tiny_size)
 
@@ -391,9 +391,9 @@ class OneMinusHalfHolonomyJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, minimal_loop: List, *, copy: int = 0):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
-        self.K = int(H.core.gauge_dimensions)
+        self.K = int(H.hilbert.gauge_dimensions)
         self.D = int(H.size)
         self.n_edges_total = int(H.tiny_size)
 

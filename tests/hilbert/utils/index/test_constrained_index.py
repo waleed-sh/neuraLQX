@@ -18,14 +18,14 @@ import pytest
 
 
 def test_space_is_gauge_fixed_detection(gauge_fixed_space_small, unconstrained_space):
-    from neuralqx.hilbert.utils.index._constrained_index import _space_is_gauge_fixed
+    from neuralqx.hilbert.u1.index._constrained_index import _space_is_gauge_fixed
 
     assert _space_is_gauge_fixed(gauge_fixed_space_small) is True
     assert _space_is_gauge_fixed(unconstrained_space) is False
 
 
 def test_extract_reduced_free_values_shape_and_order(gauge_fixed_space_small, rng):
-    from neuralqx.hilbert.utils.index._constrained_index import (
+    from neuralqx.hilbert.u1.index._constrained_index import (
         _extract_reduced_free_values,
     )
 
@@ -50,7 +50,7 @@ def test_extract_reduced_free_values_shape_and_order(gauge_fixed_space_small, rn
 def test_reconstruct_from_reduced_free_values_roundtrip_for_consistent_states(
     gauge_fixed_space_small, rng, jnp
 ):
-    from neuralqx.hilbert.utils.index._constrained_index import (
+    from neuralqx.hilbert.u1.index._constrained_index import (
         _extract_reduced_free_values,
         _reconstruct_from_reduced_free_values,
     )

@@ -240,7 +240,7 @@ class Euclidean3dVertexTRCOperatorJax(ComputationalJaxOperator):
         *,
         apply_lapse: bool = False,
     ):
-        super().__init__(lqx.hilbert.hilbert)
+        super().__init__(lqx.hilbert.hilbert_netket)
 
         self._H = lqx.hilbert
         self.vertex = int(vertex) if not isinstance(vertex, int) else vertex

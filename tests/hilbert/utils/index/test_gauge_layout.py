@@ -20,9 +20,9 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from neuralqx.hilbert.utils.layout._abstract_layout import AbstractBasisLayout
-from neuralqx.hilbert.utils.layout import GaugeCoord
-from neuralqx.hilbert.utils.layout import StridedGaugeCopyLayout
-from neuralqx.hilbert.utils.layout import GaugeLayout
+from neuralqx.hilbert.u1.layout import GaugeCoord
+from neuralqx.hilbert.u1.layout import StridedGaugeCopyLayout
+from neuralqx.hilbert.u1.layout import GaugeLayout
 
 
 class _DummyLayout(AbstractBasisLayout[int]):
@@ -332,7 +332,7 @@ def test_gauge_layout_alias_behavior_matches_strided():
 
 
 def test_gauge_layout_bijection():
-    from neuralqx.hilbert.utils.layout.gauge_strided import StridedGaugeCopyLayout
+    from neuralqx.hilbert.u1.layout import StridedGaugeCopyLayout
 
     E = 7
     G = 4
@@ -350,7 +350,7 @@ def test_gauge_layout_bijection():
 
 
 def test_gauge_layout_range_checks():
-    from neuralqx.hilbert.utils.layout.gauge_strided import StridedGaugeCopyLayout
+    from neuralqx.hilbert.u1.layout import StridedGaugeCopyLayout
 
     layout = StridedGaugeCopyLayout(edges_per_copy=3, gauge_dimensions=2)
 
@@ -375,7 +375,7 @@ def test_gauge_layout_range_checks():
 
 def test_gauge_layout_is_frozen_and_sloted():
     from dataclasses import FrozenInstanceError
-    from neuralqx.hilbert.utils.layout.gauge_strided import StridedGaugeCopyLayout
+    from neuralqx.hilbert.u1.layout import StridedGaugeCopyLayout
 
     layout = StridedGaugeCopyLayout(edges_per_copy=2, gauge_dimensions=2)
     with pytest.raises(FrozenInstanceError):

@@ -18,7 +18,7 @@ import pytest
 
 def test_move_classes_are_frozen_slots_and_hashable():
     from dataclasses import FrozenInstanceError
-    from neuralqx.hilbert.operations.moves import (
+    from neuralqx.hilbert.u1.operations.moves import (
         Move,
         FreeEdgeFlipSingleGauge,
         FreeEdgeFlipAllGauge,

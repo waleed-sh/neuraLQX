@@ -268,7 +268,7 @@ class EuclideanVertexTRCOperatorJax(ComputationalJaxOperator):
     ) -> None:
 
         # DiscreteJaxOperator requires hilbert
-        super().__init__(lqx.H.hilbert)
+        super().__init__(lqx.H.hilbert_netket)
 
         H = lqx.H
         self.vertex = int(vertex) if not isinstance(vertex, int) else vertex

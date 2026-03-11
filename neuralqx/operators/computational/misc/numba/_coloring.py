@@ -36,7 +36,7 @@ class ChargeColoring(ComputationalOperator):
     """
 
     def __init__(self, H, site: int, charge: int):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self._H = H
         self.D = int(H.size)
@@ -99,7 +99,7 @@ class Coloring(ComputationalOperator):
     """
 
     def __init__(self, H, site: int, charge_vector: Sequence[int]):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self._H = H
         self.gauge_dim = int(getattr(H, "gauge_dimensions", 3))

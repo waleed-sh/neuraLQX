@@ -18,8 +18,8 @@ import pytest
 
 
 def test_random_then_flip_preserves_value_domain(unconstrained_space, jax, jnp):
-    from neuralqx.hilbert.operations.random import random_state
-    from neuralqx.hilbert.operations.flip import flip_state
+    from neuralqx.hilbert.u1.operations.random import random_state
+    from neuralqx.hilbert.u1.operations.flip import flip_state
 
     space = unconstrained_space
     N = int(space.size)

@@ -18,7 +18,7 @@ import pytest
 
 
 def test_ensure_2d_states_and_restore_roundtrip_various_ranks(rng):
-    from neuralqx.hilbert.utils.index._array_normalise import (
+    from neuralqx.hilbert.u1.index.utils._array_normalise import (
         _ensure_2d_states,
         _restore_states_shape,
     )
@@ -46,7 +46,7 @@ def test_ensure_2d_states_and_restore_roundtrip_various_ranks(rng):
 
 
 def test_ensure_1d_numbers_scalar_and_batches(rng):
-    from neuralqx.hilbert.utils.index._array_normalise import _ensure_1d_numbers
+    from neuralqx.hilbert.u1.index.utils._array_normalise import _ensure_1d_numbers
 
     a, was = _ensure_1d_numbers(5)
     assert a.shape == (1,)
@@ -68,7 +68,7 @@ def test_ensure_1d_numbers_scalar_and_batches(rng):
 
 
 def test_as_numpy_accepts_lists_tuples_and_arrays():
-    from neuralqx.hilbert.utils.index._array_normalise import _as_numpy
+    from neuralqx.hilbert.u1.index.utils._array_normalise import _as_numpy
 
     assert isinstance(_as_numpy([1, 2, 3]), np.ndarray)
     assert isinstance(_as_numpy((1, 2)), np.ndarray)

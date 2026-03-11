@@ -28,7 +28,7 @@ class Number(ComputationalOperator):
     """
 
     def __init__(self, H, edge: int):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # invariants
         self._H = H

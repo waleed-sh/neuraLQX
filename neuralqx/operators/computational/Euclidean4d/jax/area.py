@@ -93,7 +93,7 @@ class AreaOperatorJax(ComputationalJaxOperator):
 
     def __init__(self, H: AbstractHilbertInterface, edges, *, squared: bool = False):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self.gauge_dim = int(H.gauge_dimensions)
 

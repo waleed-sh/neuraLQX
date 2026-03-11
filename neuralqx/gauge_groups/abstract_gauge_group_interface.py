@@ -259,7 +259,7 @@ class AbstractGaugeGroup(abc.ABC):
         """
 
     def __repr__(self) -> str:
-        return f"AbstractGaugeGroup(hilbert={self.hilbert.hilbert})"
+        return f"AbstractGaugeGroup(hilbert={self.hilbert.hilbert_netket})"
 
     def __mul__(self, other):
         return NotImplemented

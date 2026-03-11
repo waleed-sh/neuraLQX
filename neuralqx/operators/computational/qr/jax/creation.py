@@ -77,7 +77,7 @@ class QRCreationJax(ComputationalJaxOperator):
         return jnp.float32
 
     def __init__(self, H, *, site: int, n: int = 1):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self._H = H
         self.D = int(H.size)

@@ -290,7 +290,9 @@ def test_u1_localoperator_constraint_matches_manual_gauss_and_is_gauge_invariant
     states = hilbert_u1_full_1copy.random_state(jax.random.PRNGKey(1), size=50)
     states = _to_2d(states)
 
-    gi = np.asarray(hilbert_u1_full_1copy.core.is_gauge_invariant(states), dtype=bool)
+    gi = np.asarray(
+        hilbert_u1_full_1copy.hilbert.is_gauge_invariant(states), dtype=bool
+    )
     manual = _manual_gauss_value(hilbert_u1_full_1copy, states, gauge_dimensions=1)
 
     diag = _diag_elements(op, states)
@@ -311,7 +313,7 @@ def test_u1_localoperator_constraint_matches_manual_gauss_and_is_gauge_invariant
         expected = strict_gi
 
     assert np.array_equal(gi, expected), (
-        "H.core.is_gauge_invariant disagrees with both strict and modded Gauss-law checks.\n"
+        "H.hilbert.is_gauge_invariant disagrees with both strict and modded Gauss-law checks.\n"
         f"gi={gi}\n"
         f"strict_gi={strict_gi}\n"
         f"modded_gi={modded_gi}\n"

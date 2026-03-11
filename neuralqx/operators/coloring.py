@@ -41,9 +41,9 @@ def charge_coloring(
     """
 
     # get the allowed states
-    D = H.core.allowed_basis_states.all_states()
+    D = H.hilbert.allowed_basis_states.all_states()
 
-    if charge > H.core.cutoff:
+    if charge > H.hilbert.cutoff:
         raise InvalidChargeError(charge, H.cutoff)
 
     # create a diagonal with only 1 at the specified charge position
@@ -52,7 +52,7 @@ def charge_coloring(
     # create the operator matrix
     matrix = _sparse.diags(diag, 0, format="coo")
 
-    return nk.operator.LocalOperator(H.hilbert, matrix, [site], 0)
+    return nk.operator.LocalOperator(H.hilbert_netket, matrix, [site], 0)
 
 
 def coloring(

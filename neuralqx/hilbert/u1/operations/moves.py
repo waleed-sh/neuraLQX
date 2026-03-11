@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -44,7 +43,7 @@ class Move:
     """
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class FreeEdgeFlipSingleGauge(Move):
     """
     Flip `n_edges` free edges across the union of all gauge copies.
@@ -80,7 +79,7 @@ class FreeEdgeFlipSingleGauge(Move):
     """If True, +/- step, otherwise the flip assigns any random allowed DoF."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class FreeEdgeFlipAllGauge(Move):
     """
     Flip `n_edges` free edges independently inside each gauge copy.
@@ -113,7 +112,7 @@ class FreeEdgeFlipAllGauge(Move):
     """If True, +/- step, otherwise the flip assigns any random allowed DoF."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PlaquetteFlipSingleGauge(Move):
     """
     Apply +/- step along one randomly chosen plaquette in one gauge copy.
@@ -138,7 +137,7 @@ class PlaquetteFlipSingleGauge(Move):
     pass
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PlaquetteFlipAllGauge(Move):
     """
     Apply +/- step along one randomly chosen plaquette per gauge copy.

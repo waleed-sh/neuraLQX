@@ -85,7 +85,7 @@ class VolumeOperatorJax(ComputationalJaxOperator):
 
     def __init__(self, H, vertex):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # small static metadata
         self.vertex = int(vertex) if not isinstance(vertex, int) else vertex

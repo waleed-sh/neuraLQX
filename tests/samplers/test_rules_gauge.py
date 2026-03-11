@@ -42,7 +42,7 @@ def _assert_within_cutoff(states, cutoff: int):
 
 
 def _assert_all_gi(H_nqx, states):
-    gi = H_nqx.core.is_gauge_invariant(states)
+    gi = H_nqx.hilbert.is_gauge_invariant(states)
     assert bool(jnp.all(gi)), "Proposed state left gauge-invariant subspace"
 
 
@@ -58,7 +58,7 @@ def u1_theta_gi_system():
         auto_constraint=1,
         gauge_dimensions=1,
     )
-    return H, H.hilbert
+    return H, H.hilbert_netket
 
 
 @pytest.mark.parametrize(

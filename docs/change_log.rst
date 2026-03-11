@@ -5,6 +5,55 @@ Change Log
 ============================================
 
 
+Unreleased
+--------------------
+
+Breaking changes
+~~~~~~~~~~~~~~~~~
+- The Hilbert package was restructured so that `neuralqx.hilbert.utils` now contains abstractions only; concrete indexing/layout/operations now live in concrete Hilbert-space subpackages.
+
+- `AbstractHilbertSpace` and `AbstractHilbertInterface` are now strictly abstract and no longer provide concrete U(1)-specific defaults.
+
+- Hilbert interface API cleanup: `.core` has been removed. Use `.hilbert` (neuraLQX core) and `.hilbert_netket` (NetKet Hilbert object).
+
+- Deprecated the legacy `neuralqx.hilbert.utils.layout.gauge_strided` path, use `neuralqx.hilbert.u1.layout.StridedGaugeCopyLayout`.
+
+New features
+~~~~~~~~~~~~~
+- Added a richer Hilbert enumerator abstraction with explicit metadata and explainability:
+  `scheme_name`, `ordering_contract`, `supports_lazy_mode`, `requires_full_precompute`,
+  `explain_state_to_number`, and `explain_number_to_state`.
+
+- `states_to_numbers` / `numbers_to_states` now dispatch through plum via each core's attached enumerator class.
+
+
+Changes
+~~~~~~~~
+- U(1) random/flip operations now live under `neuralqx.hilbert.u1.operations`; the old top-level `neuralqx.hilbert.operations` package has been removed.
+
+- U(1) concrete layout now lives under `neuralqx.hilbert.u1.layout`.
+
+- U(1)-specific index helpers were moved out of `neuralqx.hilbert.utils.index`; the utils index package is now abstraction-focused.
+
+
+Bug fixes
+~~~~~~~~~~
+- Fixed circular-import issues in Hilbert index dispatch/core initialization paths.
+
+- Corrected dispatch resolution so state-number conversion reliably uses concrete enumerator implementations.
+
+
+Deprecations
+~~~~~~~~~~~~~
+- None.
+
+
+Experimental
+~~~~~~~~~~~~~
+- None.
+
+
+
 neuraLQX v1.1.0 (March 10, 2026)
 ------------------------------------
 

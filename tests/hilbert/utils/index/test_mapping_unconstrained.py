@@ -23,7 +23,7 @@ def test_states_to_numbers_matches_netket_for_random_batches(
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import states_to_numbers
+    from neuralqx.hilbert.u1.index.mapping import states_to_numbers
 
     space = unconstrained_space
     L = int(space.allowed_basis_states.length)
@@ -58,7 +58,7 @@ def test_numbers_to_states_matches_netket_for_scalar_and_arrays(
     jax = pytest.importorskip("jax")
     jnp = pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import numbers_to_states
+    from neuralqx.hilbert.u1.index.mapping import numbers_to_states
 
     space = unconstrained_space
     L = int(space.allowed_basis_states.length)
@@ -87,7 +87,7 @@ def test_states_numbers_roundtrip_bijection_small_exhaustive(unconstrained_space
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import (
+    from neuralqx.hilbert.u1.index.mapping import (
         states_to_numbers,
         numbers_to_states,
     )
@@ -119,7 +119,7 @@ def test_states_to_numbers_auto_falls_back_to_python_if_netket_fails(
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import states_to_numbers
+    from neuralqx.hilbert.u1.index.mapping import states_to_numbers
 
     class BrokenHilbert:
         def states_to_numbers(self, *_a, **_k):
@@ -153,7 +153,7 @@ def test_states_to_numbers_return_dtype_auto_switches_to_object_when_needed(
     pytest.importorskip("jax.numpy")
 
     StaticRange = nk.utils.StaticRange
-    from neuralqx.hilbert.utils.index.mapping import states_to_numbers
+    from neuralqx.hilbert.u1.index.mapping import states_to_numbers
 
     local_states = StaticRange(start=0, step=1, length=2)
     N = 70

@@ -61,7 +61,7 @@ def test_non_indexable_hilbert_skips_diagonalization(nk_spin_2, nk):
     H = DummyHilbertInterface(
         graph=g, nk_hilbert=hi, is_gauge_invariant=True, gauge_dimensions=1
     )
-    H.core = dummy_core
+    H.hilbert = dummy_core
 
     z0 = nk.operator.spin.sigmaz(hi, 0)
     z1 = nk.operator.spin.sigmaz(hi, 1)

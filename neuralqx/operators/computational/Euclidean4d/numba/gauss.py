@@ -46,7 +46,7 @@ class GaussConstraintOperator(ComputationalOperator):
         gauge_dim: int = None,
         modded: bool = False,
     ):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # static layout
         self._H = H

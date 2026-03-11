@@ -55,7 +55,7 @@ class NumberJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, edge: int):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self.D = int(H.size)
         e = int(edge)

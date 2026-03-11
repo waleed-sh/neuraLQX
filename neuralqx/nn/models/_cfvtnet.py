@@ -841,7 +841,7 @@ def make_cfvtnet_kwargs(graph: Graph, H: AbstractHilbertInterface):
             flatten_edges(graph.handler.graph_edges_data["graph"]["connectivities"])
         ),
         triplet_signs_by_vertex=stringify_keys(graph.signs),
-        q_step=H.core.allowed_basis_states.step,
-        q_min=H.core.allowed_basis_states.start,
-        q_max=max(H.core.allowed_basis_states.all_states()),
+        q_step=H.hilbert.allowed_basis_states.step,
+        q_min=H.hilbert.allowed_basis_states.start,
+        q_max=max(H.hilbert.allowed_basis_states.all_states()),
     )

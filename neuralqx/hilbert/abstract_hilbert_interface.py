@@ -25,25 +25,29 @@ backend-specific details (NetKet Hilbert construction, constraints, move proposa
 in the core and are exposed here via delegation.
 """
 
-from __future__ import annotations
-
 import abc
 import logging
-from typing import Literal, Optional, Union
+
+from typing import Any
+from typing import Generic
+from typing import Literal, Union
+from typing import TypeVar
 from humanize import scientific
 
 import jax
 import jax.numpy as jnp
 
+import netket as nk
+
 from .abstract_hilbert_core import AbstractHilbertSpace
 
 from neuralqx.graph.core import AbstractGraph
-from neuralqx.utils.errors import AutoConstraintGaugeFixingConflictError
-from neuralqx.utils.errors import UnspecifiedGaugeFixingError
 from neuralqx.debug import event
 
+CoreT = TypeVar("CoreT", bound=AbstractHilbertSpace)
 
-class AbstractHilbertInterface(abc.ABC):
+
+class AbstractHilbertInterface(abc.ABC, Generic[CoreT]):
     """
     User-facing interface around a concrete Hilbert-space core implementation.
 
@@ -56,11 +60,6 @@ class AbstractHilbertInterface(abc.ABC):
     - The interface handles user-facing validation, configuration, and a clean attribute surface.
     - The core implements the actual physics/constraints, NetKet Hilbert construction, moves, etc.
 
-    Gauge-invariant spaces:
-    If ``is_gauge_invariant=True``, the interface enforces that a gauge-fixing specification is
-    available either explicitly via ``gauge_fixing`` or implicitly via ``auto_constraint=True``.
-    Providing both at the same time is an error.
-
     Core construction:
     Subclasses must implement :meth:`_build_core` and return a fully-initialised core instance.
     All properties and convenience methods delegate to that core.
@@ -70,18 +69,15 @@ class AbstractHilbertInterface(abc.ABC):
     :param step: Step size between allowed local quantum numbers (semantics depend on the core).
     :param gauge_dimensions: Number of gauge copies (blocks) stored in the flattened configuration.
     :param is_gauge_invariant: If True, construct a gauge-invariant (constrained) Hilbert space.
-    :param gauge_fixing: Gauge-fixing specification used by constrained cores. Required if
-        ``is_gauge_invariant=True`` unless ``auto_constraint=True``.
-    :param auto_constraint: If True, the core may auto-generate a gauge-fixing array from the graph.
     :param kwargs: Forwarded to :meth:`_build_core` for backend-specific options.
-
-    :raises UnspecifiedGaugeFixingError: If ``is_gauge_invariant=True`` and neither ``gauge_fixing``
-        nor ``auto_constraint`` is provided.
-    :raises AutoConstraintGaugeFixingConflictError: If ``is_gauge_invariant=True`` and both
-        ``gauge_fixing`` and ``auto_constraint=True`` are provided.
+        Concrete interfaces define and validate any group-specific constructor arguments.
     """
 
-    __slots__ = ("_core", "_is_gauge_invariant")
+    _core: CoreT
+    """Concrete Hilbert core implementation wrapped by this interface."""
+
+    _is_gauge_invariant: bool
+    """Whether this interface represents a gauge-invariant Hilbert space."""
 
     def __init__(
         self,
@@ -91,8 +87,6 @@ class AbstractHilbertInterface(abc.ABC):
         step: Union[int, float] = 1,
         gauge_dimensions: int = 1,
         is_gauge_invariant: bool = False,
-        gauge_fixing=None,
-        auto_constraint: Optional[bool] = False,
         **kwargs,
     ):
 
@@ -104,15 +98,7 @@ class AbstractHilbertInterface(abc.ABC):
             step=step,
             gauge_dimensions=gauge_dimensions,
             is_gauge_invariant=is_gauge_invariant,
-            gauge_fixing=gauge_fixing,
-            auto_constraint=auto_constraint,
         )
-
-        if is_gauge_invariant:
-            if gauge_fixing is None and not auto_constraint:
-                raise UnspecifiedGaugeFixingError
-            if gauge_fixing is not None and auto_constraint:
-                raise AutoConstraintGaugeFixingConflictError()
 
         self._is_gauge_invariant = bool(is_gauge_invariant)
         self._core = self._build_core(
@@ -121,13 +107,11 @@ class AbstractHilbertInterface(abc.ABC):
             step=step,
             gauge_dimensions=gauge_dimensions,
             is_gauge_invariant=is_gauge_invariant,
-            gauge_fixing=gauge_fixing,
-            auto_constraint=auto_constraint,
             **kwargs,
         )
 
     @abc.abstractmethod
-    def _build_core(self, **kwargs) -> AbstractHilbertSpace:
+    def _build_core(self, **kwargs) -> CoreT:
         """
         Build and return the concrete Hilbert-space core.
 
@@ -141,7 +125,7 @@ class AbstractHilbertInterface(abc.ABC):
         """
 
     @property
-    def core(self) -> AbstractHilbertSpace:
+    def hilbert(self) -> CoreT:
         """
         Underlying core Hilbert-space implementation.
 
@@ -152,6 +136,16 @@ class AbstractHilbertInterface(abc.ABC):
         """
 
         return self._core
+
+    @property
+    def hilbert_netket(self) -> nk.hilbert.AbstractHilbert:
+        """
+        NetKet Hilbert object used for sampling and operator construction.
+
+        :return: A NetKet Hilbert instance.
+        """
+
+        return self.hilbert.hilbert
 
     @property
     def is_gauge_invariant(self) -> bool:
@@ -173,20 +167,10 @@ class AbstractHilbertInterface(abc.ABC):
 
         :return: The associated graph.
         """
-        return self.core.graph
+        return self.hilbert.graph
 
     @property
-    def hilbert(self):
-        """
-        NetKet Hilbert object used for state-space representation and sampling.
-
-        :return: A NetKet Hilbert instance.
-        """
-
-        return self.core.hilbert
-
-    @property
-    def tiny_hilbert(self):
+    def tiny_hilbert(self) -> nk.hilbert.AbstractHilbert:
         """
         A smaller/base NetKet Hilbert object used internally by some cores.
 
@@ -196,7 +180,7 @@ class AbstractHilbertInterface(abc.ABC):
         :return: A NetKet Hilbert instance.
         """
 
-        return self.core.tiny_hilbert
+        return self.hilbert.tiny_hilbert
 
     @property
     def tiny_size(self) -> int:
@@ -211,7 +195,7 @@ class AbstractHilbertInterface(abc.ABC):
 
         :return: Number of sites in one gauge copy.
         """
-        return self.core.tiny_size
+        return self.hilbert.tiny_size
 
     @property
     def size(self) -> int:
@@ -223,7 +207,7 @@ class AbstractHilbertInterface(abc.ABC):
 
         :return: Total configuration length.
         """
-        return self.core.size
+        return self.hilbert.size
 
     @property
     def local_size(self) -> int:
@@ -232,7 +216,7 @@ class AbstractHilbertInterface(abc.ABC):
 
         :return: Local Hilbert dimension per site.
         """
-        return self.core.local_size
+        return self.hilbert.local_size
 
     @property
     def dimensions(self) -> int:
@@ -241,36 +225,36 @@ class AbstractHilbertInterface(abc.ABC):
 
         :return: The dimension (exact for finite indexable spaces, otherwise core-defined).
         """
-        return self.core.dimensions
+        return self.hilbert.dimensions
 
     @property
-    def gauge_dimensions(self):
+    def gauge_dimensions(self) -> int:
         """
         Number of gauge copies (blocks) stored in the flattened configuration.
 
         :return: Gauge dimension as defined by the core.
         """
-        return self.core.gauge_dimensions
+        return self.hilbert.gauge_dimensions
 
     @property
-    def is_indexable(self):
+    def is_indexable(self) -> bool:
         """
         Whether the underlying NetKet Hilbert space supports indexing.
 
         :return: True if indexable, otherwise False.
         """
-        return self.hilbert.is_indexable
+        return self.hilbert_netket.is_indexable
 
     @property
-    def is_finite(self):
+    def is_finite(self) -> bool:
         """
         Whether the underlying NetKet Hilbert space is finite.
 
         :return: True if finite, otherwise False.
         """
-        return self.hilbert.is_finite
+        return self.hilbert_netket.is_finite
 
-    def random_state(self, key: jax.Array, size: int = 1):
+    def random_state(self, key: jax.Array, size: int = 1) -> jax.Array:
         """
         Generate random basis state(s) via the core implementation.
 
@@ -281,18 +265,17 @@ class AbstractHilbertInterface(abc.ABC):
             depending on the core and ``size``.
         """
 
-        return self.core.random_state(key, size=size)
+        return self.hilbert.random_state(key, size=size)
 
     def flip_state(
         self,
-        sigma,
+        sigma: jax.Array,
         key: jax.Array,
         number_of_edges: int = 1,
         *,
         adjacency: bool = False,
         scope: str = "single",
-    ):
-        # For AbstractHilbertInterface.flip_state
+    ) -> jax.Array:
         """
         Propose a new configuration by modifying one or more local degrees of freedom.
 
@@ -311,7 +294,7 @@ class AbstractHilbertInterface(abc.ABC):
         :return: A proposed state (or batch) with the same shape as ``sigma``.
         """
 
-        return self.core.flip_state(
+        return self.hilbert.flip_state(
             sigma,
             key,
             number_of_edges=number_of_edges,
@@ -319,7 +302,7 @@ class AbstractHilbertInterface(abc.ABC):
             scope=scope,
         )
 
-    def edge_to_site(self, edge, gauge_copy: int = 0) -> int:
+    def edge_to_site(self, edge: Any, gauge_copy: int = 0) -> int:
         """
         Map a graph edge token to a flattened site index.
 
@@ -331,9 +314,9 @@ class AbstractHilbertInterface(abc.ABC):
         :return: Flattened site index in ``[0, size)``.
         """
 
-        return self.core.edge_to_site(edge, gauge_copy=gauge_copy)
+        return self.hilbert.edge_to_site(edge, gauge_copy=gauge_copy)
 
-    def site_to_edge(self, site: int):
+    def site_to_edge(self, site: int) -> tuple[int, Any]:
         """
         Inverse mapping from a flattened site index to a structured edge representation.
 
@@ -342,16 +325,16 @@ class AbstractHilbertInterface(abc.ABC):
         :return: A core-defined representation identifying the gauge copy and the underlying graph edge.
         """
 
-        return self.core.site_to_edge(site)
+        return self.hilbert.site_to_edge(site)
 
     def states_to_numbers(
         self,
-        states,
+        states: Any,
         *,
         backend: Literal["auto", "netket", "python"] = "auto",
         return_dtype: str = "auto",
         validate: bool = False,
-    ):
+    ) -> Any:
         """
         Convert basis states to sequential integers using NetKet-compatible ordering.
 
@@ -367,17 +350,17 @@ class AbstractHilbertInterface(abc.ABC):
         :return: Integer label(s) corresponding to the provided basis state(s).
         """
 
-        return self.core.states_to_numbers(
+        return self.hilbert.states_to_numbers(
             states, backend=backend, return_dtype=return_dtype, validate=validate
         )
 
     def numbers_to_states(
         self,
-        numbers,
+        numbers: Any,
         *,
         backend: Literal["auto", "netket", "python"] = "auto",
         validate: bool = False,
-    ):
+    ) -> jax.Array:
         """
         Convert sequential integers to basis states using NetKet-compatible ordering.
 
@@ -391,9 +374,11 @@ class AbstractHilbertInterface(abc.ABC):
         :return: Basis state(s) corresponding to the provided label(s).
         """
 
-        return self.core.numbers_to_states(numbers, backend=backend, validate=validate)
+        return self.hilbert.numbers_to_states(
+            numbers, backend=backend, validate=validate
+        )
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         Forward unknown *public* attribute access to the core.
 
@@ -408,9 +393,9 @@ class AbstractHilbertInterface(abc.ABC):
 
         if name.startswith("_"):
             raise AttributeError(name)
-        return getattr(self.core, name)
+        return getattr(self.hilbert, name)
 
-    def __dir__(self):
+    def __dir__(self) -> list[str]:
         """
         Return an augmented attribute listing including both interface and core attributes.
 
@@ -419,14 +404,14 @@ class AbstractHilbertInterface(abc.ABC):
         :return: Sorted list of attribute names.
         """
 
-        return sorted(set(super().__dir__()) | set(dir(self.core)))
+        return sorted(set(super().__dir__()) | set(dir(self.hilbert)))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"{type(self).__name__}("
-            f"dimensions={scientific(self.core.dimensions)}, "
-            f"cutoff={self.core.cutoff}, "
-            f"dofs={self.core.allowed_basis_states}, "
+            f"dimensions={scientific(self.hilbert.dimensions)}, "
+            f"cutoff={self.hilbert.cutoff}, "
+            f"dofs={self.hilbert.allowed_basis_states}, "
             f"is_gauge_invariant={self.is_gauge_invariant}, "
             f"is_finite={self.is_finite}, "
             f"is_indexable={self.is_indexable}"

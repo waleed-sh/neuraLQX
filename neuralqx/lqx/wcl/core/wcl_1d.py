@@ -262,7 +262,7 @@ class LqxWCL1D(LqxWclModel):
             _flatness_constraint = 0
         # default to LOPs if both are False/None
         else:
-            _flatness_constraint = self._lop_type(self.hilbert.core.hilbert)
+            _flatness_constraint = self._lop_type(self.hilbert.hilbert_netket)
 
         # loop through every minimal loop
         for minimal_loop in self.graph.dressed_minimal_loops():
@@ -297,7 +297,7 @@ class LqxWCL1D(LqxWclModel):
         # default to LOPs otherwise
         else:
             _flatness_constraint += self._lop_type(
-                self.hilbert.core.hilbert,
+                self.hilbert.hilbert_netket,
                 operators=None,
                 constant=2 * len(self.graph.minimal_loops()) * self.gauge_dimensions,
             )

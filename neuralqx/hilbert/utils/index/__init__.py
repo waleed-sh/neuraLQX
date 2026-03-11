@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .mapping import states_to_numbers, numbers_to_states
+from ._abstract import HilbertStateEnumerator
+from .dispatch import states_to_numbers, numbers_to_states
 
 __all__ = [
+    # Abstract base class for state enumeration
+    "HilbertStateEnumerator",
+    # Plum-dispatched standalone functions
     "states_to_numbers",
     "numbers_to_states",
 ]

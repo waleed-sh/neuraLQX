@@ -584,9 +584,9 @@ class SphericalVertexConstraintBojowaldSwiderskiJaxFixed(ComputationalJaxOperato
         outer_kp_constant: int = 0,
         immirzi: float = 1.0,
     ):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
             )
@@ -813,9 +813,9 @@ class SphericalVertexConstraintBojowaldSwiderskiJax(ComputationalJaxOperator):
         outer_kp_constant: int = 0,
         immirzi: float = 1.0,
     ):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
-        if int(H.core.gauge_dimensions) != 1:
+        if int(H.hilbert.gauge_dimensions) != 1:
             raise ValueError(
                 f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
             )

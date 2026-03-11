@@ -68,6 +68,7 @@ def test_abstract_gauge_group_flags(neuralqx):
             self.graph = object()
             self.gauge_dimensions = 1
             self.hilbert = "hk"
+            self.hilbert_netket = "nkh"
 
     class DummyGroup(AbstractGaugeGroup):
         @property
@@ -102,7 +103,7 @@ def test_abstract_gauge_group_repr(neuralqx):
         def __init__(self):
             self.graph = object()
             self.gauge_dimensions = 1
-            self.hilbert = "HK_REPR"
+            self.hilbert_netket = "HK_REPR"
 
     class DummyGroup(AbstractGaugeGroup):
         @property

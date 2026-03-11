@@ -23,11 +23,11 @@ def test_gauge_fixed_states_to_numbers_is_bijection_on_reduced_parameterisation(
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import (
+    from neuralqx.hilbert.u1.index.mapping import (
         states_to_numbers,
         numbers_to_states,
     )
-    from neuralqx.hilbert.utils.index._constrained_index import (
+    from neuralqx.hilbert.u1.index._constrained_index import (
         _extract_reduced_free_values,
         _reconstruct_from_reduced_free_values,
     )
@@ -63,8 +63,8 @@ def test_gauge_fixed_validate_true_rejects_non_gauge_invariant_states(
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import states_to_numbers
-    from neuralqx.hilbert.utils.index._constrained_index import (
+    from neuralqx.hilbert.u1.index.mapping import states_to_numbers
+    from neuralqx.hilbert.u1.index._constrained_index import (
         _reconstruct_from_reduced_free_values,
     )
 
@@ -93,7 +93,7 @@ def test_gauge_fixed_numbers_to_states_validate_range_checks(gauge_fixed_space_s
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import numbers_to_states
+    from neuralqx.hilbert.u1.index.mapping import numbers_to_states
 
     space = gauge_fixed_space_small
     L = int(space.allowed_basis_states.length)
@@ -111,11 +111,11 @@ def test_gauge_fixed_shapes_are_restored(gauge_fixed_space_small, rng):
     pytest.importorskip("jax")
     pytest.importorskip("jax.numpy")
 
-    from neuralqx.hilbert.utils.index.mapping import (
+    from neuralqx.hilbert.u1.index.mapping import (
         states_to_numbers,
         numbers_to_states,
     )
-    from neuralqx.hilbert.utils.index._constrained_index import (
+    from neuralqx.hilbert.u1.index._constrained_index import (
         _reconstruct_from_reduced_free_values,
     )
 

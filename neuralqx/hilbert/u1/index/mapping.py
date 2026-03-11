@@ -12,9 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+U(1) state indexing: states_to_numbers and numbers_to_states.
+
+Concrete implementation for :class:`~neuralqx.hilbert.abstract_hilbert_core.AbstractHilbertSpace`
+(U(1) spaces). This module is the canonical implementation location; the plum dispatch overloads
+are registered in :mod:`neuralqx.hilbert.u1.index` (``__init__.py``).
+"""
 
 from typing import Any
 from typing import Optional
+from typing import TYPE_CHECKING
 from typing import Union
 
 import numpy as np
@@ -24,13 +32,13 @@ import jax.numpy as jnp
 
 from neuralqx.debug import errors_only
 
-from ._types import Order, Backend
+from .utils._types import Order, Backend
 
-from ._base import _rank_digits_base
-from ._base import _choose_return_dtype
-from ._base import _unrank_numbers_base
-from ._base import _rank_digits_base_jax
-from ._base import _unrank_numbers_base_jax
+from .utils._base import _rank_digits_base
+from .utils._base import _choose_return_dtype
+from .utils._base import _unrank_numbers_base
+from .utils._base import _rank_digits_base_jax
+from .utils._base import _unrank_numbers_base_jax
 
 from ._constrained_index import _reconstruct_from_reduced_free_values
 from ._constrained_index import _extract_reduced_free_values
@@ -44,11 +52,14 @@ from ._netket import _local_values_to_digits
 from ._netket import _local_values_to_digits_jax
 from ._netket import _local_digits_to_values_jax
 
-from ._array_normalise import _as_numpy
-from ._array_normalise import _ensure_2d_states
-from ._array_normalise import _ensure_1d_numbers
-from ._array_normalise import _ensure_2d_states_jax
-from ._array_normalise import _ensure_1d_numbers_jax
+from .utils._array_normalise import _as_numpy
+from .utils._array_normalise import _ensure_2d_states
+from .utils._array_normalise import _ensure_1d_numbers
+from .utils._array_normalise import _ensure_2d_states_jax
+from .utils._array_normalise import _ensure_1d_numbers_jax
+
+if TYPE_CHECKING:
+    from neuralqx.hilbert.abstract_hilbert_core import AbstractHilbertSpace
 
 
 def _is_jax_value(x: Any) -> bool:
@@ -60,7 +71,11 @@ def _is_jax_value(x: Any) -> bool:
 
 
 # @partial(jax.jit, static_argnums=(0, 2))
-def _states_to_numbers_jax(space: Any, states: Any, order: Order) -> jax.Array:
+def _states_to_numbers_jax(
+    space: "AbstractHilbertSpace",
+    states: Any,
+    order: Order,
+) -> jax.Array:
     """JAX backend for states_to_numbers. Returns int64 with shape states.shape[:-1]."""
     st = jnp.asarray(states, dtype=space.dtype)
     orig_shape = st.shape
@@ -83,7 +98,11 @@ def _states_to_numbers_jax(space: Any, states: Any, order: Order) -> jax.Array:
 
 
 # @partial(jax.jit, static_argnums=(0, 2))
-def _numbers_to_states_jax(space: Any, numbers: Any, order: Order) -> jax.Array:
+def _numbers_to_states_jax(
+    space: "AbstractHilbertSpace",
+    numbers: Any,
+    order: Order,
+) -> jax.Array:
     """JAX backend for numbers_to_states. Returns states with shape numbers.shape + (N,)."""
     nums1d, was_scalar, orig_shape = _ensure_1d_numbers_jax(numbers)
 
@@ -113,7 +132,7 @@ def _numbers_to_states_jax(space: Any, numbers: Any, order: Order) -> jax.Array:
 
 @errors_only(tag="STATES_TO_NUMBERS")
 def states_to_numbers(
-    space: Any,
+    space: "AbstractHilbertSpace",
     states: Any,
     *,
     backend: Backend = "auto",
@@ -189,7 +208,6 @@ def states_to_numbers(
             # else fallback to python below
 
     local_states = space.allowed_basis_states
-    # L = int(_as_numpy(local_states.all_states()).shape[0])
     L = int(local_states.length)
 
     order = netket_order or _infer_netket_site_order(local_states)
@@ -221,7 +239,7 @@ def states_to_numbers(
 
 @errors_only(tag="NUMBERS_TO_STATES")
 def numbers_to_states(
-    space: Any,
+    space: "AbstractHilbertSpace",
     numbers: Any,
     *,
     backend: Backend = "auto",
@@ -289,7 +307,6 @@ def numbers_to_states(
             # else fallback to python below
 
     local_states = space.allowed_basis_states
-    # L = int(_as_numpy(local_states.all_states()).shape[0])
     L = int(local_states.length)
 
     order = netket_order or _infer_netket_site_order(local_states)

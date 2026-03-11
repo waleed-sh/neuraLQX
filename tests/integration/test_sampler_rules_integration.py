@@ -272,7 +272,7 @@ def u1_gauge_hilbert():
         auto_constraint=1,
         gauge_dimensions=1,
     )
-    return H, H.hilbert
+    return H, H.hilbert_netket
 
 
 @pytest.mark.parametrize(
@@ -287,7 +287,7 @@ def test_gauge_rules_metropolis_preserve_gauge_invariance(u1_gauge_hilbert, Rule
     s = _standardize_samples(raw, chain_length=25, hilbert_size=hilb.size)
     flat = _flatten_samples(s)
 
-    gi = np.asarray(H.core.is_gauge_invariant(jnp.asarray(flat)))
+    gi = np.asarray(H.hilbert.is_gauge_invariant(jnp.asarray(flat)))
     assert gi.all(), "Gauge rule produced samples outside the gauge-invariant subspace."
     assert np.any(
         np.any(flat != flat[0], axis=1)
@@ -304,7 +304,7 @@ def test_u1_gauge_nonzero_rule_never_hits_vacuum(u1_gauge_hilbert):
     s = _standardize_samples(raw, chain_length=30, hilbert_size=hilb.size)
     flat = _flatten_samples(s)
 
-    gi = np.asarray(H.core.is_gauge_invariant(jnp.asarray(flat)))
+    gi = np.asarray(H.hilbert.is_gauge_invariant(jnp.asarray(flat)))
     assert gi.all(), "Nonzero gauge rule produced non-gauge-invariant samples."
     assert not np.any(
         np.all(flat == 0, axis=1)
@@ -323,7 +323,7 @@ def test_random_u1_gauge_rule_parallel_tempering_branch_preserves_gauge_invarian
     s = _standardize_samples(raw, chain_length=20, hilbert_size=hilb.size)
     flat = _flatten_samples(s)
 
-    gi = np.asarray(H.core.is_gauge_invariant(jnp.asarray(flat)))
+    gi = np.asarray(H.hilbert.is_gauge_invariant(jnp.asarray(flat)))
     assert gi.all(), "PT + RandomU1GaugeSampler produced non-gauge-invariant samples."
 
 

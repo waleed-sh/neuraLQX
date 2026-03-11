@@ -67,7 +67,7 @@ class ChargeColoringJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, site: int, charge: int):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self.D = int(H.size)
         e = int(site)
@@ -172,7 +172,7 @@ class ColoringJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, site: int, charge_vector: Sequence[int]):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         self.D = int(H.size)
         self.gauge_dim = int(getattr(H, "gauge_dimensions", 3))

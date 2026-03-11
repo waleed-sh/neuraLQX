@@ -377,9 +377,9 @@ class AbstractSolver(abc.ABC):
 
         # logging
         all_basis_states = (
-            f"Min: {self.hilbert.core.allowed_basis_states.start}, "
-            f"Max: {self.hilbert.core.allowed_basis_states.start + (self.hilbert.core.allowed_basis_states.length - 1) * self.hilbert.core.allowed_basis_states.step}, "
-            f"Step: {self.hilbert.core.allowed_basis_states.step}"
+            f"Min: {self.hilbert.hilbert.allowed_basis_states.start}, "
+            f"Max: {self.hilbert.hilbert.allowed_basis_states.start + (self.hilbert.hilbert.allowed_basis_states.length - 1) * self.hilbert.hilbert.allowed_basis_states.step}, "
+            f"Step: {self.hilbert.hilbert.allowed_basis_states.step}"
         )
 
         self._logger.log(

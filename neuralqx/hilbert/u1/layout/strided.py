@@ -13,14 +13,14 @@
 # limitations under the License.
 
 """
-Strided gauge-copy layout utilities.
+Strided gauge-copy layout utilities for U(1) Hilbert spaces.
 
-This module defines :class:`~neuralqx.hilbert.utils.layout.StridedGaugeCopyLayout`, a small helper that
-formalises how a configuration with multiple gauge copies is flattened into a single
-one-dimensional array.
+This module defines :class:`~neuralqx.hilbert.u1.layout.strided.StridedGaugeCopyLayout`,
+the concrete layout used by U(1) LQG Hilbert spaces.
 
-If each gauge copy contains :math:`E` edge degrees of freedom and there are :math:`G` copies, the
-flattened configuration has length :math:`N = E G` and is stored as contiguous blocks,
+If each gauge copy contains :math:`E` edge degrees of freedom and there are
+:math:`G` copies, the flattened configuration has length :math:`N = E G` and
+is stored as contiguous blocks,
 
 .. math::
 
@@ -42,22 +42,17 @@ given by
 .. math::
 
     s = gE + e, \\qquad g = \\left\\lfloor \\frac{s}{E} \\right\\rfloor, \\qquad e = s \\bmod E.
-
-Centralising this convention avoids indexing drift across random-state generation, move proposals,
-constraint lifting, and any logic that needs to interpret or manipulate the flattened state.
 """
-
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterator
 
 from neuralqx.utils.deprecation import deprecated
 from neuralqx.utils.deprecation import deprecated_class
-from ._abstract_layout import AbstractBasisLayout
+from neuralqx.hilbert.utils.layout._abstract_layout import AbstractBasisLayout
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GaugeCoord:
     """
     Structured coordinate for a gauge-copy strided layout.
@@ -76,12 +71,12 @@ class GaugeCoord:
     edge_index: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class StridedGaugeCopyLayout(AbstractBasisLayout[GaugeCoord]):
     r"""
     Strided gauge-copy layout with contiguous copy blocks.
 
-    This is the concrete implementation of the current layout convention used by neuralqx
+    This is the concrete U(1) layout implementation used by neuralqx
     for multiple gauge copies (i.e. U(1)^N gauge group structure).
 
     If each gauge copy contains :math:`E` edge degrees of freedom and there are :math:`G`
@@ -279,16 +274,6 @@ class StridedGaugeCopyLayout(AbstractBasisLayout[GaugeCoord]):
         """
         Backward-compatible wrapper for older call sites.
 
-        This preserves the historical argument order used in earlier code:
-
-        `site(edge_index, gauge_copy=0)`
-
-        New code should prefer
-
-        `encode(gauge_copy, edge_index)`
-
-        because it aligns with :meth:`decode`, which returns `(gauge_copy, edge_index)`.
-
         :param edge_index: Edge index in `[0, edges_per_copy)`.
         :param gauge_copy: Gauge-copy index in `[0, gauge_dimensions)`.
         :return: Flattened site index.
@@ -300,10 +285,6 @@ class StridedGaugeCopyLayout(AbstractBasisLayout[GaugeCoord]):
     def copy_slice(self, gauge_copy: int) -> slice:
         """
         Return the contiguous slice that selects one gauge-copy block.
-
-        Example
-        -------
-        If `edges_per_copy = E`, then `copy_slice(g)` returns `slice(g*E, (g+1)*E)`.
 
         :param gauge_copy: Gauge-copy index.
         :return: Python slice selecting the corresponding flattened block.
@@ -321,8 +302,6 @@ class StridedGaugeCopyLayout(AbstractBasisLayout[GaugeCoord]):
     def iter_coords(self) -> Iterator[GaugeCoord]:
         """
         Iterate over all structured coordinates in flattened-site order.
-
-        This ordering matches the physical memory layout used by the strided convention.
 
         :yield: `GaugeCoord` instances in the order corresponding to flat sites
             `0, 1, ..., size-1`.

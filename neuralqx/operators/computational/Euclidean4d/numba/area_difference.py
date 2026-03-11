@@ -57,7 +57,7 @@ class AreaDifferenceSquaredOperator(ComputationalOperator):
 
     def __init__(self, H, edges):
 
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # static geometry/layout
         self.gauge_dim = int(H.gauge_dimensions)
@@ -165,7 +165,7 @@ class AreaDifferenceSquaredSurfacesOperator(ComputationalOperator):
     """
 
     def __init__(self, H, surfaces):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # static geometry/layout
         self.gauge_dim = int(H.gauge_dimensions)

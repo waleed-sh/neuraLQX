@@ -49,7 +49,7 @@ def creation(
 
     # get the number of local states at the given vertex
     # this will determine the dimension of the matrix acting on that vertex
-    dim = H.hilbert.size_at_index(site)
+    dim = H.hilbert_netket.size_at_index(site)
 
     # create an empty matrix of size (dim x dim)
     C = np.zeros((dim, dim))
@@ -64,7 +64,7 @@ def creation(
     C = _sparse.coo_matrix(C)
 
     # return the LocalOperator
-    return FunctionalLocalOperator(H.hilbert, C, [site], 0, dtype=jnp.float64)
+    return FunctionalLocalOperator(H.hilbert_netket, C, [site], 0, dtype=jnp.float64)
 
 
 def annihilation(
@@ -89,7 +89,7 @@ def annihilation(
 
     # get the number of local states at the given vertex
     # this will determine the dimension of the matrix acting on that vertex
-    dim = H.hilbert.size_at_index(site)
+    dim = H.hilbert_netket.size_at_index(site)
 
     # create an empty matrix of size (dim x dim)
     A = np.zeros((dim, dim))
@@ -104,7 +104,7 @@ def annihilation(
     A = _sparse.coo_matrix(A)
 
     # return the LocalOperator
-    return FunctionalLocalOperator(H.hilbert, A, [site], 0, dtype=jnp.float64)
+    return FunctionalLocalOperator(H.hilbert_netket, A, [site], 0, dtype=jnp.float64)
 
 
 def flux(
@@ -141,7 +141,7 @@ def flux(
     # here, we will replace any 0 basis labels by a small value epsilon
     # this epsilon will not have a power applied to it, since 0**power is still 0...
     diag = np.array(
-        [float(_inv(n, power)) for n in H.core.allowed_basis_states.all_states()]
+        [float(_inv(n, power)) for n in H.hilbert.allowed_basis_states.all_states()]
     )
 
     # construct the matrix
@@ -149,4 +149,4 @@ def flux(
 
     E = _sparse.coo_matrix(E)
 
-    return FunctionalLocalOperator(H.hilbert, E, [site], 0, dtype=jnp.float64)
+    return FunctionalLocalOperator(H.hilbert_netket, E, [site], 0, dtype=jnp.float64)

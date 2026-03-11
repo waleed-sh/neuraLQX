@@ -24,7 +24,7 @@ degrees of freedom on a graph. The central class is :class:`ConstrainedHilbertU1
   overwrites slave values to satisfy all gauge-fixing relations,
 - constructs a NetKet :class:`netket.hilbert.HomogeneousHilbert` with a :class:`U1Constraint`
   enforcing the gauge fixing across all gauge copies,
-- exposes JAX-friendly move proposals via typed :class:`~neuralqx.hilbert.operations.moves.Move`
+- exposes JAX-friendly move proposals via typed :class:`~neuralqx.hilbert.u1.operations.moves.Move`
   objects (free-edge flips and plaquette flips), with dispatch implemented using
   :func:`functools.singledispatchmethod`.
 
@@ -32,8 +32,6 @@ The helper functions in this module focus on parsing and normalising edge tokens
 base edge indices, converting a gauge-fixing array into internal constraint objects, and producing a
 topological ordering of dependencies so slave edges can be recomputed in a valid order.
 """
-
-from __future__ import annotations
 
 import logging
 
@@ -71,18 +69,19 @@ from ..constraints import U1Constraint
 from ..constraints.utils import generate_constraint_array
 from ..constraints.utils import pretty_format_constraints
 
-from neuralqx.hilbert.operations.moves import Move
-from neuralqx.hilbert.operations.moves import FreeEdgeFlipSingleGauge
-from neuralqx.hilbert.operations.moves import FreeEdgeFlipAllGauge
-from neuralqx.hilbert.operations.moves import PlaquetteFlipSingleGauge
-from neuralqx.hilbert.operations.moves import PlaquetteFlipAllGauge
+from neuralqx.hilbert.u1.operations.moves import Move
+from neuralqx.hilbert.u1.operations.moves import FreeEdgeFlipSingleGauge
+from neuralqx.hilbert.u1.operations.moves import FreeEdgeFlipAllGauge
+from neuralqx.hilbert.u1.operations.moves import PlaquetteFlipSingleGauge
+from neuralqx.hilbert.u1.operations.moves import PlaquetteFlipAllGauge
+from neuralqx.hilbert.u1.layout import StridedGaugeCopyLayout
 
 from neuralqx.debug import errors_only, event
 
 EdgeToken = Union[int, str, Tuple, List]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class _Constraint:
     """
     Internal representation of one gauge-fixing relation on base edge indices.
@@ -104,7 +103,7 @@ class _Constraint:
     rhs: Tuple[Tuple[int, int], ...]  # ((idx, sign), ...)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GaugeFixingTopo:
     """
     Topological gauge-fixing description on base edge indices ``0...E-1``.
@@ -497,7 +496,7 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
         - apply updates to free edges and then re-project to restore the constraints.
 
     Move proposals
-        Proposals are expressed via typed :class:`~neuralqx.hilbert.operations.moves.Move` objects and
+        Proposals are expressed via typed :class:`~neuralqx.hilbert.u1.operations.moves.Move` objects and
         applied through :meth:`propose`. Supported move families include:
 
         - Free-edge flips (single-gauge selection space or per-gauge-copy updates),
@@ -526,21 +525,41 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
     :raises CyclicGaugeFixingError: If the gauge-fixing dependency graph contains a cycle.
     """
 
-    __slots__ = (
-        "_gf",
-        "_constraints",
-        "_constraints_full",
-        "_print_dims",
-        # free edges (cached as JAX arrays)
-        "_free_base",
-        "_free_all",
-        # plaquettes (JAX-safe padded arrays)
-        "_plaquettes_py",
-        "_plaquettes_idx",
-        "_plaquettes_mask",
-        "_n_plaquettes",
-        "_plaquettes_Lmax",
-    )
+    _gf: GaugeFixingTopo
+    """Topological gauge-fixing descriptor with free/slave dependency ordering."""
+
+    _constraints: List[_Constraint]
+    """Parsed base-copy gauge constraints used to reconstruct slave edges."""
+
+    _constraints_full: Tuple[
+        Tuple[Tuple[Tuple[int, int], ...], Tuple[Tuple[int, int], ...]],
+        ...,
+    ]
+    """Gauge constraints lifted across all gauge copies in flattened indexing."""
+
+    _print_dims: str
+    """Human-readable scientific-notation cache of the Hilbert-space dimension."""
+
+    _free_base: jax.Array
+    """JAX array of free-edge indices in the base-copy index space."""
+
+    _free_all: jax.Array
+    """JAX array of free-edge indices lifted across all gauge copies."""
+
+    _plaquettes_py: Tuple[Tuple[int, ...], ...]
+    """Tuple-of-tuples representation of base-copy plaquette edge indices."""
+
+    _plaquettes_idx: jax.Array
+    """Padded JAX int32 plaquette index table used in compiled plaquette moves."""
+
+    _plaquettes_mask: jax.Array
+    """Boolean mask marking valid entries of ``_plaquettes_idx``."""
+
+    _n_plaquettes: int
+    """Number of precomputed plaquettes available for plaquette moves."""
+
+    _plaquettes_Lmax: int
+    """Maximum plaquette length across all stored plaquettes."""
 
     def __init__(
         self,
@@ -603,6 +622,9 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
             positive_qn=positive_qn,
             qn_start=qn_start,
         )
+        from .index.enumerator import U1ConstrainedStateEnumerator
+
+        self._index = U1ConstrainedStateEnumerator()
 
         if auto_constraint and constraint is not None:
             raise AutoConstraintGaugeFixingConflictError()
@@ -701,6 +723,38 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
         """
 
         return self._hilbert
+
+    @property
+    def layout(self) -> StridedGaugeCopyLayout:
+        """U(1) contiguous strided layout over gauge-copy blocks."""
+        return StridedGaugeCopyLayout(
+            edges_per_copy=self.tiny_size,
+            gauge_dimensions=self.gauge_dimensions,
+        )
+
+    def edge_to_site(self, edge: object, gauge_copy: int = 0) -> int:
+        """Map a graph edge token to a flattened U(1) site index."""
+        edge_idx = self.graph.edge_to_index(edge)
+        return self.layout.encode(gauge_copy=gauge_copy, edge_index=int(edge_idx))
+
+    def site_to_edge(self, site: int) -> tuple[int, object]:
+        """Inverse map from flat site index to ``(gauge_copy, edge_token)``."""
+        coord = self.layout.coord_of(site)
+        return coord.gauge_copy, self.graph.index_to_edge(coord.edge_index)
+
+    def view(self, sigma: jax.Array) -> jax.Array:
+        """Reshape flat state(s) into ``(G, E)`` or ``(B, G, E)`` view."""
+        E = self.tiny_size
+        G = self.gauge_dimensions
+        if sigma.ndim == 1:
+            return sigma.reshape(G, E)
+        return sigma.reshape(sigma.shape[0], G, E)
+
+    def flatten(self, sigma_view: jax.Array) -> jax.Array:
+        """Flatten ``(G, E)`` or ``(B, G, E)`` view back to NetKet layout."""
+        if sigma_view.ndim == 2:
+            return sigma_view.reshape(-1)
+        return sigma_view.reshape(sigma_view.shape[0], -1)
 
     @property
     def dimensions_pretty(self) -> str:
@@ -923,7 +977,7 @@ class ConstrainedHilbertU1Core(AbstractHilbertSpace):
         Propose new state(s) by applying a typed move.
 
         This is the stable entry point for move proposals. Dispatch is performed on the concrete *type* of
-        the provided :class:`~neuralqx.hilbert.operations.moves.Move` instance via
+        the provided :class:`~neuralqx.hilbert.u1.operations.moves.Move` instance via
         :func:`functools.singledispatchmethod`.
 
         :param sigma: State of shape ``(N,)`` or batch of shape ``(B, N)``.

@@ -31,8 +31,6 @@ The interface delegates all implementation details to a concrete core:
   variables are reconstructed deterministically.
 """
 
-from __future__ import annotations
-
 from typing import List
 from typing import Optional
 from typing import Union
@@ -42,11 +40,17 @@ import jax.numpy as jnp
 
 from neuralqx.graph.core import AbstractGraph
 from neuralqx.hilbert import AbstractHilbertInterface
+from neuralqx.utils.errors import AutoConstraintGaugeFixingConflictError
+from neuralqx.utils.errors import UnspecifiedGaugeFixingError
 from .unconstrained_core import UnconstrainedHilbertU1Core
 from .constrained_core import ConstrainedHilbertU1Core
 
 
-class HilbertU1(AbstractHilbertInterface):
+class HilbertU1(
+    AbstractHilbertInterface[
+        Union[ConstrainedHilbertU1Core, UnconstrainedHilbertU1Core]
+    ]
+):
     r"""
     Concrete :math:`U(1)` Hilbert-space interface.
 
@@ -89,6 +93,40 @@ class HilbertU1(AbstractHilbertInterface):
       ``gauge_fixing`` and ``auto_constraint=True`` are provided.
     """
 
+    def __init__(
+        self,
+        graph: AbstractGraph,
+        cutoff: Union[int, float] = jnp.inf,
+        *,
+        step: Union[int, float] = 1,
+        gauge_dimensions: int = 1,
+        is_gauge_invariant: bool = False,
+        gauge_fixing: List[List[List[Union[int, str]]]] = None,
+        auto_constraint: Optional[bool] = False,
+        positive_qn: bool = False,
+        qn_start: Optional[int] = None,
+        **kwargs,
+    ) -> None:
+        """Initialise a U(1) interface and validate U(1)-specific constraint options."""
+        if is_gauge_invariant:
+            if gauge_fixing is None and not auto_constraint:
+                raise UnspecifiedGaugeFixingError
+            if gauge_fixing is not None and auto_constraint:
+                raise AutoConstraintGaugeFixingConflictError()
+
+        super().__init__(
+            graph=graph,
+            cutoff=cutoff,
+            step=step,
+            gauge_dimensions=gauge_dimensions,
+            is_gauge_invariant=is_gauge_invariant,
+            gauge_fixing=gauge_fixing,
+            auto_constraint=auto_constraint,
+            positive_qn=positive_qn,
+            qn_start=qn_start,
+            **kwargs,
+        )
+
     def _build_core(
         self,
         *,
@@ -102,7 +140,7 @@ class HilbertU1(AbstractHilbertInterface):
         positive_qn: bool = False,
         qn_start: Optional[int] = None,
         **_unused,
-    ):
+    ) -> Union[ConstrainedHilbertU1Core, UnconstrainedHilbertU1Core]:
         """
         Construct and return the concrete U(1) Hilbert-space core.
 
@@ -200,7 +238,7 @@ class HilbertU1(AbstractHilbertInterface):
             sigma = sigma[None, :]
 
         # get the strided view of the basis element
-        sigma_strided = self.core.view(sigma)
+        sigma_strided = self.hilbert.view(sigma)
 
         # get the edge in index notation
         # we only need the index in the zero copy as we will index the multi-dimensional

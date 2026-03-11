@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import _dispatch_ops
+"""
+U(1) Hilbert-space subpackage.
+"""
+
+from . import index  # noqa: F401  — registers states_to_numbers/numbers_to_states
+from .operations import random as _operations_random  # noqa: F401
+from .operations import flip as _operations_flip  # noqa: F401
+
 from .interface import HilbertU1
 
 __all__ = [

@@ -76,7 +76,7 @@ class EuclideanConstraint(ComputationalOperator):
     """
 
     def __init__(self, H, *, lapse: float = 1.0, power: float = 0.25):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         # host references/invariants
         self._H = H

@@ -40,16 +40,17 @@ the base class :class:`neuralqx.hilbert._abstract_hilbert_core.AbstractHilbertSp
 parameters ``cutoff``, ``step``, ``positive_qn``, and ``qn_start``.
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Optional
 from typing import Union
+
+import jax
 
 import netket as nk
 import humanize
 
 from neuralqx.graph.core import AbstractGraph
+from neuralqx.hilbert.u1.layout import StridedGaugeCopyLayout
 from ..abstract_hilbert_core import AbstractHilbertSpace
 from neuralqx.debug import event
 
@@ -122,7 +123,8 @@ class UnconstrainedHilbertU1Core(AbstractHilbertSpace):
     :raises ValueError: If ``gauge_dimensions < 1`` (validated by the base class).
     """
 
-    __slots__ = ("_print_dims",)
+    _print_dims: str
+    """Readable scientific-notation cache of the Hilbert-space dimension."""
 
     def __init__(
         self,
@@ -165,6 +167,9 @@ class UnconstrainedHilbertU1Core(AbstractHilbertSpace):
             positive_qn=positive_qn,
             qn_start=qn_start,
         )
+        from .index.enumerator import U1UnconstrainedStateEnumerator
+
+        self._index = U1UnconstrainedStateEnumerator()
 
         N = self.tiny_size * self.gauge_dimensions
         self._hilbert = nk.hilbert.HomogeneousHilbert(
@@ -184,6 +189,65 @@ class UnconstrainedHilbertU1Core(AbstractHilbertSpace):
             msg="INITIALIZING HILBERT CORE",
             tag="HILBERT:U1:UNCONSTRAINED:INIT",
             level=logging.INFO,
+        )
+
+    @property
+    def layout(self) -> StridedGaugeCopyLayout:
+        """U(1) contiguous strided layout over gauge-copy blocks."""
+        return StridedGaugeCopyLayout(
+            edges_per_copy=self.tiny_size,
+            gauge_dimensions=self.gauge_dimensions,
+        )
+
+    def edge_to_site(self, edge: object, gauge_copy: int = 0) -> int:
+        """Map a graph edge token to a flattened U(1) site index."""
+        edge_idx = self.graph.edge_to_index(edge)
+        return self.layout.encode(gauge_copy=gauge_copy, edge_index=int(edge_idx))
+
+    def site_to_edge(self, site: int) -> tuple[int, object]:
+        """Inverse map from flat site index to ``(gauge_copy, edge_token)``."""
+        coord = self.layout.coord_of(site)
+        return coord.gauge_copy, self.graph.index_to_edge(coord.edge_index)
+
+    def view(self, sigma: jax.Array) -> jax.Array:
+        """Reshape flat state(s) into ``(G, E)`` or ``(B, G, E)`` view."""
+        E = self.tiny_size
+        G = self.gauge_dimensions
+        if sigma.ndim == 1:
+            return sigma.reshape(G, E)
+        return sigma.reshape(sigma.shape[0], G, E)
+
+    def flatten(self, sigma_view: jax.Array) -> jax.Array:
+        """Flatten ``(G, E)`` or ``(B, G, E)`` view back to NetKet layout."""
+        if sigma_view.ndim == 2:
+            return sigma_view.reshape(-1)
+        return sigma_view.reshape(sigma_view.shape[0], -1)
+
+    def random_state(self, key: jax.Array, size: int = 1) -> jax.Array:
+        """Generate random U(1) unconstrained basis state(s)."""
+        from neuralqx.hilbert.u1.operations.random import random_state as _random_state
+
+        return _random_state(self, key, size=size)
+
+    def flip_state(
+        self,
+        sigma: jax.Array,
+        key: jax.Array,
+        number_of_edges: int = 1,
+        *,
+        adjacency: bool = False,
+        scope: str = "single",
+    ) -> jax.Array:
+        """Propose U(1) unconstrained updates using dispatched U(1) move logic."""
+        from neuralqx.hilbert.u1.operations.flip import flip_state as _flip_state
+
+        return _flip_state(
+            self,
+            sigma,
+            key,
+            number_of_edges=number_of_edges,
+            adjacency=adjacency,
+            scope=scope,
         )
 
     def __repr__(self):

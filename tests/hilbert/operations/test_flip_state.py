@@ -18,7 +18,7 @@ import pytest
 
 
 def test_flip_state_validates_number_of_edges(unconstrained_space, jax, jnp):
-    from neuralqx.hilbert.operations.flip import flip_state
+    from neuralqx.hilbert.u1.operations.flip import flip_state
 
     space = unconstrained_space
     sigma = jnp.zeros((int(space.size),), dtype=space.dtype)
@@ -34,7 +34,7 @@ def test_flip_state_validates_number_of_edges(unconstrained_space, jax, jnp):
 def test_flip_state_random_assignment_branch_is_correct(
     monkeypatch, unconstrained_space, jax, jnp
 ):
-    from neuralqx.hilbert.operations import flip as flip_mod
+    from neuralqx.hilbert.u1.operations import flip as flip_mod
 
     space = unconstrained_space
     N = int(space.size)
@@ -68,7 +68,7 @@ def test_flip_state_random_assignment_branch_is_correct(
 def test_flip_state_adjacency_uses_mod_add_when_qrange_present(
     monkeypatch, u1_like_space, jax, jnp
 ):
-    from neuralqx.hilbert.operations import flip as flip_mod
+    from neuralqx.hilbert.u1.operations import flip as flip_mod
 
     space = u1_like_space
     N = int(space.size)
@@ -104,7 +104,7 @@ def test_flip_state_adjacency_uses_mod_add_when_qrange_present(
 
 
 def test_flip_state_batch_splits_keys_independently(unconstrained_space, jax, jnp):
-    from neuralqx.hilbert.operations.flip import flip_state
+    from neuralqx.hilbert.u1.operations.flip import flip_state
 
     space = unconstrained_space
     N = int(space.size)
@@ -120,7 +120,7 @@ def test_flip_state_batch_splits_keys_independently(unconstrained_space, jax, jn
 
 
 def test_flip_state_scope_is_ignored(unconstrained_space, jax, jnp):
-    from neuralqx.hilbert.operations.flip import flip_state
+    from neuralqx.hilbert.u1.operations.flip import flip_state
 
     space = unconstrained_space
     sigma = jnp.zeros((int(space.size),), dtype=space.dtype)

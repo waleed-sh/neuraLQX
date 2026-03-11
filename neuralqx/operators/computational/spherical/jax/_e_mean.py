@@ -72,7 +72,7 @@ class SphericalExJax(ComputationalJaxOperator):
         return jnp.float64
 
     def __init__(self, H, vertex: int, *, gamma: float = 1.0):
-        super().__init__(H.hilbert)
+        super().__init__(H.hilbert_netket)
 
         if not isinstance(H.graph, HalfLadderGraph):
             raise ValueError(

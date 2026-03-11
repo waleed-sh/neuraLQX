@@ -18,7 +18,7 @@ import pytest
 
 
 def test_random_state_shape_dtype_and_membership(unconstrained_space, jax, jnp):
-    from neuralqx.hilbert.operations.random import random_state
+    from neuralqx.hilbert.u1.operations.random import random_state
 
     space = unconstrained_space
     key = jax.random.PRNGKey(0)
@@ -35,7 +35,7 @@ def test_random_state_shape_dtype_and_membership(unconstrained_space, jax, jnp):
 
 
 def test_random_state_deterministic_for_same_key(unconstrained_space, jax):
-    from neuralqx.hilbert.operations.random import random_state
+    from neuralqx.hilbert.u1.operations.random import random_state
 
     space = unconstrained_space
     key = jax.random.PRNGKey(123)
@@ -46,7 +46,7 @@ def test_random_state_deterministic_for_same_key(unconstrained_space, jax):
 
 
 def test_random_state_differs_for_different_keys(unconstrained_space, jax):
-    from neuralqx.hilbert.operations.random import random_state
+    from neuralqx.hilbert.u1.operations.random import random_state
 
     space = unconstrained_space
     a = random_state(space, jax.random.PRNGKey(0), size=3)

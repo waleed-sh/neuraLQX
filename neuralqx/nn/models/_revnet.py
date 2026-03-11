@@ -400,7 +400,7 @@ class RevNet(nn.Module):
     def setup(self):
 
         # store the cutoff for the physical system
-        self.cutoff = self.lqx.H.core.cutoff
+        self.cutoff = self.lqx.hilbert.hilbert.cutoff
 
         # store the number of vertices in the graph
         self.number_of_vertices = self.lqx.graph.dual_nk_graph.n_nodes

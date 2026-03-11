@@ -195,18 +195,6 @@ def fidelity_expect_and_grad_joint(
     return fid_val, fid_stats, grads
 
 
-"""
-    is_mutable = mutable is not False
-    _, vjp_fun, *new_model_state = nkjax.vjp(
-        lambda w: model_apply_fun({"params": w, **model_state}, σ, mutable=mutable),
-        parameters,
-        conjugate=True,
-        has_aux=is_mutable,
-    )
-    Ō_grad = vjp_fun(jnp.conjugate(O_loc) / n_samples)[0]
-"""
-
-
 class MultiStateVMC(VMC):
     r"""
     VMC driver for :class:`~neuralqx.experimental.vqs.mc.mc_state.MultiMCState` with an optional orthogonality penalty.

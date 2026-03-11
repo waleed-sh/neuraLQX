@@ -18,7 +18,7 @@ import pytest
 
 
 def test_choose_return_dtype_auto_boundaries():
-    from neuralqx.hilbert.utils.index._base import _choose_return_dtype
+    from neuralqx.hilbert.u1.index.utils._base import _choose_return_dtype
 
     assert _choose_return_dtype(base=2, n_digits=63, requested="auto") == np.int64
     assert _choose_return_dtype(base=2, n_digits=64, requested="auto") == np.dtype(
@@ -29,7 +29,7 @@ def test_choose_return_dtype_auto_boundaries():
 
 
 def test_choose_return_dtype_requested_values_and_errors():
-    from neuralqx.hilbert.utils.index._base import _choose_return_dtype
+    from neuralqx.hilbert.u1.index.utils._base import _choose_return_dtype
 
     assert _choose_return_dtype(3, 5, "int64") == np.int64
     assert _choose_return_dtype(3, 5, "i8") == np.int64
@@ -44,7 +44,7 @@ def test_choose_return_dtype_requested_values_and_errors():
 @pytest.mark.parametrize("base", [2, 3, 5])
 @pytest.mark.parametrize("N", [0, 1, 2, 5, 7])
 def test_rank_unrank_roundtrip_int64_random(order, base, N):
-    from neuralqx.hilbert.utils.index._base import (
+    from neuralqx.hilbert.u1.index.utils._base import (
         _rank_digits_base,
         _unrank_numbers_base,
     )
@@ -64,7 +64,7 @@ def test_rank_unrank_roundtrip_int64_random(order, base, N):
 
 
 def test_rank_order_convention_matches_manual_formula():
-    from neuralqx.hilbert.utils.index._base import _rank_digits_base
+    from neuralqx.hilbert.u1.index.utils._base import _rank_digits_base
 
     base = 10
     digits = np.array([[1, 2, 3]], dtype=np.int64)
@@ -77,7 +77,7 @@ def test_rank_order_convention_matches_manual_formula():
 
 
 def test_object_dtype_bigint_roundtrip():
-    from neuralqx.hilbert.utils.index._base import (
+    from neuralqx.hilbert.u1.index.utils._base import (
         _rank_digits_base,
         _unrank_numbers_base,
     )
@@ -98,7 +98,7 @@ def test_object_dtype_bigint_roundtrip():
 
 
 def test_unrank_rejects_negative_and_overflow():
-    from neuralqx.hilbert.utils.index._base import _unrank_numbers_base
+    from neuralqx.hilbert.u1.index.utils._base import _unrank_numbers_base
 
     with pytest.raises(ValueError, match=">= 0"):
         _unrank_numbers_base(

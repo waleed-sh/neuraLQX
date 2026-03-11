@@ -67,13 +67,13 @@ The Hilbert module is split into two layers:
   The interface owns a *core* instance (derived from ``AbstractHilbertSpace``). The core is
   responsible for the computational details, so how the NetKet Hilbert object is constructed,
   how gauge fixing is stored, how states are reshaped, and how constraint-aware operations
-  are performed. This core object is always exposed through the ``core`` attribute of any ``AbstractHilbertInterface``
+  are performed. This core object is always exposed through the ``hilbert`` attribute of any ``AbstractHilbertInterface``
   subclass.
 
 This separation is there for a practical reason. Most users want a small, stable surface
 (``HilbertU1(...).random_state(...)``, ``states_to_numbers(...)``, etc.), while the internal
 implementation needs room to evolve (especially for constrained sampling and move sets)
-without breaking call sites. In code you will occasionally access ``AbstractHilbertInterface.core`` when you need
+without breaking call sites. In code you will occasionally access ``AbstractHilbertInterface.hilbert`` when you need
 lower-level operations (e.g. explicit gauge reimposition), but most workflows should stay at the interface level.
 
 
@@ -207,13 +207,14 @@ is accessible through
    # [[ 1  0 -1  3  2  1  3  0  3  2  3  0  1  1  0 -2 -1  2  0  1 -1  1 -2  1 -3 -1 -2 -3  2  0]]
 
    # view each gauge copy in a dimension on its own
-   print(H.core.view(sigma))
+   sigma_view = H.hilbert.view(sigma)
+   print(sigma_view)
    # Array([[[ 1,  0, -1,  3,  2,  1,  3,  0,  3,  2],
    #         [ 3,  0,  1,  1,  0, -2, -1,  2,  0,  1],
    #         [-1,  1, -2,  1, -3, -1, -2, -3,  2,  0]]], dtype=int64)
 
    # back to the flat view
-   sigma_flat  = H.core.flatten(sigma_block)
+   sigma_flat = H.hilbert.flatten(sigma_view)
    print(sigma_flat)
    # Array([ 1,  0, -1,  3,  2,  1,  3,  0,  3,  2,  3,  0,  1,  1,  0, -2, -1, 2,  0,  1, -1,  1, -2,  1, -3, -1, -2, -3,  2,  0], dtype=int64)
 
@@ -223,7 +224,7 @@ Convenience accessors for “edge charge vectors”
 When ``gauge_dimensions > 1``, you often want the vector of charges for a single edge. neuraLQX makes two convenience
 options are available:
 
-* Use ``H.core.view`` and pick the appropriate edge slot across copies.
+* Use ``H.hilbert.view`` and pick the appropriate edge slot across copies.
 * Use the higher-level helper ``H.edge_charges(sigma, edge_key)`` which returns a
   length-``G`` vector for that edge key.
 
@@ -259,7 +260,8 @@ over the entire edge set. You control its size through:
    H = nqx.hilbert.u1.HilbertU1(graph, cutoff=2, gauge_dimensions=3)
 
 Under the hood, the interface also exposes the underlying **NetKet Hilbert** object as
-``H.hilbert`` (useful when constructing NetKet operators).
+``H.hilbert_netket`` (useful when constructing NetKet operators). The ``H.hilbert``
+attribute returns the neuraLQX Hilbert core.
 
 Accessing the local basis values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -439,13 +441,13 @@ Two guarantees make this routine dependable in practice:
 
 In the current implementation, the relevant entry points are:
 
-* ``H.core.reimpose_gauge_fixing(sigma)``
-* ``H.core.is_gauge_invariant(sigma)``  (boolean per configuration)
+* ``H.hilbert.reimpose_gauge_fixing(sigma)``
+* ``H.hilbert.is_gauge_invariant(sigma)``  (boolean per configuration)
 
 .. code-block:: python
 
-   ok_or_not = H_gi.core.is_gauge_invariant(samples)
-   repaired = H_gi.core.reimpose_gauge_fixing(samples)
+   ok_or_not = H_gi.hilbert.is_gauge_invariant(samples)
+   repaired = H_gi.hilbert.reimpose_gauge_fixing(samples)
 
 You will see this pattern in several places across the library: propose a change in the free
 variables, then deterministically rebuild slaves. It keeps proposal kernels simple and avoids
@@ -581,4 +583,3 @@ ranking/unranking proceeds in that reduced coordinate system before reconstructi
 
 This keeps indexing aligned with the constructive definition of the space and avoids treating
 deterministic slave slots as independent digits.
-
