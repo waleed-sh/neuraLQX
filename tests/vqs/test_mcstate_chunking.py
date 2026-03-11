@@ -130,7 +130,7 @@ def _assert_chunk_ignored(w, *, match: str | None = None):
         ), f"Chunk-ignore warning did not match /{match}/. Got: {hit}"
 
 
-def test_chunk_size_non_divisor_fails_at_runtime_expect(mcstate, ops_spin_2):
+def test_chunk_size_non_divisor_runs_at_runtime_expect(mcstate, ops_spin_2):
 
     sx0, _, _ = ops_spin_2
     n = _flattened_n_samples(mcstate)
@@ -138,9 +138,8 @@ def test_chunk_size_non_divisor_fails_at_runtime_expect(mcstate, ops_spin_2):
     bad = n - 1
     assert n % bad != 0
 
-    with pytest.raises(ValueError):
-        with _set_chunk_size(mcstate, bad):
-            mcstate.expect(sx0)
+    with _set_chunk_size(mcstate, bad):
+        mcstate.expect(sx0)
 
 
 @pytest.mark.parametrize("chunk_size", [None, "VALID"])

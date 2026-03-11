@@ -44,8 +44,10 @@ import numpy as np
 
 import jax
 from jax import numpy as jnp
+from jax.sharding import NamedSharding, PartitionSpec as P
 
-import flax
+import flax.linen as fnn
+import flax.core as fcore
 from flax import serialization
 from flax.core.scope import CollectionFilter, DenyList  # noqa: F401
 
@@ -55,12 +57,11 @@ from netket.stats import Stats
 from netket.operator import AbstractOperator, Squared
 from netket.sampler import Sampler, SamplerState
 from netket.utils import (
-    maybe_wrap_module,
     wrap_afun,
     wrap_to_support_scalar,
-    timing,
+    timing, model_frameworks,
 )
-from netket.utils.types import PyTree, SeedT, NNInitFunc
+from netket.utils.types import PyTree, SeedT, NNInitFunc, Array
 from netket.optimizer import LinearOperator
 from netket.optimizer.qgt import QGTAuto
 from netket import config
@@ -124,6 +125,13 @@ def check_chunk_size(n_samples, chunk_size):
 def _is_power_of_two(n: int) -> bool:
     return (n != 0) and (n & (n - 1) == 0)
 
+@partial(jax.jit, static_argnames="sharding")
+def _ensure_sharding(tree, sharding):
+    # this must be jitted to work correctly.
+    return jax.tree_util.tree_map(
+        lambda x: jax.lax.with_sharding_constraint(x, sharding),
+        tree,
+    )
 
 @partial(jax.jit, static_argnums=0)
 def jit_evaluate(fun: Callable, *args):
@@ -143,53 +151,71 @@ class MCState(VariationalState):
     The state is sampled according to the provided sampler.
     """
 
-    # model: Any
-    # """The model"""
-    model_state: Optional[PyTree]
-    """An Optional PyTree encoding a mutable state of the model that is not trained."""
+    #####################
+    #   Model related   #
+    #####################
+    _model_framework: model_frameworks.ModuleFramework | None = None
+    """The model framework used to define the model.
+
+    This is a class from {class}`netket.utils.model_frameworks`
+    that is used to convert neural networks from different frameworks
+    into a ``flax.linen``-compatible model.
+    """
+    _model: fnn.Module
+    """The linen-compatible model definition of this variational state, which does not contain the parameters.
+    This is hashable and exposes an `.apply(variables, input)` method.
+
+    To get the 'original' model, like the nnx or equinox one that was passed to the constructor,
+    use the {attr}`~netket.vqs.MCState.model` attribute.
+    """
 
     _sampler: Sampler
     """The sampler used to sample the Hilbert space."""
     sampler_state: SamplerState
     """The current state of the sampler."""
-    _previous_sampler_state: SamplerState = None
+    _previous_sampler_state: SamplerState | None = None
     """The sampler state before the last sampling has been effected.
 
     This field is used so that we don't need to serialize the current samples
     but we can always regenerate them.
     """
 
+    #############
+    #  Settings #
+    #############
     _chain_length: int = 0
     """Length of the Markov chain used for sampling configurations."""
     _n_discard_per_chain: int = 0
     """Number of samples discarded at the beginning of every Markov chain."""
+    _chunk_size: int | None = None
+    """The chunk size used in the evaluation of the model."""
 
     _samples: Optional[jnp.ndarray] = None
     """Cached samples obtained with the last sampling."""
 
-    _init_fun: Callable = None
-    """The function used to initialise the parameters and model_state."""
-    _apply_fun: Callable = None
+    _init_fun: Callable | None = None
+    """The function used to initialise the parameters and model_state. This might be None if the model
+    does not define an init method (e.g. when the model is a function, or for ``flax.nnx.Module``)."""
+    _apply_fun: Callable[[PyTree], Array]
     """The function used to evaluate the model."""
 
-    _chunk_size: Optional[int] = None
-
     _is_group_averaged: bool = False
+    """True if the state is group averaged."""
 
     def __init__(
         self,
         sampler: Sampler,
         model=None,
         *,
-        n_samples: Optional[int] = None,
-        n_samples_per_rank: Optional[int] = None,
-        n_discard_per_chain: Optional[int] = None,
-        chunk_size: Optional[int] = None,
-        variables: Optional[PyTree] = None,
-        init_fun: Optional[NNInitFunc] = None,
-        apply_fun: Optional[Callable] = None,
-        seed: Optional[SeedT] = None,
-        sampler_seed: Optional[SeedT] = None,
+        n_samples: int | None = None,
+        n_samples_per_rank: int | None = None,
+        n_discard_per_chain: int | None = None,
+        chunk_size: int | None = None,
+        variables: PyTree | None = None,
+        init_fun: NNInitFunc | None = None,
+        apply_fun: Callable | None = None,
+        seed: SeedT | None = None,
+        sampler_seed: SeedT | None = None,
         mutable: CollectionFilter = False,
         training_kwargs: dict = {},
         is_group_averaged: bool = False,
@@ -226,13 +252,40 @@ class MCState(VariationalState):
         """
         super().__init__(sampler.hilbert)
 
+        if variables is not None and config.netket_experimental_sharding:
+            par_sharding = NamedSharding(jax.sharding.get_abstract_mesh(), P())
+        else:
+            par_sharding = None
+
+        # TODO: deprecated in July 2025
+        # For simplicity, we do not accept numpy inputs in variables
+        if any(isinstance(x, np.ndarray) for x in jax.tree.leaves(variables)):
+            # resultis in SingleDeviceSharding if par_sharding is None
+            variables = jax.tree.map(
+                partial(jnp.asarray, device=par_sharding), variables
+            )
+
+        if variables is not None and config.netket_experimental_sharding:
+            # TODO: Move this somewhere else below?
+            # If variables is specified manually, we will enforce that it's leaves are
+            # jax arrays and that it has the good 'replicated sharding'
+            # This assumption is needed for saving and loading of those states, and could
+            # be broken if variables is malformed.
+            variables = _ensure_sharding(variables, par_sharding)
+
+
         # Init type 1: pass in a model
         if model is not None:
             # extract init and apply functions
             # Wrap it in an HashablePartial because if two instances of the same model are provided,
             # model.apply and model2.apply will be different methods forcing recompilation, but
             # model and model2 will have the same hash.
-            _, model = maybe_wrap_module(model)
+            self._model_framework = model_frameworks.identify_framework(model)
+            _maybe_unwrapped_variables, model = self._model_framework.wrap(model)
+
+            if variables is None:
+                if _maybe_unwrapped_variables is not None:
+                    variables = _maybe_unwrapped_variables
 
             self._model = model
 
@@ -261,19 +314,8 @@ class MCState(VariationalState):
         else:
             raise ValueError("Must either pass the model or apply_fun.")
 
-        # default argument for n_samples/n_samples_per_rank
-        if n_samples is None and n_samples_per_rank is None:
-            # get the first multiple of sampler.n_chains above 1000 to avoid
-            # printing a warning on construction
-            n_samples = int(np.ceil(1000 / sampler.n_chains) * sampler.n_chains)
-        elif n_samples is not None and n_samples_per_rank is not None:
-            raise ValueError(
-                "Only one argument between `n_samples` and `n_samples_per_rank`"
-                "can be specified at the same time."
-            )
-
         self.mutable = mutable
-        self.training_kwargs = flax.core.freeze(training_kwargs)
+        self.training_kwargs = fcore.freeze(training_kwargs)
 
         if variables is not None:
             self.variables = variables
@@ -287,12 +329,22 @@ class MCState(VariationalState):
         self._sampler_seed = nkjax.PRNGKey(sampler_seed)
         self.sampler = sampler
 
-        if n_samples is not None:
+        # default argument for n_samples/n_samples_per_rank
+        if n_samples is None and n_samples_per_rank is None:
+            # get the first multiple of sampler.n_chains above 1000 to avoid
+            # printing a warning on construction
+            self.n_samples = int(np.ceil(1000 / sampler.n_chains) * sampler.n_chains)
+        elif n_samples is not None and n_samples_per_rank is not None:
+            raise ValueError(
+                "Only one argument between `n_samples` and `n_samples_per_rank`"
+                "can be specified at the same time."
+            )
+        elif n_samples is not None:
             self.n_samples = n_samples
-        else:
+        elif n_samples_per_rank is not None:
             self.n_samples_per_rank = n_samples_per_rank
 
-        self.n_discard_per_chain = n_discard_per_chain
+        self.n_discard_per_chain = n_discard_per_chain  # type: ignore[assignment]
 
         self.chunk_size = chunk_size
 
@@ -310,25 +362,31 @@ class MCState(VariationalState):
 
         if dtype is None:
             dtype = self.sampler.dtype
-
         key = nkjax.PRNGKey(seed)
-
-        dummy_input = jnp.zeros((1, self.hilbert.size), dtype=dtype)
-
-        variables = jit_evaluate(self._init_fun, {"params": key}, dummy_input)
-        self.variables = variables
+        dummy_input = self.hilbert.random_state(key, 1, dtype=dtype)
+        self.variables = self._init_fun({"params": key}, dummy_input)
 
     @property
-    def model(self) -> Optional[Any]:
-        """Returns the model definition of this variational state."""
+    def model(self) -> fnn.Module:
+        """Returns the model definition of this variational state.
+
+        When using model frameworks that encode the parameters directly into the
+        model, such as equinox or ``flax.nnx``, this will return the model
+        including the parameters.
+
+        If you want access to the *raw model* without the parameters that is used
+        internally by netket, use :code:`MCState._model` instead.
+        """
+        if self._model_framework is not None:
+            return self._model_framework.unwrap(self._model, self.variables)
         return self._model
 
     @property
-    def _sampler_model(self):
+    def _sampler_model(self) -> fnn.Module:
         """Returns the model definition used for sampling this variational state.
         Equal to `.model`.
         """
-        return self.model
+        return self._model
 
     @property
     def _sampler_variables(self):
@@ -392,7 +450,8 @@ class MCState(VariationalState):
 
     @n_samples_per_rank.setter
     def n_samples_per_rank(self, n_samples_per_rank: int):
-        self.n_samples = n_samples_per_rank * jax.device_count()
+        n_devices = jax.device_count() if config.netket_experimental_sharding else 1
+        self.n_samples = n_samples_per_rank * n_devices
 
     @property
     def chain_length(self) -> int:
@@ -407,10 +466,6 @@ class MCState(VariationalState):
     def chain_length(self, chain_length: int):
         if chain_length <= 0:
             raise ValueError(f"Invalid chain length: chain_length={chain_length}")
-
-        n_samples = chain_length * self.sampler.n_chains
-        check_chunk_size(n_samples, self.chunk_size)
-
         self._chain_length = chain_length
         self.reset()
 
@@ -438,9 +493,7 @@ class MCState(VariationalState):
             n_discard_per_chain = 0
 
         self._n_discard_per_chain = (
-            int(n_discard_per_chain)
-            if n_discard_per_chain is not None
-            else self.n_samples // 10
+            int(n_discard_per_chain) if n_discard_per_chain is not None else 5
         )
 
     @property
@@ -475,15 +528,15 @@ class MCState(VariationalState):
             return
 
         if not isinstance(chunk_size, int) or chunk_size <= 0:
-            raise ValueError("Chunk size must be a positive INTEGER. ")
+            raise ValueError(
+                f"Chunk size must be a positive INTEGER (got {chunk_size} instead)."
+            )
 
         if not _is_power_of_two(chunk_size):
             warnings.warn(
                 "For performance reasons, we suggest to use a power-of-two chunk size.",
                 stacklevel=2,
             )
-
-        check_chunk_size(self.n_samples, chunk_size)
 
         self._chunk_size = chunk_size
 
@@ -499,9 +552,9 @@ class MCState(VariationalState):
     def sample(
         self,
         *,
-        chain_length: Optional[int] = None,
-        n_samples: Optional[int] = None,
-        n_discard_per_chain: Optional[int] = None,
+        chain_length: int | None = None,
+        n_samples: int | None = None,
+        n_discard_per_chain: int | None = None,
     ) -> jnp.ndarray:
         """
         Sample a certain number of configurations.
@@ -522,9 +575,6 @@ class MCState(VariationalState):
                 raise ValueError("Cannot specify both `chain_length` and `n_samples`.")
             elif chain_length is None:
                 chain_length = compute_chain_length(self.sampler.n_chains, n_samples)
-
-            if self.chunk_size is not None:
-                check_chunk_size(chain_length * self.sampler.n_chains, self.chunk_size)
 
         if n_discard_per_chain is None:
             n_discard_per_chain = self.n_discard_per_chain
