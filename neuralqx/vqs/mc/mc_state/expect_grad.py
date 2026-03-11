@@ -448,7 +448,6 @@ def expect_and_grad_nonhermitian(
         # check if we are doing a penalty operator of any type other than the
         # InverseExpectationCost, and if so, aggregate differently
         if strict_type(ô) is PenaltyCost:
-            jax.debug.print("PENALTY COST")
             L_op = ô.factor * L_op
             Ō_grad_i = jax.tree_util.tree_map(lambda v: ô.factor * v, Ō_grad_i)
 

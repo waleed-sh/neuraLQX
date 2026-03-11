@@ -160,15 +160,9 @@ class ConfigManager:
     """The standard neuraLQX prefix for environment variables managed by ConfigManager."""
 
     _PROFILING_EXTRAS: List[str] = [
-        "NQX_PROFILE_RUN_ID",
-        "NQX_PROFILE_JAX_ANNOTATE",
-        "NQX_PROFILE_SAMPLE_PERIOD_S",
-        "NQX_PROFILE_MAX_EVENTS",
-        "PROFILE_MPI_AGG",
         "PROFILE_JAX_ANNOTATIONS",
-        "PROFILE_JAX_TRACE",
     ]
-    """Additional envvars which may be set for profiling but we do not need to store them explicitly."""
+    """Additional profiling envvars accepted for backward compatibility."""
 
     def __new__(cls):
         """
@@ -366,6 +360,105 @@ class ConfigManager:
             env_val_type=str,
             env_default_val=self.get_static("Profiling Directory"),
             env_desc="Override the directory where profiling artifacts are written.",
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_RUN_ID",
+            env_val_type=str,
+            env_default_val="",
+            env_desc=(
+                "Optional stable run identifier for profiling outputs. "
+                "If non-empty, profiler artifacts are written under run_<PROFILE_RUN_ID>."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_JAX_ANNOTATE",
+            env_val_type=int,
+            env_default_val=1,
+            env_desc=("Enable JAX trace annotations for profiling regions."),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_JAX_TRACE",
+            env_val_type=int,
+            env_default_val=0,
+            env_desc=(
+                "Enable JAX profiler trace capture in the profiling output directory."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_SAMPLE_PERIOD_S",
+            env_val_type=float,
+            env_default_val=0.1,
+            env_desc=(
+                "Sampling period in seconds for profiling telemetry when metrics are enabled."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_MAX_EVENTS",
+            env_val_type=int,
+            env_default_val=2_000_000,
+            env_desc=(
+                "Maximum number of in-memory profiling trace events before export."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_MPI_AGG",
+            env_val_type=int,
+            env_default_val=0,
+            env_desc=(
+                "Aggregate profiling summaries across ranks at exit (can block until all ranks finish)."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_PY_CALLS",
+            env_val_type=int,
+            env_default_val=0,
+            env_desc=(
+                "Enable deep Python call tracing for profiled wrappers/calls (high overhead)."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_PY_CALLS_INCLUDE",
+            env_val_type=str,
+            env_default_val="netket,neuralqx",
+            env_desc=(
+                "Comma-separated module prefixes included by deep Python call tracing."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_PY_CALLS_EXCLUDE",
+            env_val_type=str,
+            env_default_val="neuralqx.profile",
+            env_desc=(
+                "Comma-separated module prefixes excluded by deep Python call tracing."
+            ),
+            runtime=False,
+        )
+
+        self._schema.register(
+            env_name="PROFILE_PY_CALLS_MAX_DEPTH",
+            env_val_type=int,
+            env_default_val=6,
+            env_desc=(
+                "Maximum Python call depth captured by deep tracing (<=0 disables limit)."
+            ),
             runtime=False,
         )
 

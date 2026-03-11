@@ -42,7 +42,16 @@ Configuration:
 """
 
 from .profiler import get_profiler, Profiler
-from .decorators import profile, section, step
+
+from .decorators import profile
+from .decorators import section
+from .decorators import step
+from .decorators import wrap_callable
+from .decorators import profile_call
+from .decorators import patch_method
+from .decorators import patch_attr
+from .decorators import python_call_trace
+
 from ._cfg import profiling_enabled as enabled
 
 
@@ -68,4 +77,9 @@ __all__ = [
     "profile",
     "section",
     "step",
+    "wrap_callable",
+    "profile_call",
+    "patch_method",
+    "patch_attr",
+    "python_call_trace",
 ]

@@ -57,6 +57,14 @@ class _FakeProfiler:
         return cm
 
 
+def _trace_inner(x):
+    return x + 1
+
+
+def _trace_outer(x):
+    return _trace_inner(x) * 2
+
+
 def test_section_step_helpers_delegate(monkeypatch):
     fp = _FakeProfiler(enabled=True)
     monkeypatch.setattr(dec, "get_profiler", lambda: fp)
@@ -150,3 +158,81 @@ def test_profile_decorator_exception_calls_exit_and_reraises(monkeypatch):
     assert et is ValueError
     assert isinstance(ev, ValueError)
     assert tb is not None
+
+
+def test_wrap_callable_profiles_external_callable(monkeypatch):
+    fp = _FakeProfiler(enabled=True)
+    monkeypatch.setattr(dec, "get_profiler", lambda: fp)
+
+    wrapped = dec.wrap_callable(lambda x: x + 4, name="external.fn", cat="ext")
+    assert wrapped(2) == 6
+
+    assert fp.sections
+    assert fp.sections[0][0] == "external.fn"
+    assert fp.sections[0][1] == "ext"
+
+
+def test_profile_call_profiles_single_invocation(monkeypatch):
+    fp = _FakeProfiler(enabled=True)
+    monkeypatch.setattr(dec, "get_profiler", lambda: fp)
+
+    out = dec.profile_call(lambda a, b: a + b, 3, 7, name="add", cat="math")
+    assert out == 10
+    assert fp.sections
+    assert fp.sections[0][0] == "add"
+    assert fp.sections[0][1] == "math"
+
+
+def test_patch_method_wraps_and_restores(monkeypatch):
+    fp = _FakeProfiler(enabled=True)
+    monkeypatch.setattr(dec, "get_profiler", lambda: fp)
+
+    class _Obj:
+        def f(self, x):
+            return x * 2
+
+    o = _Obj()
+
+    with dec.patch_method(o, "f", name="obj.f", cat="ext"):
+        assert o.f(5) == 10
+
+    n_sections = len(fp.sections)
+    assert n_sections >= 1
+    assert fp.sections[0][0] == "obj.f"
+
+    # restored: call is no longer wrapped
+    assert o.f(3) == 6
+    assert len(fp.sections) == n_sections
+
+
+def test_patch_attr_supports_dotted_paths(monkeypatch):
+    fp = _FakeProfiler(enabled=True)
+    monkeypatch.setattr(dec, "get_profiler", lambda: fp)
+
+    inner = types.SimpleNamespace(call=lambda x: x - 1)
+    obj = types.SimpleNamespace(inner=inner)
+
+    with dec.patch_attr(obj, "inner.call", name="inner.call", cat="ext"):
+        assert obj.inner.call(5) == 4
+
+    n_sections = len(fp.sections)
+    assert n_sections >= 1
+    assert fp.sections[0][0] == "inner.call"
+
+    assert obj.inner.call(5) == 4
+    assert len(fp.sections) == n_sections
+
+
+def test_python_call_trace_records_nested_calls(monkeypatch):
+    import neuralqx.profile._pytrace as pytrace
+
+    fp = _FakeProfiler(enabled=True)
+    monkeypatch.setattr(dec, "get_profiler", lambda: fp)
+    monkeypatch.setattr(pytrace, "get_profiler", lambda: fp)
+
+    with dec.python_call_trace(cat="py", include_prefixes=[__name__], max_depth=8):
+        assert _trace_outer(10) == 22
+
+    names = [row[0] for row in fp.sections]
+    assert any(name.endswith("._trace_outer") for name in names)
+    assert any(name.endswith("._trace_inner") for name in names)

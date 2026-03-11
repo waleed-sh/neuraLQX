@@ -90,6 +90,66 @@ Environment Variables
      - ``<project>/.neuralqx_profiling/neuralqx_<YYYYMMDD>``
      - Override the directory where profiling artifacts are written.
      - No
+   * - ``NQX_PROFILE_RUN_ID``
+     - ``str``
+     - Any string
+     - ``""`` (auto)
+     - Optional fixed profiling run id; outputs are written under ``run_<RUN_ID>``.
+     - No
+   * - ``NQX_PROFILE_JAX_ANNOTATE``
+     - ``int``
+     - ``0`` | ``1``
+     - ``1``
+     - Enable JAX trace annotations for profiling sections.
+     - No
+   * - ``NQX_PROFILE_JAX_TRACE``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable JAX profiler trace capture in the profiling output folder.
+     - No
+   * - ``NQX_PROFILE_SAMPLE_PERIOD_S``
+     - ``float``
+     - ``> 0``
+     - ``0.1``
+     - Telemetry sampling period in seconds when ``NQX_PROFILE_METRICS=1``.
+     - No
+   * - ``NQX_PROFILE_MAX_EVENTS``
+     - ``int``
+     - Positive integer
+     - ``2000000``
+     - Maximum in-memory trace events before export.
+     - No
+   * - ``NQX_PROFILE_MPI_AGG``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Aggregate profiling summaries across ranks at exit (can block on slow ranks).
+     - No
+   * - ``NQX_PROFILE_PY_CALLS``
+     - ``int``
+     - ``0`` | ``1``
+     - ``0``
+     - Enable deep Python call tracing for profiled wrappers/calls (high overhead).
+     - No
+   * - ``NQX_PROFILE_PY_CALLS_INCLUDE``
+     - ``str``
+     - Comma-separated module prefixes
+     - ``netket,neuralqx``
+     - Include filter for deep Python call tracing.
+     - No
+   * - ``NQX_PROFILE_PY_CALLS_EXCLUDE``
+     - ``str``
+     - Comma-separated module prefixes
+     - ``neuralqx.profile``
+     - Exclude filter for deep Python call tracing.
+     - No
+   * - ``NQX_PROFILE_PY_CALLS_MAX_DEPTH``
+     - ``int``
+     - Integer (``<=0`` means unlimited)
+     - ``6``
+     - Max nested Python call depth captured by deep tracing.
+     - No
    * - ``NQX_VERBOSE``
      - ``bool``
      - ``False`` | ``True``

@@ -81,6 +81,12 @@ This pulls in additional testing dependencies that the project uses to validate 
 MPI extra (local use only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+.. important::
+
+   The following MPI installation is deprecated as of version 1.1.0.
+
+
 neuraLQX provides an ``mpi`` extra that installs MPI-related Python dependencies.
 Using it requires a working MPI toolchain already present on your machine (for example, the ability to run
 ``mpicc``).
@@ -116,7 +122,7 @@ This pulls in additional documentation dependencies that the project uses to bui
 Profiling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-neuraLQX ships with the core profiler enabled by configuration (``NQX_PROFILE=1``),
+neuraLQX ships with the core profiler available but disabled by default (``NQX_PROFILE=0``),
 but GPU telemetry and certain advanced integrations require optional dependencies.
 
 To install the profiling extras, use the ``profile`` extra:

@@ -187,6 +187,16 @@ def test_defaults_are_set_in_os_environ_on_import(cfgmod_factory):
     assert "NQX_VERBOSE" in os.environ
 
 
+def test_profiling_deep_trace_defaults_are_registered(cfgmod_factory):
+    m = cfgmod_factory()
+    cfg = m.cfg
+
+    assert cfg.get("PROFILE_PY_CALLS") == 0
+    assert cfg.get("PROFILE_PY_CALLS_INCLUDE") == "netket,neuralqx"
+    assert cfg.get("PROFILE_PY_CALLS_EXCLUDE") == "neuralqx.profile"
+    assert cfg.get("PROFILE_PY_CALLS_MAX_DEPTH") == 6
+
+
 def test_get_unknown_key_raises_configerror(cfgmod_factory):
     m = cfgmod_factory()
     with pytest.raises(m.ConfigError, match="is not defined"):

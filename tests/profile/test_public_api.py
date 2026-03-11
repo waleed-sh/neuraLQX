@@ -21,6 +21,11 @@ def test_public_api_symbols_exist():
     assert hasattr(p, "profile")
     assert hasattr(p, "section")
     assert hasattr(p, "step")
+    assert hasattr(p, "wrap_callable")
+    assert hasattr(p, "profile_call")
+    assert hasattr(p, "patch_method")
+    assert hasattr(p, "patch_attr")
+    assert hasattr(p, "python_call_trace")
     assert hasattr(p, "enabled")
     assert hasattr(p, "flush")
 

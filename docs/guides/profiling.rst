@@ -26,7 +26,7 @@ telemetry.
 Installation (profiling extras)
 -------------------------------
 
-neuraLQX ships with the core profiler enabled by configuration (``NQX_PROFILE=1``),
+neuraLQX ships with the core profiler available but disabled by default (``NQX_PROFILE=0``),
 but GPU telemetry and certain advanced integrations require optional dependencies.
 
 To install the profiling extras, use the ``profile`` extra:
@@ -106,7 +106,7 @@ Run directory naming
 ``NQX_PROFILE_RUN_ID``
   Force all ranks/processes to write into the same ``run_<RUN_ID>`` directory.
 
-- **Default:** auto-generated from job id + timestamp.
+- **Default:** empty (auto-generated from job id + timestamp).
 - **Recommended:** set this explicitly for multi-rank runs so results are easy to compare.
 
 Trace / timeline output
@@ -169,7 +169,7 @@ Low-rate telemetry
 ``NQX_PROFILE_SAMPLE_PERIOD_S``
   Telemetry sampling period in seconds.
 
-- **Default:** ``1.0`` (1 Hz)
+- **Default:** ``0.1`` (10 Hz)
 
 Synchronization (JAX async caveat)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -193,8 +193,47 @@ Trace buffer size
 ``NQX_PROFILE_MAX_EVENTS``
   Maximum number of trace events retained in memory before export.
 
-- **Default:** large enough for long runs, but bounded to avoid memory blowup.
+- **Default:** ``2000000``.
 - **Tune this** if you run extremely long jobs with trace enabled.
+
+MPI aggregation on exit
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``NQX_PROFILE_MPI_AGG``
+  Aggregate profiling summaries across ranks on process exit.
+
+- **Default:** ``0`` (disabled)
+- **Warning:** this can block until all ranks flush, so keep it off for production throughput runs.
+
+Deep Python call tracing
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These knobs control optional nested Python call tracing used by
+``wrap_callable``, ``profile_call``, ``patch_method``, and ``patch_attr``.
+This is useful when you need visibility inside external code paths (for example
+``sampler.sample``) without modifying upstream source.
+
+``NQX_PROFILE_PY_CALLS``
+  Enable deep Python call tracing.
+
+- **Default:** ``0`` (off)
+- **Warning:** high overhead. Enable only for targeted diagnosis.
+
+``NQX_PROFILE_PY_CALLS_INCLUDE``
+  Comma-separated module-prefix allowlist for deep tracing.
+
+- **Default:** ``netket,neuralqx``
+
+``NQX_PROFILE_PY_CALLS_EXCLUDE``
+  Comma-separated module-prefix denylist for deep tracing.
+
+- **Default:** ``neuralqx.profile``
+
+``NQX_PROFILE_PY_CALLS_MAX_DEPTH``
+  Maximum nested Python depth captured.
+
+- **Default:** ``6``
+- **Special:** ``<=0`` means no explicit depth limit.
 
 What neuraLQX Profiles by Default
 ------------------------------------
@@ -267,7 +306,7 @@ the region's JAX work.
   effectively a no-op.
 
 .. important::
-    
+
     Syncing is only meaningful for regions that produce/trigger JAX device work.
     It will not "speed up" or change pure Python timing, it only makes the reported durations
     more representative of device execution time.
@@ -639,7 +678,7 @@ Self-Profiling Custom User Code
 
 Users can profile their own code without modifying neuraLQX internals.
 
-There are two primary interfaces:
+There are three primary interfaces:
 
 1) Context managers: ``section`` and ``step``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -674,6 +713,25 @@ This will appear alongside neuraLQX internal regions in both the summary and tra
 
    expensive_python_fn(data)
 
+3) External call instrumentation (no source edits)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use wrapper/patch helpers when you need to instrument external library calls:
+
+.. code-block:: python
+
+   from neuralqx.profile import patch_method
+
+   # Instrument NetKet sampler internals without editing NetKet source
+   with patch_method(
+       vstate.sampler,
+       "sample",
+       cat="sampling",
+       deep=True,  # enable nested Python call tracing for this call path
+       deep_include=("netket.sampler", "neuralqx.samplers"),
+   ):
+       samples = vstate.sample()
+
 Synchronization for JAX-returning functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -697,7 +755,7 @@ automatic ``atexit`` flush may not run when you expect. Always flush explicitly:
 .. code-block:: python
 
    import os
-   os.environ["NQX_PROFILE]="1"
+   os.environ["NQX_PROFILE"] = "1"
    import neuralqx as nqx
 
    # ... run your simulation ...
