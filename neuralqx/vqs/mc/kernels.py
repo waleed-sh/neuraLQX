@@ -51,6 +51,16 @@ from neuralqx.debug import event
 from neuralqx.operators.types import ComputationalJaxOperator
 
 
+def _reshape_conn_args(σ: Array, σp: Array, mels: Array):
+    """
+    Ensure connected-state arguments have the standard padded shape.
+    """
+    if jnp.ndim(σp) != 3:
+        σp = σp.reshape((σ.shape[0], -1, σ.shape[-1]))
+        mels = mels.reshape(σp.shape[:-1])
+    return σp, mels
+
+
 def batch_discrete_kernel(kernel):
     """
     Batch a decorator that only works with 1 sample so that it works with a
@@ -98,6 +108,39 @@ def local_value_kernel_jax(
     return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1)
 
 
+def local_value_kernel_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+):
+    """
+    Bra-action local estimator using precomputed `logpsi(pars, σ)`.
+    """
+    σp, mels = args
+    σp, mels = _reshape_conn_args(σ, σp, mels)
+    n = σ.shape[-1]
+    logpsi_σp = logpsi(pars, σp.reshape((-1, n))).reshape(σp.shape[:-1])
+    return jnp.sum(mels * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1)
+
+
+def local_value_kernel_jax_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: DiscreteJaxOperator,
+):
+    """
+    JAX-operator bra-action local estimator using precomputed `logpsi(pars, σ)`.
+    """
+    σp, mels = O.get_conn_padded(σ)
+    n = σ.shape[-1]
+    logpsi_σp = logpsi(pars, σp.reshape((-1, n))).reshape(σp.shape[:-1])
+    return jnp.sum(mels * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1)
+
+
 def local_value_squared_kernel(logpsi: Callable, pars: PyTree, σ: Array, args: PyTree):
     """
     local_value kernel for MCState and Squared (generic) operators
@@ -112,6 +155,26 @@ def local_value_kernel_squared_jax(
     Squared‐operator local estimator for any DiscreteJaxOperator
     """
     return jnp.abs(local_value_kernel_jax(logpsi, pars, σ, O)) ** 2
+
+
+def local_value_squared_kernel_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+):
+    return jnp.abs(local_value_kernel_factored(logpsi_σ, logpsi, pars, σ, args)) ** 2
+
+
+def local_value_kernel_squared_jax_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: DiscreteJaxOperator,
+):
+    return jnp.abs(local_value_kernel_jax_factored(logpsi_σ, logpsi, pars, σ, O)) ** 2
 
 
 @batch_discrete_kernel
@@ -157,6 +220,32 @@ def local_value_kernel_chunked(
     return jnp.sum(mels * jnp.exp(logpsi_σp - logpsi_σ), axis=-1)
 
 
+def local_value_kernel_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+    *,
+    chunk_size: Optional[int] = None,
+):
+    """
+    Chunked bra-action estimator using precomputed `logpsi(pars, σ)`.
+    """
+    σp, mels = args
+    σp, mels = _reshape_conn_args(σ, σp, mels)
+
+    logpsi_chunked = nkjax.vmap_chunked(
+        partial(logpsi, pars), in_axes=0, chunk_size=chunk_size
+    )
+    n = σ.shape[-1]
+    logpsi_σp = logpsi_chunked(σp.reshape((-1, n))).reshape(σp.shape[:-1])
+
+    return jnp.sum(
+        mels * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1
+    )
+
+
 def local_value_kernel_jax_conn_chunked(
     logpsi: Callable,
     pars: PyTree,
@@ -173,6 +262,26 @@ def local_value_kernel_jax_conn_chunked(
     σp, mel = O.get_conn_padded(σ)
 
     logpsi_σ = apply_conn(σ)
+    logpsi_σp = apply_conn(σp.reshape(-1, σ.shape[-1])).reshape(σp.shape[:-1])
+
+    return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1)
+
+
+def local_value_kernel_jax_conn_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: DiscreteJaxOperator,
+    chunk_size: int,
+):
+    """
+    Chunked JAX-operator bra-action estimator using precomputed `logpsi(pars, σ)`.
+    """
+    apply_conn = lambda s: logpsi(pars, s)
+    apply_conn = nkjax.apply_chunked(apply_conn, in_axes=0, chunk_size=chunk_size)
+
+    σp, mel = O.get_conn_padded(σ)
     logpsi_σp = apply_conn(σp.reshape(-1, σ.shape[-1])).reshape(σp.shape[:-1])
 
     return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1)
@@ -197,6 +306,22 @@ def local_value_squared_kernel_chunked(
     )
 
 
+def local_value_squared_kernel_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+    *,
+    chunk_size: Optional[int] = None,
+):
+    return jnp.abs(
+        local_value_kernel_chunked_factored(
+            logpsi_σ, logpsi, pars, σ, args, chunk_size=chunk_size
+        )
+    ) ** 2
+
+
 def local_value_kernel_squared_jax_conn_chunked(
         logpsi: Callable,
         pars: PyTree,
@@ -210,6 +335,21 @@ def local_value_kernel_squared_jax_conn_chunked(
 
     return jnp.abs(
         local_value_kernel_jax_conn_chunked(logpsi, pars, σ, O, chunk_size)
+    ) ** 2
+
+
+def local_value_kernel_squared_jax_conn_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: DiscreteJaxOperator,
+    chunk_size: int,
+):
+    return jnp.abs(
+        local_value_kernel_jax_conn_chunked_factored(
+            logpsi_σ, logpsi, pars, σ, O, chunk_size
+        )
     ) ** 2
 
 
@@ -270,6 +410,22 @@ def local_value_kernel_jax_chunked(
     return local_value_chunked(σ)
 
 
+def local_value_kernel_jax_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: DiscreteJaxOperator,
+    *,
+    chunk_size: int | None = None,
+):
+    # In factored mode we always use the connected-state chunking variant to
+    # avoid recomputing `logpsi(σ)`.
+    return local_value_kernel_jax_conn_chunked_factored(
+        logpsi_σ, logpsi, pars, σ, O, int(chunk_size)
+    )
+
+
 # PenaltyCost kernels
 
 
@@ -286,6 +442,16 @@ def local_value_kernel_penalty_cost(
 
     σp, mel = args
     return jnp.sum(mel * jnp.exp(logpsi(pars, σp) - logpsi(pars, σ)))
+
+
+def local_value_kernel_penalty_cost_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+):
+    return local_value_kernel_factored(logpsi_σ, logpsi, pars, σ, args)
 
 #
 #
@@ -317,6 +483,20 @@ def local_value_kernel_penalty_cost_chunked(
     logpsi_σp = logpsi_chunked(σp.reshape((-1, N))).reshape(σp.shape[:-1])
 
     return jnp.sum(mels * jnp.exp(logpsi_σp - logpsi_σ), axis=-1)
+
+
+def local_value_kernel_penalty_cost_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+    *,
+    chunk_size: int | None = None,
+):
+    return local_value_kernel_chunked_factored(
+        logpsi_σ, logpsi, pars, σ, args, chunk_size=chunk_size
+    )
 
 
 """
@@ -422,6 +602,45 @@ def local_value_kernel_jax_ket_action(
     )
 
 
+def local_value_kernel_ket_action_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+):
+    """
+    Ket-action local estimator using precomputed `logpsi(pars, σ)`.
+    """
+    σp, mels = args
+    σp, mels = _reshape_conn_args(σ, σp, mels)
+    n = σ.shape[-1]
+    logpsi_σp = logpsi(pars, σp.reshape((-1, n))).reshape(σp.shape[:-1])
+    return jnp.sum(
+        mels * jnp.exp(jnp.conj(logpsi_σp - jnp.expand_dims(logpsi_σ, -1))),
+        axis=-1,
+    )
+
+
+def local_value_kernel_jax_ket_action_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: ComputationalJaxOperator,
+):
+    """
+    JAX ket-action local estimator using precomputed `logpsi(pars, σ)`.
+    """
+    σp, mels = O.get_conn_padded(σ)
+    n = σ.shape[-1]
+    logpsi_σp = logpsi(pars, σp.reshape((-1, n))).reshape(σp.shape[:-1])
+    return jnp.sum(
+        mels * jnp.exp(jnp.conj(logpsi_σp - jnp.expand_dims(logpsi_σ, -1))),
+        axis=-1,
+    )
+
+
 def local_value_squared_kernel_ket_action(logpsi: Callable, pars: PyTree, σ: Array, args: PyTree):
     return jnp.abs(local_value_kernel_ket_action(logpsi, pars, σ, args)) ** 2
 
@@ -430,6 +649,30 @@ def local_value_kernel_squared_jax_ket_action(
     logpsi: Callable, pars: PyTree, σ: Array, O: ComputationalJaxOperator
 ):
     return jnp.abs(local_value_kernel_jax_ket_action(logpsi, pars, σ, O)) ** 2
+
+
+def local_value_squared_kernel_ket_action_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+):
+    return jnp.abs(
+        local_value_kernel_ket_action_factored(logpsi_σ, logpsi, pars, σ, args)
+    ) ** 2
+
+
+def local_value_kernel_squared_jax_ket_action_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: ComputationalJaxOperator,
+):
+    return jnp.abs(
+        local_value_kernel_jax_ket_action_factored(logpsi_σ, logpsi, pars, σ, O)
+    ) ** 2
 
 
 #
@@ -461,6 +704,30 @@ def local_value_kernel_ket_action_chunked(
 
     return jnp.sum(mels * jnp.exp(jnp.conj(logpsi_σp - logpsi_σ)), axis=-1)
 
+
+def local_value_kernel_ket_action_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+    *,
+    chunk_size: Optional[int] = None,
+):
+    σp, mels = args
+    σp, mels = _reshape_conn_args(σ, σp, mels)
+
+    logpsi_chunked = nkjax.vmap_chunked(
+        partial(logpsi, pars), in_axes=0, chunk_size=chunk_size
+    )
+    n = σ.shape[-1]
+    logpsi_σp = logpsi_chunked(σp.reshape((-1, n))).reshape(σp.shape[:-1])
+
+    return jnp.sum(
+        mels * jnp.exp(jnp.conj(logpsi_σp - jnp.expand_dims(logpsi_σ, -1))),
+        axis=-1,
+    )
+
 def local_value_kernel_jax_ket_action_conn_chunked(
     logpsi: Callable,
     pars: PyTree,
@@ -477,6 +744,26 @@ def local_value_kernel_jax_ket_action_conn_chunked(
     logpsi_σp = apply_conn(σp.reshape(-1, σ.shape[-1])).reshape(σp.shape[:-1])
 
     return jnp.sum(mel * jnp.exp(jnp.conj(logpsi_σp - jnp.expand_dims(logpsi_σ, -1))), axis=-1)
+
+
+def local_value_kernel_jax_ket_action_conn_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: ComputationalJaxOperator,
+    chunk_size: int,
+):
+    apply_conn = lambda s: logpsi(pars, s)
+    apply_conn = nkjax.apply_chunked(apply_conn, in_axes=0, chunk_size=chunk_size)
+
+    σp, mel = O.get_conn_padded(σ)
+    logpsi_σp = apply_conn(σp.reshape(-1, σ.shape[-1])).reshape(σp.shape[:-1])
+
+    return jnp.sum(
+        mel * jnp.exp(jnp.conj(logpsi_σp - jnp.expand_dims(logpsi_σ, -1))),
+        axis=-1,
+    )
 
 
 def local_value_kernel_jax_ket_action_chunked(
@@ -503,6 +790,20 @@ def local_value_kernel_jax_ket_action_chunked(
 
     return local_value_chunked(σ)
 
+
+def local_value_kernel_jax_ket_action_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: ComputationalJaxOperator,
+    *,
+    chunk_size: int | None = None,
+):
+    return local_value_kernel_jax_ket_action_conn_chunked_factored(
+        logpsi_σ, logpsi, pars, σ, O, int(chunk_size)
+    )
+
 #
 #
 #   chunked Squared kernels
@@ -523,6 +824,22 @@ def local_value_squared_kernel_ket_action_chunked(
         ** 2
     )
 
+
+def local_value_squared_kernel_ket_action_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    args: PyTree,
+    *,
+    chunk_size: Optional[int] = None,
+):
+    return jnp.abs(
+        local_value_kernel_ket_action_chunked_factored(
+            logpsi_σ, logpsi, pars, σ, args, chunk_size=chunk_size
+        )
+    ) ** 2
+
 # discrete jax operators with bra action
 def local_value_kernel_squared_jax_chunked(
         logpsi: Callable,
@@ -534,6 +851,22 @@ def local_value_kernel_squared_jax_chunked(
 ):
     return jnp.abs(
         local_value_kernel_jax_chunked(logpsi, pars, σ, O, chunk_size=chunk_size)
+    ) ** 2
+
+
+def local_value_kernel_squared_jax_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: DiscreteJaxOperator,
+    *,
+    chunk_size: Optional[int] = None,
+):
+    return jnp.abs(
+        local_value_kernel_jax_chunked_factored(
+            logpsi_σ, logpsi, pars, σ, O, chunk_size=chunk_size
+        )
     ) ** 2
 
 # computational jax operators with ket action
@@ -548,3 +881,60 @@ def local_value_kernel_squared_jax_ket_action_chunked(
     return jnp.abs(
         local_value_kernel_jax_ket_action_chunked(logpsi, pars, σ, O, chunk_size=chunk_size)
     ) ** 2
+
+
+def local_value_kernel_squared_jax_ket_action_chunked_factored(
+    logpsi_σ: Array,
+    logpsi: Callable,
+    pars: PyTree,
+    σ: Array,
+    O: ComputationalJaxOperator,
+    *,
+    chunk_size: Optional[int] = None,
+):
+    return jnp.abs(
+        local_value_kernel_jax_ket_action_chunked_factored(
+            logpsi_σ, logpsi, pars, σ, O, chunk_size=chunk_size
+        )
+    ) ** 2
+
+
+_FACTORED_LOCAL_KERNELS = {
+    local_value_kernel: local_value_kernel_factored,
+    local_value_kernel_jax: local_value_kernel_jax_factored,
+    local_value_squared_kernel: local_value_squared_kernel_factored,
+    local_value_kernel_squared_jax: local_value_kernel_squared_jax_factored,
+    local_value_kernel_penalty_cost: local_value_kernel_penalty_cost_factored,
+    local_value_kernel_ket_action: local_value_kernel_ket_action_factored,
+    local_value_kernel_jax_ket_action: local_value_kernel_jax_ket_action_factored,
+    local_value_squared_kernel_ket_action: local_value_squared_kernel_ket_action_factored,
+    local_value_kernel_squared_jax_ket_action: local_value_kernel_squared_jax_ket_action_factored,
+}
+
+
+_FACTORED_LOCAL_KERNELS_CHUNKED = {
+    local_value_kernel_chunked: local_value_kernel_chunked_factored,
+    local_value_kernel_jax_conn_chunked: local_value_kernel_jax_conn_chunked_factored,
+    local_value_kernel_jax_chunked: local_value_kernel_jax_chunked_factored,
+    local_value_squared_kernel_chunked: local_value_squared_kernel_chunked_factored,
+    local_value_kernel_squared_jax_conn_chunked: local_value_kernel_squared_jax_conn_chunked_factored,
+    local_value_kernel_squared_jax_chunked: local_value_kernel_squared_jax_chunked_factored,
+    local_value_kernel_penalty_cost_chunked: local_value_kernel_penalty_cost_chunked_factored,
+    local_value_kernel_ket_action_chunked: local_value_kernel_ket_action_chunked_factored,
+    local_value_kernel_jax_ket_action_conn_chunked: local_value_kernel_jax_ket_action_conn_chunked_factored,
+    local_value_kernel_jax_ket_action_chunked: local_value_kernel_jax_ket_action_chunked_factored,
+    local_value_squared_kernel_ket_action_chunked: local_value_squared_kernel_ket_action_chunked_factored,
+    local_value_kernel_squared_jax_ket_action_chunked: local_value_kernel_squared_jax_ket_action_chunked_factored,
+}
+
+
+def resolve_factored_local_kernel(local_kernel: Callable, *, chunked: bool = False):
+    """
+    Return a factored local-estimator kernel if available for `local_kernel`.
+
+    Factored kernels consume precomputed `logpsi(pars, σ)` and therefore avoid
+    recomputing the wavefunction on the reference samples for every operator.
+    """
+    if chunked:
+        return _FACTORED_LOCAL_KERNELS_CHUNKED.get(local_kernel)
+    return _FACTORED_LOCAL_KERNELS.get(local_kernel)

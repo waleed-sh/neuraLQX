@@ -26,6 +26,10 @@ New features
 
 - `states_to_numbers` / `numbers_to_states` now dispatch through plum via each core's attached enumerator class.
 
+- Added expanded profiling controls (run id, JAX trace/annotation toggles, sampling cadence, trace buffer sizing, and optional deep Python-call tracing) for clearer end-to-end runtime diagnostics.
+
+- Added new profiling helpers to instrument external library calls (for example, sampling paths) without editing upstream source code.
+
 
 Changes
 ~~~~~~~~
@@ -34,6 +38,8 @@ Changes
 - U(1) concrete layout now lives under `neuralqx.hilbert.u1.layout`.
 
 - U(1)-specific index helpers were moved out of `neuralqx.hilbert.utils.index`; the utils index package is now abstraction-focused.
+
+- Slightly improved VMC runtime with fused operator-evaluation kernels in ``expect_and_grad``/``expect_and_forces`` for multi-constraint workloads, while preserving separate constraint estimators.
 
 
 Bug fixes
@@ -52,7 +58,7 @@ Experimental
 ~~~~~~~~~~~~~
 - None.
 
-
+------------
 
 neuraLQX v1.1.0 (March 10, 2026)
 ------------------------------------
