@@ -13,12 +13,14 @@
 # limitations under the License.
 
 from .euclidean_constraint import EuclideanConstraint
+from .lorentzian_constraint import LorentzianConstraint
 from .annihilation import QRAnnihilation
 from .flux import QRFlux
 from .creation import QRCreation
 
 __all__ = [
     "EuclideanConstraint",
+    "LorentzianConstraint",
     "QRFlux",
     "QRCreation",
     "QRAnnihilation",

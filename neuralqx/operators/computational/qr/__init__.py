@@ -20,6 +20,7 @@ __all__ = [
     "numba",
     "jax",
     "EuclideanConstraintOperator",
+    "LorentzianConstraintOperator",
     "QRFluxOperator",
     "QRCreationOperator",
     "QRAnnihilationOperator",

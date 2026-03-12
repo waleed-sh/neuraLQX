@@ -13,12 +13,14 @@
 # limitations under the License.
 
 from .euclidean_constraint import EuclideanConstraintJax
+from .lorentzian_constraint import LorentzianConstraintJax
 from .flux import QRFluxJax
 from .creation import QRCreationJax
 from .annihilation import QRAnnihilationJax
 
 __all__ = [
     "EuclideanConstraintJax",
+    "LorentzianConstraintJax",
     "QRCreationJax",
     "QRAnnihilationJax",
     "QRFluxJax",

@@ -52,7 +52,7 @@ class EuclideanConstraint(ComputationalOperator):
 
     Definition reproduced in Discrete form:
 
-        C_E = lapse * (t1 + t2 + t3)
+        C_E = -lapse * (t1 + t2 + t3)
 
     with, for (a,b,z) being a permutation of (0,1,2),
 
@@ -75,7 +75,14 @@ class EuclideanConstraint(ComputationalOperator):
       - Non-cyclic: attempts to step outside [state_min, state_max] are discarded (weight 0).
     """
 
-    def __init__(self, H, *, lapse: float = 1.0, power: float = 0.25):
+    def __init__(
+        self,
+        H,
+        *,
+        lapse: float = 1.0,
+        power: float = 0.25,
+        immirzi: float = 1.0,
+    ):
         super().__init__(H.hilbert_netket)
 
         # host references/invariants
@@ -102,6 +109,9 @@ class EuclideanConstraint(ComputationalOperator):
         # physical parameters
         self.lapse = float(lapse)
         self._flux_power = float(power)
+        self.immirzi = float(immirzi)
+        if self.immirzi == 0.0:
+            raise ValueError("The Immirzi parameter must be non-zero.")
 
         # max number of off-diagonal connections: 3 terms * 4 combos = 12
         self._nconn = 12
@@ -133,6 +143,7 @@ class EuclideanConstraint(ComputationalOperator):
     def _get_conn_padded_kernel(
         self, σ: jnp.ndarray
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        σ = jnp.asarray(σ, dtype=jnp.int64)
 
         # normalise shape to (B, N, D)
         single = σ.ndim == 2
@@ -152,7 +163,9 @@ class EuclideanConstraint(ComputationalOperator):
 
         # flux power and lapse factor (constant scalar)
         p = self._flux_power
-        lapse = jnp.asarray(self.lapse, dtype=self.dtype)
+        lapse = jnp.asarray(
+            self.lapse / (self.immirzi * self.immirzi), dtype=self.dtype
+        )
 
         # convenience: bounds and step
         lo = self._state_min
@@ -204,8 +217,8 @@ class EuclideanConstraint(ComputationalOperator):
                 ).reshape(BN)
 
                 # matrix element:
-                #   (1/4) * sign * lapse * F_left(σ') * F_right(σ), masked for validity
-                w = ((0.25 * sign) * lapse * F_left * F_right).astype(self.dtype)
+                #   -(1/4) * sign * lapse * F_left(σ') * F_right(σ), masked for validity
+                w = (-(0.25 * sign) * lapse * F_left * F_right).astype(self.dtype)
 
                 w = jnp.where(mask, w, jnp.asarray(0.0, dtype=self.dtype))
 

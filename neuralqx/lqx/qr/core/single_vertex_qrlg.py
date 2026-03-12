@@ -14,11 +14,14 @@
 
 from typing import Optional
 
+import jax.numpy as jnp
+
 from neuralqx.lqx.qr.abstract_single_vertex_qr_model import AbstractLqxSVQRLGModel
 from neuralqx.gauge_groups import AbstractGaugeGroup
 from neuralqx.graph.core import AbstractGraph
 from neuralqx.hilbert import AbstractHilbertInterface
 
+from neuralqx.operators.computational.qr import LorentzianConstraintOperator
 from neuralqx.operators.computational.qr import EuclideanConstraintOperator
 from neuralqx.operators.computational.qr import QRAnnihilationOperator
 from neuralqx.operators.computational.qr import QRCreationOperator
@@ -35,6 +38,7 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
         *,
         computational: Optional[bool] = True,
         jax: Optional[bool] = True,
+        immirzi: float = 1.0,
         spacetime_dimensions: int = 4,
         model_name: str = "LqxSVQRLGModel",
     ):
@@ -44,13 +48,39 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
             gauge_group=gauge_group,
             computational=computational,
             jax=jax,
+            immirzi=immirzi,
             spacetime_dimensions=spacetime_dimensions,
             model_name=model_name,
         )
 
     @property
     def constraint(self):
-        return self.euclidean_constraint
+        return self.lorentzian_constraint + self.euclidean_constraint
+
+    def _init_lorentzian_constraint(
+        self,
+        *,
+        computational: Optional[bool] = True,
+        jax: Optional[bool] = True,
+    ):
+        """
+        Construct the Lorentzian part of the QR single-vertex constraint as a computational operator.
+        """
+
+        if computational:
+            return LorentzianConstraintOperator(
+                self.hilbert, immirzi=self.immirzi, jax=jax
+            )
+
+        elif self.is_computational and computational is None:
+            return LorentzianConstraintOperator(
+                self.hilbert, immirzi=self.immirzi, jax=jax
+            )
+
+        else:
+            raise NotImplementedError(
+                "This model only supports computational operators as a backend."
+            )
 
     def _init_euclidean_constraint(
         self,
@@ -76,12 +106,20 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
         # check the computational flag
         if computational:
             return EuclideanConstraintOperator(
-                self.hilbert, lapse=self.lapse, power=0.25, jax=jax
+                self.hilbert,
+                lapse=self.lapse,
+                power=0.25,
+                immirzi=self.immirzi,
+                jax=jax,
             )
 
         elif self.is_computational and computational is None:
             return EuclideanConstraintOperator(
-                self.hilbert, lapse=self.lapse, power=0.25, jax=jax
+                self.hilbert,
+                lapse=self.lapse,
+                power=0.25,
+                immirzi=self.immirzi,
+                jax=jax,
             )
 
         else:
@@ -112,7 +150,12 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
 
         :return:
         """
-        raise NotImplementedError
+        if self._lorentzian_constraint is None:
+            self._lorentzian_constraint = self._init_lorentzian_constraint(
+                computational=self._is_computational, jax=self._is_jax
+            )
+
+        return self._lorentzian_constraint
 
     def creation(
         self,
@@ -229,6 +272,12 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
         :param power: the power the eigenvalues should be raised to
         """
 
+        # TODO: branch here for E_inv based on sign of power
+        if bool(jnp.sign(power) == -1):
+            return self.E_inv(
+                edge, power=jnp.abs(power), computational=computational, jax=jax
+            )
+
         # check the computational flag
         if computational:
             return QRFluxOperator(
@@ -277,3 +326,5 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
             raise NotImplementedError(
                 "This model only supports computational operators as a backend."
             )
+
+    # TODO: volume operator

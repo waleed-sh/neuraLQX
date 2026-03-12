@@ -290,6 +290,24 @@ def _project_log_psi(
 
     # (G, B) complex
     logpsi_all = jax.vmap(logpsi_for_perm, in_axes=0)(perms_full)
+    group_size = perms_full.shape[0]
+
+    # Fast path for a single projector element.
+    # Avoiding log(exp(logpsi)) keeps the original complex branch of logpsi unchanged.
+    if group_size == 1:
+        scale = jnp.asarray(1.0, dtype=logpsi_all.dtype)
+
+        if characters is not None:
+            chars = jnp.conj(characters) if conjugate_characters else characters
+            chars = chars.astype(logpsi_all.dtype)
+            scale = scale * chars[0]
+
+        if divide_by_group:
+            scale = scale / group_size
+        if irrep_dim is not None:
+            scale = scale * irrep_dim
+
+        return logpsi_all[0] + jnp.log(scale)
 
     # stable shift on real part
     a = jnp.max(jnp.real(logpsi_all), axis=0, keepdims=True)
@@ -306,7 +324,7 @@ def _project_log_psi(
     # (optional) global scalar prefactor (no numerical effect on MC)
     c = 1.0
     if divide_by_group:
-        c = c / perms_full.shape[0]
+        c = c / group_size
     if irrep_dim is not None:
         c = c * irrep_dim
 

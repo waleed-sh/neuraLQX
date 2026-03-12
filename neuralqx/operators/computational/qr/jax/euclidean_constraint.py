@@ -120,8 +120,8 @@ def _euclidean_constraint_kernel(
                 * _flux_eval_step(vz, p, inverse=True)
             ).reshape(BN)
 
-            # weight: (1/4) * sign * lapse * F_left * F_right
-            w = (0.25 * sign) * lapse_f * F_left * F_right
+            # weight: -(1/4) * sign * lapse * F_left * F_right
+            w = -(0.25 * sign) * lapse_f * F_left * F_right
             w = jnp.where(
                 mask,
                 w.astype(jnp.float64),
@@ -152,7 +152,14 @@ class EuclideanConstraintJax(ComputationalJaxOperator):
     def dtype(self):
         return jnp.float64
 
-    def __init__(self, H, *, lapse: float = 1.0, power: float = 0.25):
+    def __init__(
+        self,
+        H,
+        *,
+        lapse: float = 1.0,
+        power: float = 0.25,
+        immirzi: float = 1.0,
+    ):
 
         super().__init__(H.hilbert_netket)
 
@@ -186,6 +193,9 @@ class EuclideanConstraintJax(ComputationalJaxOperator):
 
         self._lapse = float(lapse)
         self._flux_power = float(power)
+        self._immirzi = float(immirzi)
+        if self._immirzi == 0.0:
+            raise ValueError("The Immirzi parameter must be non-zero.")
 
     #
     #
@@ -202,6 +212,7 @@ class EuclideanConstraintJax(ComputationalJaxOperator):
             state_step=self._state_step,
             lapse=self._lapse,
             flux_power=self._flux_power,
+            immirzi=self._immirzi,
         )
         return leaves, struct
 
@@ -215,6 +226,7 @@ class EuclideanConstraintJax(ComputationalJaxOperator):
         obj._state_step = int(struct["state_step"])
         obj._lapse = float(struct["lapse"])
         obj._flux_power = float(struct["flux_power"])
+        obj._immirzi = float(struct["immirzi"])
         return obj
 
     def _get_conn_padded(self, x: jnp.ndarray):
@@ -227,6 +239,8 @@ class EuclideanConstraintJax(ComputationalJaxOperator):
             state_max=jnp.asarray(self._state_max, dtype=jnp.int64),
             state_step=jnp.asarray(self._state_step, dtype=jnp.int64),
             flux_power=jnp.asarray(self._flux_power, dtype=jnp.float64),
-            lapse=jnp.asarray(self._lapse, dtype=jnp.float64),
+            lapse=jnp.asarray(
+                self._lapse / (self._immirzi * self._immirzi), dtype=jnp.float64
+            ),
         )
         return sigma_p, mels

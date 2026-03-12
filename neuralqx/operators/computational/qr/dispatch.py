@@ -21,11 +21,18 @@ def EuclideanConstraintOperator(
     *,
     lapse: float = 1.0,
     power: float = 0.25,
+    immirzi: float = 1.0,
     jax: bool = False,
 ):
     if jax:
-        return _j.EuclideanConstraintJax(H, lapse=lapse, power=power)
-    return _n.EuclideanConstraint(H, lapse=lapse, power=power)
+        return _j.EuclideanConstraintJax(H, lapse=lapse, power=power, immirzi=immirzi)
+    return _n.EuclideanConstraint(H, lapse=lapse, power=power, immirzi=immirzi)
+
+
+def LorentzianConstraintOperator(H, *, immirzi: float = 1.0, jax: bool = False):
+    if jax:
+        return _j.LorentzianConstraintJax(H, immirzi=immirzi)
+    return _n.LorentzianConstraint(H, immirzi=immirzi)
 
 
 def QRCreationOperator(H, *, site: int, n: int = 1, jax: bool = False):

@@ -30,6 +30,7 @@ class AbstractLqxSVQRLGModel(AbstractLqxModel):
         *,
         computational: bool = True,
         jax: bool = True,
+        immirzi: float = 1.0,
         spacetime_dimensions: int = 4,
         model_name: str = "AbstractLqxSVQRLGModel",
     ):
@@ -39,7 +40,12 @@ class AbstractLqxSVQRLGModel(AbstractLqxModel):
 
         self._lorentzian_constraint = None
 
-        self.lapse = 1
+        self.lapse = 1.0
+
+        immirzi = float(immirzi)
+        if immirzi == 0.0:
+            raise ValueError("The Immirzi parameter must be non-zero.")
+        self.immirzi = immirzi
 
         super().__init__(
             hilbert=hilbert,

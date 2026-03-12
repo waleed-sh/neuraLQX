@@ -29,6 +29,7 @@ class LqxSingleVertexQR(AbstractLqxInterface):
         lazy_load: bool = True,
         computational: bool = True,
         jax: bool = True,
+        immirzi: float = 1.0,
     ):
         if not computational:
             ComputationalModelConcretizationWarning()
@@ -41,6 +42,7 @@ class LqxSingleVertexQR(AbstractLqxInterface):
             model_name="Single Vertex QRLG",
             computational=computational,
             jax=jax,
+            immirzi=immirzi,
         )
 
         super().__init__(
