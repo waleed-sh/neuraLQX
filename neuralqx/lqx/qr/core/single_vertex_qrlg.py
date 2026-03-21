@@ -231,6 +231,7 @@ class LqxSVQRLG(AbstractLqxSVQRLGModel):
         The symmetric holonomy operator s which increments or decrements the quantum number of the
         specified edge symmetrically by a value of 1.
         """
+        # TODO: check bra vs ket action
 
         factor = 1 / 2 if no_i else 1 / 2j
 

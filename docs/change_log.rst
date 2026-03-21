@@ -30,6 +30,7 @@ New features
 
 - Added new profiling helpers to instrument external library calls (for example, sampling paths) without editing upstream source code.
 
+- An implementation for the Lorentzian constraint for the single vertex QRLG model is now available.
 
 Changes
 ~~~~~~~~

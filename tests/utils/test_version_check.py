@@ -24,80 +24,90 @@ def vmod():
     return vmod_
 
 
-@pytest.mark.parametrize(
-    "s, expected",
-    [
-        ("0", (0, 0, 0)),
-        ("1", (1, 0, 0)),
-        ("1.2", (1, 2, 0)),
-        ("1.2.3", (1, 2, 3)),
-        ("10.20.30", (10, 20, 30)),
-        ("1.2.3rc1", (1, 2, 3)),
-        ("1.2.3.dev4", (1, 2, 3)),
-        ("1.2.3.post1", (1, 2, 3)),
-        ("1.2.3+cuda11", (1, 2, 3)),
-        ("v1.2.3", (1, 2, 3)),
-        ("version 1.2.3", (1, 2, 3)),
-        ("1.2rc1", (1, 2, 0)),
-        ("1rc1", (1, 0, 0)),
-        ("01.002.0003", (1, 2, 3)),
-        ("junk 2.3.4 then 9.9.9", (2, 3, 4)),
-    ],
-)
-def test_normalize_version_parses_common_forms(vmod, s, expected):
-    assert vmod.normalize_version(s) == expected
+def test_version_strict_dev_ordering(vmod):
+    assert vmod.Version("1.1.0.dev1") < vmod.Version("1.1.0.dev2")
+    assert vmod.Version("1.1.0.dev2") < vmod.Version("1.1.0")
 
 
-@pytest.mark.parametrize(
-    "s, expected",
-    [
-        ("rc1", (1, 0, 0)),
-        ("dev1", (1, 0, 0)),
-        ("post2", (2, 0, 0)),
-        ("alpha9", (9, 0, 0)),
-    ],
-)
-def test_normalize_version_prefix_suffix_digit_grab(vmod, s, expected):
-    assert vmod.normalize_version(s) == expected
+def test_version_compares_with_strings_and_sequences(vmod):
+    assert vmod.Version("1.2.9") > "1.2.8"
+    assert vmod.Version("1.2.9") > (1, 2, 8)
+    assert vmod.Version("1.2.9") >= [1, 2, 9]
 
 
-def test_normalize_version_handles_digits_not_as_version(vmod):
-    assert vmod.normalize_version("built 2025-12-21") == (2025, 0, 0)
+def test_version_invalid_string_raises(vmod):
+    with pytest.raises(vmod.InvalidVersion):
+        vmod.Version("nightly-local-build")
+
+
+def test_neuralqx_version_is_string_like(vmod):
+    v = vmod.NeuralqxVersion("1.2.3")
+    assert isinstance(v, str)
+    assert str(v) == "1.2.3"
+    assert v.startswith("1.2")
+
+
+def test_neuralqx_version_uses_semantic_comparison(vmod):
+    v = vmod.NeuralqxVersion("1.1.0.dev2")
+    assert v > "1.1.0.dev1"
+    assert v < "1.1.0"
+    assert v > (1, 0, 9)
+
+
+def test_neuralqx_version_invalid_comparison_raises(vmod):
+    v = vmod.NeuralqxVersion("1.2.0")
+    with pytest.raises(vmod.InvalidVersion):
+        _ = v > "parrot"
+
+
+def test_version_metadata(vmod):
+    v = vmod.Version("2.4.1")
+    assert v.source == "2.4.1"
+    assert v.canonical == "2.4.1"
+    assert v.major == 2
+    assert v.minor == 4
+    assert v.patch == 1
+    assert v.release == (2, 4, 1)
+    assert v.as_tuple(width=3) == (2, 4, 1)
+
+
+def test_normalize_version_strict(vmod):
+    assert vmod.normalize_version("1.2.3.dev4", strict=True) == (1, 2, 3)
+
+
+def test_normalize_version_non_strict_invalid_to_zeroes(vmod):
+    assert vmod.normalize_version("parrot", strict=False) == (0, 0, 0)
+
+
+def test_normalize_version_strict_invalid_raises(vmod):
+    with pytest.raises(vmod.InvalidVersion):
+        vmod.normalize_version("parrot", strict=True)
 
 
 def test_get_module_version_from_module_object(vmod):
     m = types.SimpleNamespace(__version__="3.17.1")
-    assert vmod.get_module_version(m) == (3, 17, 1)
+    assert vmod.get_module_version(m) == vmod.Version("3.17.1")
 
 
-def test_get_module_version_missing___version___defaults_to_0(vmod):
+def test_get_module_version_missing___version___defaults_to_zero(vmod):
     m = types.SimpleNamespace()
-    assert vmod.get_module_version(m) == (0, 0, 0)
+    assert vmod.get_module_version(m) == vmod.Version("0.0.0")
 
 
-def test_get_module_version_weird___version___string(vmod):
-    m = types.SimpleNamespace(__version__="3.17.1rc2+local")
-    assert vmod.get_module_version(m) == (3, 17, 1)
+def test_get_module_version_invalid_strict_behavior(vmod):
+    m = types.SimpleNamespace(__version__="nightly")
+    with pytest.raises(vmod.InvalidVersion):
+        vmod.get_module_version(m, strict=True)
+
+    assert vmod.get_module_version(m, strict=False) is None
 
 
-def test_get_module_version_imports_when_given_string(vmod, monkeypatch):
-    dummy = types.SimpleNamespace(__version__="1.2.3")
-
-    def fake_import(name):
-        assert name == "dummy_pkg"
-        return dummy
-
-    monkeypatch.setattr(vmod.importlib, "import_module", fake_import, raising=True)
-    assert vmod.get_module_version("dummy_pkg") == (1, 2, 3)
-
-
-def test_get_module_version_propagates_import_error(vmod, monkeypatch):
-    def fake_import(name):
-        raise ModuleNotFoundError(name)
-
-    monkeypatch.setattr(vmod.importlib, "import_module", fake_import, raising=True)
-    with pytest.raises(ModuleNotFoundError):
-        vmod.get_module_version("no_such_pkg")
+def test_get_module_neuralqx_version(vmod):
+    m = types.SimpleNamespace(__version__="9.8.7.dev0")
+    out = vmod.get_module_neuralqx_version(m)
+    assert isinstance(out, vmod.NeuralqxVersion)
+    assert out == "9.8.7.dev0"
+    assert out < "9.8.7"
 
 
 def test_get_module_version_string_from_module_object(vmod):
@@ -117,7 +127,10 @@ def test_get_module_version_string_imports_when_given_string(vmod, monkeypatch):
         assert name == "dummy_pkg"
         return dummy
 
-    monkeypatch.setattr(vmod.importlib, "import_module", fake_import, raising=True)
+    monkeypatch.setattr(
+        "neuralqx.utils.module.version.module_version.import_module",
+        fake_import,
+    )
     assert vmod.get_module_version_string("dummy_pkg") == "0.1.0+cuda"
 
 
@@ -125,6 +138,26 @@ def test_get_module_version_string_propagates_import_error(vmod, monkeypatch):
     def fake_import(name):
         raise ModuleNotFoundError(name)
 
-    monkeypatch.setattr(vmod.importlib, "import_module", fake_import, raising=True)
+    monkeypatch.setattr(
+        "neuralqx.utils.module.version.module_version.import_module",
+        fake_import,
+    )
     with pytest.raises(ModuleNotFoundError):
         vmod.get_module_version_string("no_such_pkg")
+
+
+def test_top_level___version___is_str_compatible_and_semantic(vmod):
+    import neuralqx as nqx
+    from neuralqx import _version as raw_version
+
+    assert isinstance(nqx.__version__, str)
+    assert isinstance(nqx.__version__, vmod.NeuralqxVersion)
+    assert str(nqx.__version__) == raw_version.__version__
+    assert nqx.__version__ == nqx.version
+
+
+def test_top_level_version_info_exposes_strict_version(vmod):
+    import neuralqx as nqx
+
+    assert isinstance(nqx.version_info, vmod.Version)
+    assert nqx.version_info == vmod.Version(str(nqx.__version__))

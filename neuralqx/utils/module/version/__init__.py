@@ -13,29 +13,31 @@
 # limitations under the License.
 
 """
-Backward-compatible compatibility layer for version utilities.
-
-The main implementation now lives in ``neuralqx.utils.module.version``.
+Versioning subsystem for neuraLQX.
 """
 
-from .version import InvalidVersion
-from .version import ModuleReference
-from .version import NeuralqxVersion
+from packaging.version import InvalidVersion
+
+from .coercion import ModuleReference
+from .coercion import VersionInput
+from .coercion import coerce_version_text
+
+from .module_version import get_module_neuralqx_version
+from .module_version import get_module_version
+from .module_version import get_module_version_string
+
+from .neuralqx_version import NeuralqxVersion
+
 from .version import Version
-from .version import VersionInput
 from .version import coerce_version
-from .version import coerce_version_text
-from .version import get_module_neuralqx_version
-from .version import get_module_version
-from .version import get_module_version_string
 from .version import normalize_version
 from .version import parse_version
 from .version import try_parse_version
 
 __all__ = [
-    "InvalidVersion",
     "ModuleReference",
     "VersionInput",
+    "InvalidVersion",
     "Version",
     "NeuralqxVersion",
     "coerce_version_text",

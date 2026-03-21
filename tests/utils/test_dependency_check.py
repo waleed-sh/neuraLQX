@@ -99,7 +99,7 @@ def test_format_version_error_contains_constraints_and_versions(dchk, monkeypatc
     monkeypatch.setattr(dchk, "get_module_version_string", lambda name: "1.9.0+abc")
 
     msg = dchk._format_version_error(
-        p, installed=(1, 9, 0), relation="below the supported minimum"
+        p, installed=dchk.Version("1.9.0"), relation="below the supported minimum"
     )
 
     assert "Dependency version incompatibility detected." in msg
@@ -119,7 +119,7 @@ def test_format_version_error_works_with_only_minimum(dchk, monkeypatch):
 
     monkeypatch.setattr(dchk, "get_module_version_string", lambda name: "0.0.1")
     msg = dchk._format_version_error(
-        p, installed=(0, 0, 1), relation="below the supported minimum"
+        p, installed=dchk.Version("0.0.1"), relation="below the supported minimum"
     )
     assert ">= 1.2.3" in msg
     assert "<=" not in msg
@@ -131,7 +131,7 @@ def test_format_version_error_works_with_only_maximum(dchk, monkeypatch):
 
     monkeypatch.setattr(dchk, "get_module_version_string", lambda name: "4.0.0")
     msg = dchk._format_version_error(
-        p, installed=(4, 0, 0), relation="above the supported maximum"
+        p, installed=dchk.Version("4.0.0"), relation="above the supported maximum"
     )
     assert "<= 3.0.0" in msg
     assert ">=" not in msg
@@ -146,13 +146,13 @@ def test_enforce_policy_missing_module_raises_dependency_violation(dchk, monkeyp
 
     monkeypatch.setattr(dchk.importlib, "import_module", _import_module)
 
-    called = {"v": False}
+    called = {"vstr": False}
 
-    def _get_module_version(_):
-        called["v"] = True
-        return (999, 999, 999)
+    def _get_module_version_string(_):
+        called["vstr"] = True
+        return "999.999.999"
 
-    monkeypatch.setattr(dchk, "get_module_version", _get_module_version)
+    monkeypatch.setattr(dchk, "get_module_version_string", _get_module_version_string)
 
     with pytest.raises(dchk.DependencyViolation) as exc:
         dchk.enforce_policy(p)
@@ -160,7 +160,7 @@ def test_enforce_policy_missing_module_raises_dependency_violation(dchk, monkeyp
     assert "required package not found" in str(exc.value)
     assert "does_not_exist" in str(exc.value)
     assert "Need it." in str(exc.value)
-    assert called["v"] is False
+    assert called["vstr"] is False
 
 
 def test_enforce_policy_below_minimum_raises_dependency_violation(dchk, monkeypatch):
@@ -168,7 +168,6 @@ def test_enforce_policy_below_minimum_raises_dependency_violation(dchk, monkeypa
     p = Policy(name="dummy", minimum=(1, 0, 0), rationale="min rationale")
 
     monkeypatch.setattr(dchk.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(dchk, "get_module_version", lambda name: (0, 9, 0))
     monkeypatch.setattr(dchk, "get_module_version_string", lambda name: "0.9.0")
 
     with pytest.raises(dchk.DependencyViolation) as exc:
@@ -187,7 +186,6 @@ def test_enforce_policy_above_maximum_raises_dependency_violation(dchk, monkeypa
     p = Policy(name="dummy", maximum=(1, 0, 0), rationale="max rationale")
 
     monkeypatch.setattr(dchk.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(dchk, "get_module_version", lambda name: (1, 2, 0))
     monkeypatch.setattr(dchk, "get_module_version_string", lambda name: "1.2.0")
 
     with pytest.raises(dchk.DependencyViolation) as exc:
@@ -206,7 +204,6 @@ def test_enforce_policy_passes_when_in_range(dchk, monkeypatch):
     p = Policy(name="dummy", minimum=(1, 0, 0), maximum=(2, 0, 0), rationale="ok")
 
     monkeypatch.setattr(dchk.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(dchk, "get_module_version", lambda name: (1, 5, 0))
     monkeypatch.setattr(dchk, "get_module_version_string", lambda name: "1.5.0")
 
     dchk.enforce_policy(p)
@@ -218,16 +215,16 @@ def test_enforce_policy_with_no_min_no_max_only_checks_import(dchk, monkeypatch)
 
     monkeypatch.setattr(dchk.importlib, "import_module", lambda name: object())
 
-    called = {"v": False}
+    called = {"vstr": False}
 
-    def _get_module_version(_):
-        called["v"] = True
-        return (0, 0, 0)
+    def _get_module_version_string(_):
+        called["vstr"] = True
+        return "0.0.0"
 
-    monkeypatch.setattr(dchk, "get_module_version", _get_module_version)
+    monkeypatch.setattr(dchk, "get_module_version_string", _get_module_version_string)
 
     dchk.enforce_policy(p)
-    assert called["v"] is True
+    assert called["vstr"] is True
 
 
 def test_enforce_policies_stops_at_first_violation(dchk, monkeypatch):
@@ -264,3 +261,33 @@ def test_enforce_default_dependencies_calls_enforce_policies_with_defaults(
     assert "policies" in captured
     assert captured["policies"] == dchk._DEFAULT_POLICIES
     assert len(captured["policies"]) >= 1
+
+
+def test_dependency_policy_rejects_invalid_bound(dchk):
+    with pytest.raises(ValueError):
+        dchk.DependencyPolicy(name="x", minimum="not-a-version")
+
+
+def test_dependency_policy_rejects_inverted_bounds(dchk):
+    with pytest.raises(ValueError):
+        dchk.DependencyPolicy(name="x", minimum="2.0.0", maximum="1.0.0")
+
+
+def test_enforce_policy_unparseable_installed_version_raises_dependency_violation(
+    dchk, monkeypatch
+):
+    Policy = dchk.DependencyPolicy
+    p = Policy(name="dummy", minimum=(1, 0, 0), rationale="strict check")
+
+    monkeypatch.setattr(dchk.importlib, "import_module", lambda name: object())
+    monkeypatch.setattr(
+        dchk, "get_module_version_string", lambda name: "nightly-local-build"
+    )
+
+    with pytest.raises(dchk.DependencyViolation) as exc:
+        dchk.enforce_policy(p)
+
+    msg = str(exc.value)
+    assert "unparseable" in msg
+    assert "nightly-local-build" in msg
+    assert "strict check" in msg

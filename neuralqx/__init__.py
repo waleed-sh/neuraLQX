@@ -18,8 +18,10 @@ import sys
 #
 #   Version and environment/cfg variables init
 
-from ._version import __version__
-from .configs import cfg, _should_init_jax_distributed
+from ._version import __version__ as _raw_version
+
+from .configs import cfg
+from .configs import _should_init_jax_distributed
 
 #
 #
@@ -65,6 +67,15 @@ from . import driver
 from . import vqs
 from . import profile
 from ._cite import cite
+
+# Keep top-level version str-compatible for ecosystem tooling while exposing
+# strict semantic comparison behaviour through the new version subsystem.
+from .utils.module.version import NeuralqxVersion
+from .utils.module.version import Version
+
+__version__: NeuralqxVersion = NeuralqxVersion(_raw_version)
+version: NeuralqxVersion = __version__
+version_info: Version = __version__.version
 
 
 def __getattr__(name):

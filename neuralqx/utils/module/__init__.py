@@ -12,5 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# check critical dependencies are met
+# expose version utilities and check critical dependencies are met
+from . import version
 from . import dependency_check
+
+__all__ = ["version", "dependency_check"]

@@ -18,12 +18,14 @@ guarantees (numerical accuracy, parallel safety, or API stability) are relied up
 """
 
 from dataclasses import dataclass
-from typing import Tuple, Sequence, Union
+from typing import Sequence, Union
 import importlib
 
-from .version_check import get_module_version, get_module_version_string
-
-Version = Tuple[int, int, int]
+from .version import InvalidVersion
+from .version import Version
+from .version import VersionInput
+from .version import parse_version
+from .version import get_module_version_string
 
 
 class DependencyViolation(RuntimeError):
@@ -41,9 +43,26 @@ class DependencyPolicy:
     """
 
     name: str
-    minimum: Union[Version, None] = None
-    maximum: Union[Version, None] = None
+    minimum: Union[VersionInput, None] = None
+    maximum: Union[VersionInput, None] = None
     rationale: str = ""
+
+    def __post_init__(self) -> None:
+        min_version = _coerce_policy_bound(self.minimum, field_name="minimum")
+        max_version = _coerce_policy_bound(self.maximum, field_name="maximum")
+
+        if (
+            min_version is not None
+            and max_version is not None
+            and min_version > max_version
+        ):
+            raise ValueError(
+                f"DependencyPolicy('{self.name}') has an invalid range: "
+                f"minimum {min_version} is greater than maximum {max_version}."
+            )
+
+        object.__setattr__(self, "minimum", min_version)
+        object.__setattr__(self, "maximum", max_version)
 
 
 def enforce_policy(policy: DependencyPolicy) -> None:
@@ -59,7 +78,16 @@ def enforce_policy(policy: DependencyPolicy) -> None:
     except ModuleNotFoundError as exc:
         raise DependencyViolation(_format_missing_dependency(policy)) from exc
 
-    installed = get_module_version(policy.name)
+    installed_raw = get_module_version_string(policy.name)
+    if installed_raw == "unknown":
+        installed = Version("0.0.0")
+    else:
+        try:
+            installed = parse_version(installed_raw)
+        except (TypeError, ValueError, InvalidVersion):
+            raise DependencyViolation(
+                _format_unparseable_version_error(policy, installed_raw)
+            ) from None
 
     if policy.minimum and installed < policy.minimum:
         raise DependencyViolation(
@@ -108,14 +136,15 @@ def _format_version_error(
     *,
     relation: str,
 ) -> str:
-    installed_tuple_str = ".".join(map(str, installed))
+    installed_tuple = installed.as_tuple(width=max(3, len(installed.release)))
+    installed_tuple_str = ".".join(map(str, installed_tuple))
     installed_raw_str = get_module_version_string(policy.name)
 
     constraints = []
     if policy.minimum:
-        constraints.append(f">= {'.'.join(map(str, policy.minimum))}")
+        constraints.append(f">= {policy.minimum}")
     if policy.maximum:
-        constraints.append(f"<= {'.'.join(map(str, policy.maximum))}")
+        constraints.append(f"<= {policy.maximum}")
 
     return (
         f"Dependency version incompatibility detected.\n\n"
@@ -134,10 +163,56 @@ def _format_version_error(
     )
 
 
+def _format_unparseable_version_error(
+    policy: DependencyPolicy,
+    installed_raw: str,
+) -> str:
+    constraints = []
+    if policy.minimum:
+        constraints.append(f">= {policy.minimum}")
+    if policy.maximum:
+        constraints.append(f"<= {policy.maximum}")
+
+    return (
+        f"Dependency version incompatibility detected.\n\n"
+        f"Package:\n"
+        f"  {policy.name}\n\n"
+        f"Installed version:\n"
+        f"  {installed_raw} (unparseable)\n\n"
+        f"Required version policy:\n"
+        f"  {' and '.join(constraints)}\n\n"
+        f"Problem:\n"
+        f"  The installed version string could not be interpreted as a comparable version.\n\n"
+        f"Why this matters:\n"
+        f"  {policy.rationale or 'Version-dependent safety checks cannot be enforced when the dependency version cannot be parsed.'}\n\n"
+        f"Suggested action:\n"
+        f"  Install a standard release of this dependency (PEP 440 compliant) and retry."
+    )
+
+
+def _coerce_policy_bound(
+    value: Union[VersionInput, None],
+    *,
+    field_name: str,
+) -> Union[Version, None]:
+    if value is None:
+        return None
+
+    try:
+        parsed = parse_version(value)
+    except (TypeError, ValueError, InvalidVersion):
+        raise ValueError(
+            f"DependencyPolicy.{field_name} for '{value}' is not a valid version. "
+            f"Please provide a PEP 440 compliant version string or tuple."
+        ) from None
+
+    return parsed
+
+
 _DEFAULT_POLICIES = (
     DependencyPolicy(
         name="flax",
-        minimum=(0, 6, 5),
+        minimum="0.6.5",
         rationale=(
             "Versions prior to 0.5 did not properly support complex valued layers. As Flax is "
             "NetKet's default neural-network library, using older version of Flax may not support "
@@ -147,14 +222,14 @@ _DEFAULT_POLICIES = (
     ),
     DependencyPolicy(
         name="netket",
-        minimum=(3, 19, 0),
+        minimum="3.19.0",
         rationale=(
             "neuraLQX requires a NetKet version above 3.19.0 for JAX sharding support."
         ),
     ),
     DependencyPolicy(
         name="jax",
-        minimum=(0, 5, 0),
+        minimum="0.5.0",
         rationale=(
             "JAX versions below 0.5.0 are currently not supported. This is because some modified "
             "code requires certain NetKet and JAX versions for just-in-time compilation of "
