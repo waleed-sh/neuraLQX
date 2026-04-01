@@ -609,6 +609,48 @@ class SuboptimalOperatorForGPUWarning(neuralqxWarning):
         )
 
 
+class StructError(neuralqxError):
+    """
+    Base exception for the struct and pytree subsystem.
+
+    This is the root error type for public APIs in ``neuralqx.utils.struct``,
+    including class processing, runtime validation, and serialization workflows.
+    """
+
+
+class FrozenStructError(StructError, AttributeError):
+    """
+    Raised when mutation is attempted on a frozen Struct instance.
+
+    Struct instances are immutable after initialisation. Direct attribute writes
+    and deletions are rejected to preserve deterministic pytree and cache
+    semantics. Use ``obj.replace(...)`` to derive updated instances.
+    """
+
+
+class SerializationError(StructError):
+    """
+    Raised when struct or registered-pytree I/O operations fail.
+
+    Typical causes include:
+        - unsupported value types without registered adapters,
+        - malformed or version-incompatible payloads,
+        - array manifest mismatches (missing arrays, dtype/shape drift),
+        - class/adaptor resolution failures during reconstruction.
+    """
+
+
+class ValidationError(StructError, TypeError):
+    """
+    Raised when declarations or runtime values violate struct constraints.
+
+    Typical causes include:
+        - invalid field declaration combinations,
+        - non-hashable/static-array violations for static fields,
+        - validator failures on field assignment/finalisation.
+    """
+
+
 __all__ = [
     "GraphUnavailableWarning",
     "DeniedExperimentalFeatureError",
@@ -655,4 +697,8 @@ __all__ = [
     "LiveMonitoringUnavailableWarning",
     "ComputationalModelConcretizationWarning",
     "SuboptimalOperatorForGPUWarning",
+    "StructError",
+    "FrozenStructError",
+    "SerializationError",
+    "ValidationError",
 ]

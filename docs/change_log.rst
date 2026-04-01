@@ -32,8 +32,16 @@ New features
 
 - An implementation for the Lorentzian constraint for the single vertex QRLG model is now available.
 
+- Introduced a new strict versioning subsystem under ``neuralqx.utils.module.version`` with ``Version`` and ``NeuralqxVersion`` classes, plus module-version parsing helpers for robust dependency and compatibility checks.
+
 Changes
 ~~~~~~~~
+- The configuration system (``neuralqx.configs``) has been redesigned with a typed architecture. Options now carry explicit types, a three-level mutability model (``IMMUTABLE`` / ``STARTUP`` / ``RUNTIME``), and structured mutation hooks. A ``cfg.patch()`` context manager and ``cfg.thread_local_override()`` are available for scoped overrides. Existing ``NQX_*`` environment variables and ``cfg.get()`` / ``cfg.set()`` calls are unaffected.
+
+- ``NQX_LOG_LEVEL`` is now runtime-mutable (previously startup-only).
+
+- ``NQX_EXPERIMENTAL`` and ``NQX_TESTING`` now accept boolean values (``true`` / ``false``) in addition to ``0`` / ``1``.
+
 - U(1) random/flip operations now live under `neuralqx.hilbert.u1.operations`; the old top-level `neuralqx.hilbert.operations` package has been removed.
 
 - U(1) concrete layout now lives under `neuralqx.hilbert.u1.layout`.
@@ -41,6 +49,8 @@ Changes
 - U(1)-specific index helpers were moved out of `neuralqx.hilbert.utils.index`; the utils index package is now abstraction-focused.
 
 - Slightly improved VMC runtime with fused operator-evaluation kernels in ``expect_and_grad``/``expect_and_forces`` for multi-constraint workloads, while preserving separate constraint estimators.
+
+- ``neuralqx.__version__`` is now exposed as ``NeuralqxVersion`` (string-compatible, semantic comparisons), and ``neuralqx.version_info`` provides the strict ``Version`` object for typed checks.
 
 
 Bug fixes

@@ -12,13 +12,13 @@ or adjust numerical and parallelisation settings.
 .. note::
 
    Environment variables must be set **before importing** neuraLQX in your python script or shell
-   session, unless stated otherwise.
+   session, unless the variable is marked *Runtime Mutable* (see table below).
 
    Example (bash):
 
    .. code-block:: bash
 
-      export NQX_EXPERIMENTAL=1
+      export NQX_EXPERIMENTAL=true
       export NQX_LOG_LEVEL=DEBUG
       python your_script.py
 
@@ -27,7 +27,7 @@ or adjust numerical and parallelisation settings.
    .. code-block:: python
 
         import os
-        os.environ['NQX_EXPERIMENTAL'] = '1'
+        os.environ['NQX_EXPERIMENTAL'] = 'true'
 
         import neuralqx as nqx
 
@@ -157,34 +157,35 @@ Environment Variables
      - Enable or disable Rich console printing.
      - Yes
    * - ``NQX_LOG_LEVEL``
-     - ``str``
+     - ``str`` (enum)
      - ``DEBUG`` | ``INFO`` | ``WARNING`` | ``ERROR`` | ``CRITICAL``
      - ``INFO``
-     - Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)
-     - No
+     - Set the logging level for the neuraLQX logger hierarchy.
+     - Yes
    * - ``NQX_EXPERIMENTAL``
-     - ``int``
-     - ``0`` | ``1``
-     - ``0``
-     - Enable experimental functions throughout the neuralqx and netket packages
+     - ``bool``
+     - ``False`` | ``True``
+     - ``False``
+     - Enable experimental functions throughout the neuralqx and netket packages.
      - Yes
    * - ``NQX_TESTING``
-     - ``int``
-     - ``0`` | ``1``
-     - ``0``
+     - ``bool``
+     - ``False`` | ``True``
+     - ``False``
      - Relax some neuraLQX features for testing purposes.
      - Yes
    * - ``NQX_CACHE``
      - ``int``
      - ``0`` | ``1``
      - ``0``
-     - Enable caching when possible
+     - Enable caching when possible.
      - No
    * - ``NQX_ENABLE_X64``
-     - ``int``
-     - ``0`` | ``1``
-     - ``1``
-     - Enable x64 precision throughout neuraLQX, NetKet and Jax
+     - ``bool``
+     - ``False`` | ``True``
+     - ``True``
+     - Enable x64 precision throughout neuraLQX, NetKet and JAX. Falls back to
+       ``JAX_ENABLE_X64`` if ``NQX_ENABLE_X64`` is not set.
      - No
 
 .. important::
@@ -199,25 +200,43 @@ Environment Variables
 Runtime Editable Configurations
 -----------------------------------
 
-Some configuration variables (e.g. ``NQX_VERBOSE``) can be changed during runtime. However, this
-should be done through **neuraLQX's internal configuration manager** as follows
+Options marked *Yes* in the **Runtime Mutable** column can be changed after import.
+Use the :data:`cfg <neuralqx.configs.cfg>` singleton - do **not** write directly to
+``os.environ`` at runtime, as that will not trigger hooks or validation.
+
+**Persistent update** - change the value for the remainder of the process:
 
 .. code-block:: python
 
-    import os
+    from neuralqx import cfg
 
-    # no Rich console printing will be displayed
-    os.environ['NQX_VERBOSE'] = 'False'
+    cfg.set('VERBOSE', False)   # or: cfg.VERBOSE = False
 
-    import neuralqx as nqx
+**Temporary patch** - restore the original value automatically on exit:
 
-    # some computations
+.. code-block:: python
 
     from neuralqx import cfg
 
-    cfg.set('VERBOSE', 'True')
+    with cfg.patch('LOG_LEVEL', 'DEBUG'):
+        # DEBUG logging active only inside this block
+        ...
+    # original LOG_LEVEL is restored here
 
-    # now, Rich console printing will be enabled
+**Thread-local override** - affects only the calling thread:
+
+.. code-block:: python
+
+    from neuralqx import cfg
+
+    with cfg.thread_local_override('DEBUG', True):
+        # DEBUG mode active only in this thread
+        ...
+
+.. seealso::
+
+   The full configuration API - including hooks, fingerprinting, and introspection
+   helpers - is documented in :mod:`neuralqx.configs`.
 
 
 Unused Configurations
