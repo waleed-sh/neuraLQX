@@ -44,7 +44,7 @@ from flax.core.scope import CollectionFilter, DenyList  # noqa: F401
 
 from netket import jax as nkjax
 from netket import config
-from netket.utils import mpi, dispatch
+from netket.utils import dispatch
 from netket.utils.types import PyTree
 from netket.stats import Stats, statistics
 

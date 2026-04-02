@@ -1955,6 +1955,33 @@ class ConfigManager:
             role="compilation",
             mutability=ConfigMutability.STARTUP,
         )
+        self.define_enum(
+            "DTYPE_REAL",
+            default="float64",
+            values=("float16", "bfloat16", "float32", "float64"),
+            doc="Default real-valued array dtype used by neuraLQX array factories.",
+            env_default="NQX_DTYPE_REAL",
+            role="precision",
+            mutability=ConfigMutability.STARTUP,
+        )
+        self.define_enum(
+            "DTYPE_COMPLEX",
+            default="complex128",
+            values=("complex64", "complex128"),
+            doc="Default complex-valued array dtype used by neuraLQX array factories.",
+            env_default="NQX_DTYPE_COMPLEX",
+            role="precision",
+            mutability=ConfigMutability.STARTUP,
+        )
+        self.define_enum(
+            "DTYPE_INDEX",
+            default="int64",
+            values=("int32", "int64"),
+            doc="Integer dtype for index and topology arrays in neuraLQX.",
+            env_default="NQX_DTYPE_INDEX",
+            role="precision",
+            mutability=ConfigMutability.STARTUP,
+        )
 
     def _get_state(self, name: str) -> _OptionState[Any]:
         """

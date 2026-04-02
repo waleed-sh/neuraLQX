@@ -31,6 +31,7 @@ from . import numbers
 from . import jit
 from . import parsing
 from . import distributed
+from . import dtypes
 
 __all__ = [
     "misc",
@@ -47,4 +48,5 @@ __all__ = [
     "jit",
     "parsing",
     "distributed",
+    "dtypes",
 ]
