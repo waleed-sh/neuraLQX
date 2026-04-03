@@ -135,6 +135,11 @@ djaxrun = "neuralqx.utils.jax.djaxrun:main"
 [tool.hatch.build]
 include = ["neuralqx*"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# Install the .pth file at the site-packages root so Python auto-imports
+# neuralqx._boot at interpreter startup before any user import runs.
+"neuralqx_boot.pth" = "neuralqx_boot.pth"
+
 [tool.hatch.version]
 source = "vcs"
 raw-options = { local_scheme = "no-local-version" }

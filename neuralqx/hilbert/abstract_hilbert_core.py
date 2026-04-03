@@ -340,7 +340,7 @@ class AbstractHilbertSpace(abc.ABC):
         return int(self._dimensions)
 
     @property
-    def hilbert(self) -> nk.hilbert.AbstractHilbert:
+    def hilbert(self) -> nk.hilbert.AbstractHilbert | nk.hilbert.DiscreteHilbert:
         """
         NetKet Hilbert space instance representing the full space.
 

@@ -42,7 +42,7 @@ from neuralqx.utils import distributed as _dist
 from netket.utils.types import Optimizer
 
 from neuralqx.driver import VMC
-from neuralqx.experimental.vqs.mc.mc_state import MultiMCState
+from ..vqs.mc.mc_state import MultiMCState
 from neuralqx.vqs import MCState
 from neuralqx.profile import section as prof_section
 

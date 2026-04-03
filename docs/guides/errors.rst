@@ -45,20 +45,33 @@ will raise:
 
 **Fix**
 
-To use experimental features, you must set the environment variable ``NQX_EXPERIMENTAL=1``
-**before importing** neuralqx.
-
-Example:
+Call ``cfg.update`` after importing neuralqx and before importing
+``neuralqx.experimental``:
 
 .. code-block:: python
 
-   import os
-   os.environ['NQX_EXPERIMENTAL'] = '1'
-
    import neuralqx as nqx
+   nqx.cfg.update("EXPERIMENTAL", True)
 
    # now this works
    import neuralqx.experimental as nqxx
+
+Alternatively, set the flag in your shell **before launching Python**:
+
+.. code-block:: bash
+
+   NQX_EXPERIMENTAL=1 python your_script.py
+
+.. warning::
+
+   Setting ``os.environ['NQX_EXPERIMENTAL'] = '1'`` inside Python is **not reliable**.
+   The configuration system reads environment variables once when ``neuralqx`` is first
+   imported. If anything has already imported ``neuralqx`` (common in Jupyter kernels,
+   IPython, or when other packages pull it in transitively), the value is frozen and
+   subsequent ``os.environ`` writes are ignored.
+
+   Use ``nqx.cfg.update("EXPERIMENTAL", True)`` instead, it sets a runtime override
+   that takes effect immediately regardless of import order.
 
 .. raw:: html
 
@@ -70,41 +83,44 @@ DeniedExperimentalFeatureError
 
 **Description**
 
-Sometimes, some experimental features may be more safe than others, and in this case they are
-placed in the public API. However, due to their testing not being fully completed, we still mark
-them as experimental using an ``@experimental`` decorator.
-Even though they are not in the ``experimental`` module, they are treated as
-such.
+Some experimental features are considered stable enough to live in the public API, but are
+still marked with an ``@experimental`` decorator because their testing is not yet fully
+complete. Even though they are not in the ``experimental`` module, the same flag governs
+access to them.
 
 **Cause**
 
-Trying to run something that is marked as experimental within neuraLQX:
+Calling a function or class decorated with ``@experimental``:
 
 .. code-block:: python
 
    @experimental
    def some_dummy_function(): ...
 
-   res = some_dummy_function()
-
-will raise an ``DeniedExperimentalFeatureError`` error.
+   res = some_dummy_function()  # raises DeniedExperimentalFeatureError
 
 **Fix**
 
-To use experimental features, you have to set the environment variable ``NQX_EXPERIMENTAL`` to ``1``
-**before** importing neuralqx. For example, in your script, you would do this
-
-
-Example:
+Enable experimental mode with ``cfg.update`` after importing neuralqx:
 
 .. code-block:: python
 
-    import os
-    os.environ['NQX_EXPERIMENTAL'] = '1'
+   import neuralqx as nqx
+   nqx.cfg.update("EXPERIMENTAL", True)
 
-    import neuralqx as nqx
+   # now, the experimentally marked some_dummy_function() works
 
-    # now, the experimentally marked some_dummy_function() should work
+Or set the flag in the shell before launching Python:
+
+.. code-block:: bash
+
+   NQX_EXPERIMENTAL=1 python your_script.py
+
+.. warning::
+
+   As with :ref:`DeniedExperimentalModuleImportError`, setting ``os.environ`` inside
+   Python after ``neuralqx`` is already imported will not work. Use
+   ``nqx.cfg.update("EXPERIMENTAL", True)``.
 .. raw:: html
 
    <hr style="margin: 30px 0;">

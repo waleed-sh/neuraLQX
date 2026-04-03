@@ -1713,22 +1713,52 @@ class ConfigManager:
         print(full_message)
 
     def _sync_external_envars(self) -> None:
-        """
-        Propagates neuraLQX flags to external environment variables.
+        """Propagates neuraLQX flags to external environment variables.
 
-        Called once at singleton initialisation before any JAX import.
-        """
-        os.environ.setdefault("OMP_NUM_THREADS", "1")
-        os.environ.setdefault("JAX_PLATFORMS", "")
-        os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
-        os.environ.setdefault("NETKET_EXPERIMENTAL_SHARDING", "True")
+        The critical pre-import env vars (JAX_PLATFORMS, XLA memory,
+        OMP_NUM_THREADS, NETKET_NO_TIPS, TF_CPP_MIN_LOG_LEVEL) are set by
+        ``neuralqx._boot`` via the ``neuralqx_boot.pth`` site-packages hook
+        before any user import runs. The setdefault calls below are a
+        belt-and-suspenders fallback for editable/source installs where the
+        .pth file may not yet be in site-packages.
 
-        if self.get("ENABLE_X64", thread_local=False):
-            os.environ["NETKET_ENABLE_X64"] = "1"
-            os.environ["JAX_ENABLE_X64"] = "1"
+        x64 precision is applied programmatically via ``jax.config.update`` /
+        ``nk.config.update`` when JAX/NetKet are already imported, so it
+        always takes effect regardless of import order.
+        """
+        import sys as _sys
+
+        jax_already_imported = "jax" in _sys.modules
+        netket_already_imported = "netket" in _sys.modules
+        enable_x64: bool = self.get("ENABLE_X64", thread_local=False)
+
+        if not jax_already_imported:
+            # Belt-and-suspenders: _boot.py should have done these already.
+            os.environ.setdefault("OMP_NUM_THREADS", "1")
+            os.environ.setdefault("JAX_PLATFORMS", "")
+            os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
+            # Set x64 via env var before JAX reads it at its import time.
+            os.environ["JAX_ENABLE_X64"] = "1" if enable_x64 else "0"
+            os.environ["NETKET_ENABLE_X64"] = "1" if enable_x64 else "0"
         else:
-            os.environ["NETKET_ENABLE_X64"] = "0"
-            os.environ["JAX_ENABLE_X64"] = "0"
+            # JAX already imported: env vars for platform/memory are too late,
+            # but x64 can be applied programmatically at any time.
+            import jax as _jax
+
+            if bool(_jax.config.jax_enable_x64) != enable_x64:
+                _jax.config.update("jax_enable_x64", enable_x64)
+
+            if netket_already_imported:
+                import netket as _nk
+
+                try:
+                    _nk.config.update("netket_enable_x64", enable_x64)
+                except Exception:
+                    pass  # Just in case older NetKet versions not exposing this key.
+
+            # Keep env vars in sync for child processes/subinterpreters
+            os.environ["JAX_ENABLE_X64"] = "1" if enable_x64 else "0"
+            os.environ["NETKET_ENABLE_X64"] = "1" if enable_x64 else "0"
 
     def _register_default_configs(self) -> None:
         """Registers the complete default option set for neuraLQX."""
@@ -2144,9 +2174,25 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
             )
 
     def _x64_hook(event: ConfigMutation) -> None:
+        import sys as _sys
+
         enabled = bool(event.new_value)
         os.environ["NETKET_ENABLE_X64"] = "1" if enabled else "0"
         os.environ["JAX_ENABLE_X64"] = "1" if enabled else "0"
+
+        if "jax" in _sys.modules:
+            import jax as _jax
+
+            _jax.config.update("jax_enable_x64", enabled)
+
+        if "netket" in _sys.modules:
+            import netket as _nk
+
+            try:
+                _nk.config.update("netket_enable_x64", enabled)
+            except Exception:
+                pass
+
         _LOGGER.debug(
             "Applied ENABLE_X64=%s from %s mutation.",
             enabled,
@@ -2180,10 +2226,6 @@ def _should_init_jax_distributed() -> bool:
 
 cfg = ConfigManager()
 _register_default_hooks(cfg)
-
-# Disable NetKet startup tips and C++ backend warnings
-os.environ["NETKET_NO_TIPS"] = "True"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 __all__ = [
     "ConfigError",

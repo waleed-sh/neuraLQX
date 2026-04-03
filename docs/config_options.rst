@@ -11,25 +11,30 @@ or adjust numerical and parallelisation settings.
 
 .. note::
 
-   Environment variables must be set **before importing** neuraLQX in your python script or shell
-   session, unless the variable is marked *Runtime Mutable* (see table below).
+   **Startup-only** options (marked *No* in the Runtime Mutable column) must be set as
+   environment variables **before Python starts**. They are read once at import time and
+   cannot be changed afterwards.
 
-   Example (bash):
+   **Runtime-mutable** options (marked *Yes*) can be changed after import using
+   ``cfg.update()`` (see :ref:`runtime-editable` below).
+
+   Example (works for all options):
 
    .. code-block:: bash
 
-      export NQX_EXPERIMENTAL=true
       export NQX_LOG_LEVEL=DEBUG
+      export NQX_ENABLE_X64=false
       python your_script.py
 
-   Example (python script):
+.. warning::
 
-   .. code-block:: python
+   Setting ``os.environ`` **inside Python** (e.g. ``os.environ['NQX_EXPERIMENTAL'] = '1'``)
+   is **not reliable** for any neuraLQX configuration variable.
+   The configuration system reads all environment variables once when ``neuralqx`` is first
+   imported; any ``os.environ`` write that happens after that import is ignored.
 
-        import os
-        os.environ['NQX_EXPERIMENTAL'] = 'true'
-
-        import neuralqx as nqx
+   For runtime-mutable options, use ``nqx.cfg.update()`` instead.
+   For startup-only options, set the variable in your shell before launching Python.
 
 .. raw:: html
 
@@ -197,22 +202,24 @@ Environment Variables
    <hr style="margin: 30px 0;">
 
 
+.. _runtime-editable:
+
 Runtime Editable Configurations
 -----------------------------------
 
-Options marked *Yes* in the **Runtime Mutable** column can be changed after import.
-Use the :data:`cfg <neuralqx.configs.cfg>` singleton - do **not** write directly to
-``os.environ`` at runtime, as that will not trigger hooks or validation.
+Options marked *Yes* in the **Runtime Mutable** column can be changed after import using
+the :data:`cfg <neuralqx.configs.cfg>` singleton. Do **not** write directly to
+``os.environ`` at runtime, that bypasses hooks, validation, and is silently ignored.
 
-**Persistent update** - change the value for the remainder of the process:
+**Persistent update**, change the value for the remainder of the process:
 
 .. code-block:: python
 
     from neuralqx import cfg
 
-    cfg.set('VERBOSE', False)   # or: cfg.VERBOSE = False
+    cfg.update('VERBOSE', False)   # or: cfg.VERBOSE = False
 
-**Temporary patch** - restore the original value automatically on exit:
+**Temporary patch**, restore the original value automatically on exit:
 
 .. code-block:: python
 
@@ -223,7 +230,7 @@ Use the :data:`cfg <neuralqx.configs.cfg>` singleton - do **not** write directly
         ...
     # original LOG_LEVEL is restored here
 
-**Thread-local override** - affects only the calling thread:
+**Thread-local override**, affects only the calling thread:
 
 .. code-block:: python
 
@@ -235,8 +242,39 @@ Use the :data:`cfg <neuralqx.configs.cfg>` singleton - do **not** write directly
 
 .. seealso::
 
-   The full configuration API - including hooks, fingerprinting, and introspection
-   helpers - is documented in :mod:`neuralqx.configs`.
+   The full configuration API, including hooks, fingerprinting, and introspection
+   helpers, is documented in :mod:`neuralqx.configs`.
+
+
+Enabling experimental mode
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``NQX_EXPERIMENTAL`` deserves special attention because of how the experimental namespace
+is guarded. ``neuralqx.experimental`` checks the flag at import time. This means the flag must be ``True`` **before you import** ``neuralqx.experimental``, but
+it does **not** have to be set before ``import neuralqx`` itself. The recommended pattern is:
+
+.. code-block:: python
+
+   import neuralqx as nqx
+   nqx.cfg.update("EXPERIMENTAL", True)   # set before importing experimental
+
+   import neuralqx.experimental as nqxx   # now works
+
+Alternatively, set ``NQX_EXPERIMENTAL=1`` in your shell before launching Python, this is
+the preferred approach for batch jobs and HPC scripts because it is visible in run logs:
+
+.. code-block:: bash
+
+   NQX_EXPERIMENTAL=1 python your_script.py
+
+.. warning::
+
+   ``os.environ["NQX_EXPERIMENTAL"] = "1"`` inside Python looks correct but is unreliable.
+   The configuration singleton reads all environment variables **once** when ``neuralqx``
+   is first imported. In Jupyter kernels and IPython the package is often already imported
+   before your cell runs, so the write is silently ignored.
+
+   Always use ``nqx.cfg.update("EXPERIMENTAL", True)`` for in-process enablement.
 
 
 Unused Configurations

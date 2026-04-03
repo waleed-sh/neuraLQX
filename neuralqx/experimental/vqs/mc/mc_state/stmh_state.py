@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from neuralqx.experimental.vqs.mc.mc_state.utils import same_treedef
+from .utils import same_treedef
 from neuralqx.vqs import MCState
 
 

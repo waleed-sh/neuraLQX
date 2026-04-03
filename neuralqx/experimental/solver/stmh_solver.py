@@ -41,17 +41,9 @@ from neuralqx.nn.projectors.group_projector import wrap_model
 from neuralqx.vqs.mc.mc_state.state import serialize_MCState
 from neuralqx.vqs.mc.mc_state.state import deserialize_MCState
 
-try:
-    from neuralqx.experimental.vqs.mc.mc_state.stmh_state import (
-        STMultiMCState,
-    )
-except Exception:  # pragma: no cover
-    from neuralqx.experimental.vqs.mc.mc_state import STMultiMCState
+from ..vqs import STMultiMCState
+from ..driver.stmh_multi_vmc import SingleTrunkMultiHeadVMC
 
-try:
-    from neuralqx.experimental.driver.stmh_multi_vmc import SingleTrunkMultiHeadVMC
-except Exception:  # pragma: no cover
-    from neuralqx.experimental.driver import SingleTrunkMultiHeadVMC
 
 from netket.optimizer import SR
 from netket.utils import is_probably_holomorphic

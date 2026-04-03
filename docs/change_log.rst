@@ -10,7 +10,7 @@ Unreleased
 
 Breaking changes
 ~~~~~~~~~~~~~~~~~
-- The Hilbert package was restructured so that `neuralqx.hilbert.utils` now contains abstractions only; concrete indexing/layout/operations now live in concrete Hilbert-space subpackages.
+- The Hilbert package was restructured so that `neuralqx.hilbert.utils` now contains abstractions only, concrete indexing/layout/operations now live in concrete Hilbert-space subpackages.
 
 - `AbstractHilbertSpace` and `AbstractHilbertInterface` are now strictly abstract and no longer provide concrete U(1)-specific defaults.
 
@@ -42,15 +42,19 @@ Changes
 
 - ``NQX_EXPERIMENTAL`` and ``NQX_TESTING`` now accept boolean values (``true`` / ``false``) in addition to ``0`` / ``1``.
 
-- U(1) random/flip operations now live under `neuralqx.hilbert.u1.operations`; the old top-level `neuralqx.hilbert.operations` package has been removed.
+- U(1) random/flip operations now live under `neuralqx.hilbert.u1.operations`, the old top-level `neuralqx.hilbert.operations` package has been removed.
 
 - U(1) concrete layout now lives under `neuralqx.hilbert.u1.layout`.
 
-- U(1)-specific index helpers were moved out of `neuralqx.hilbert.utils.index`; the utils index package is now abstraction-focused.
+- U(1)-specific index helpers were moved out of `neuralqx.hilbert.utils.index`, the utils index package is now abstraction-focused.
 
 - Slightly improved VMC runtime with fused operator-evaluation kernels in ``expect_and_grad``/``expect_and_forces`` for multi-constraint workloads, while preserving separate constraint estimators.
 
 - ``neuralqx.__version__`` is now exposed as ``NeuralqxVersion`` (string-compatible, semantic comparisons), and ``neuralqx.version_info`` provides the strict ``Version`` object for typed checks.
+
+- ``neuralqx`` no longer requires being imported before JAX or NetKet, a ``neuralqx_boot.pth`` file installed into site-packages sets all required environment variables at interpreter startup automatically.
+
+- Added ``neuralqx.utils.dtypes``, a ``DTypePolicy`` class that derives the active real, complex, and index dtypes from configuration (respecting ``NQX_DTYPE_*`` and ``NQX_ENABLE_X64``), plus policy-aware JAX array constructors (``zeros_real``, ``ones_complex``, ``array_index``, etc.) so call sites never hard-code dtype arguments.
 
 
 Bug fixes
@@ -67,7 +71,14 @@ Deprecations
 
 Experimental
 ~~~~~~~~~~~~~
-- None.
+- Introduced a new struct system under ``neuralqx.utils.struct`` for building immutable, JAX-native data containers.
+  Subclass ``Struct`` (or use ``@register_class`` / ``@dataclass`` for existing classes) to get automatic JAX pytree
+  registration, a typed field API (``field(static=..., derived=..., converter=..., validator=...)``), and built-in
+  serialization via ``export()`` / ``load()`` and ``to_state_dict()`` / ``from_state_dict()``.
+  Fields are classified as *node* (JAX leaves), *static* (pytree aux / JIT cache keys), or *opaque* (runtime-only,
+  excluded from tracing and serialization). Derived fields are computed from other fields and recomputed
+  automatically on ``replace()``.  Non-``Struct`` classes can participate via ``register_pytree_type()`` or
+  ``register_attrs_type()``.
 
 ------------
 
@@ -165,7 +176,7 @@ Experimental
 ~~~~~~~~~~~~~
 - Experimental multi-state VMC now supports two distinct strategies:
 
-  - **MT-MH / independent-state** training (one network per target state; existing behavior)
+  - **MT-MH / independent-state** training (one network per target state, existing behavior)
   - **ST-MH / shared-trunk multi-head** training (new behavior)
 
   The ST-MH path shares trunk parameters across all heads and applies one optimizer update to the shared model.

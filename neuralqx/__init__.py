@@ -23,16 +23,6 @@ from ._version import __version__ as _raw_version
 from .configs import cfg
 from .configs import _should_init_jax_distributed
 
-#
-#
-#   Force import order check
-
-if ("jax" in sys.modules or "netket" in sys.modules) and not cfg.get("TESTING"):
-    raise ImportError(
-        "You must load neuraLQX before importing NetKet or JAX.\n"
-        "If you are using Jupyter, restart the kernel after fixing import order."
-    )
-
 if _should_init_jax_distributed():
     import jax
 

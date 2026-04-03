@@ -33,11 +33,13 @@ from neuralqx.utils import distributed as _dist
 from netket.utils.types import Optimizer
 
 from neuralqx.driver import VMC
-from neuralqx.experimental.vqs.mc.mc_state import STMultiMCState
-from neuralqx.experimental.vqs.mc.mc_state.utils import tree_add_scaled
-from neuralqx.experimental.vqs.mc.mc_state.utils import get_stats_mean
-from neuralqx.experimental.vqs.mc.mc_state.utils import tree_scale
-from neuralqx.experimental.vqs.mc.mc_state.utils import make_grad_qgt_compatible
+
+from ..vqs.mc.mc_state import STMultiMCState
+from ..vqs.mc.mc_state.utils import tree_add_scaled
+from ..vqs.mc.mc_state.utils import get_stats_mean
+from ..vqs.mc.mc_state.utils import tree_scale
+from ..vqs.mc.mc_state.utils import make_grad_qgt_compatible
+
 from neuralqx.vqs import MCState
 from neuralqx.profile import section as prof_section
 

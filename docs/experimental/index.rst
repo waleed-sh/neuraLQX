@@ -35,39 +35,59 @@ standard neuraLQX public API.
 Enabling experimental features
 -------------------------------------
 
-neuraLQX gates experimental functionality behind an environment variable:
+neuraLQX gates experimental functionality behind the ``EXPERIMENTAL`` configuration flag.
+There are two reliable ways to enable it.
 
-``NQX_EXPERIMENTAL=1``
+Enable via ``cfg.update`` (recommended for scripts and Jupyter)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Set this **before importing** neuraLQX. This makes it explicit in your scripts and run logs that you are
-opting into unstable APIs.
-
-Enable in the shell
-^^^^^^^^^^^^^^^^^^^^^
-
-macOS / Linux:
-
-.. code-block:: bash
-
-   export NQX_EXPERIMENTAL=1
-   python your_script.py
-
-Enable in Python (only before the first import)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Call ``cfg.update`` immediately after importing neuralqx, **before** importing anything
+from ``neuralqx.experimental``:
 
 .. code-block:: python
 
-   import os
-   os.environ["NQX_EXPERIMENTAL"] = "1"
-
    import neuralqx as nqx
+   nqx.cfg.update("EXPERIMENTAL", True)
+
+   # now safe to import experimental
    import neuralqx.experimental as nqxx
 
-.. important::
+This works regardless of import order and is the only reliable method in Jupyter notebooks
+or any environment where ``neuralqx`` may have been imported before your code runs.
 
-   Environment variables are typically read at import time. If you set ``NQX_EXPERIMENTAL`` after
-   ``import neuralqx``, you may not reliably enable the experimental namespace for that process.
-   Always set it first (shell or top of file).
+Enable via shell environment variable (recommended for batch jobs and scripts)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set ``NQX_EXPERIMENTAL=1`` in your shell **before launching Python**:
+
+.. code-block:: bash
+
+   # one-off
+   NQX_EXPERIMENTAL=1 python your_script.py
+
+   # or export it for the whole session
+   export NQX_EXPERIMENTAL=1
+   python your_script.py
+
+This works because the environment variable is present before Python starts, so it is read
+correctly when ``neuralqx`` is first imported.
+
+.. warning::
+
+   **Do not** set ``os.environ["NQX_EXPERIMENTAL"] = "1"`` inside Python as a substitute.
+   The configuration system reads environment variables **once**, at the moment
+   ``neuralqx`` is first imported into the process. In Jupyter kernels, IPython sessions,
+   or anywhere another package has already imported ``neuralqx`` transitively, the value
+   is already frozen, subsequent writes to ``os.environ`` are silently ignored.
+
+   .. code-block:: python
+
+      # This looks correct but is unreliable, do not rely on it
+      import os
+      os.environ["NQX_EXPERIMENTAL"] = "1"
+      import neuralqx as nqx  # configs may already be initialized
+
+   Use ``nqx.cfg.update("EXPERIMENTAL", True)`` instead.
 
 
 -----------------------
@@ -161,6 +181,13 @@ Quick links
       :link-type: doc
 
       Jointly optimise several variational states with an orthogonality (fidelity) penalty, using one neural network.
+
+   .. grid-item-card:: Structs and data containers
+      :link: structs_guide
+      :link-type: ref
+
+      Immutable, JAX-native data containers with explicit field kinds, derived
+      fields, serialisation, and pytree registration for arbitrary classes.
 
    .. grid-item-card:: Stable guides
       :link: guides

@@ -17,13 +17,40 @@ sys.path.insert(0, ROOT)
 
 try:
     import neuralqx as nqx
-    _RELEASE = nqx.__version__
+    # This has to be updated via the config manager
+    nqx.cfg.update("EXPERIMENTAL", True)
+    # We need .__str__() because __version__ is a NeuralqxVersion
+    _RELEASE = nqx.__version__.__str__()
 except Exception:
     # If importing fails (missing optional deps etc.), avoid a hard crash here.
     # Autodoc may still fail later if it needs imports, but this gives clearer logs.
     nqx = None
     _RELEASE = "unknown"
 
+
+def install_autosummary_debug():
+    import sphinx.ext.autosummary.generate as ag
+    import sphinx.ext.autosummary as asum
+
+    old_find_lines = ag.find_autosummary_in_lines
+    old_find_docstring = ag.find_autosummary_in_docstring
+    old_import_by_name = asum.import_by_name
+
+    def debug_find_lines(lines, filename=None):
+        print(f"\n[AUTOSUMMARY FILE] {filename}")
+        return old_find_lines(lines, filename=filename)
+
+    def debug_find_docstring(name, filename=None):
+        print(f"[AUTOSUMMARY DOCSTRING] module={name!r} file={filename}")
+        return old_find_docstring(name, filename=filename)
+
+    def debug_import_by_name(name, prefixes=[None]):
+        print(f"[AUTOSUMMARY IMPORT] name={name!r} prefixes={prefixes!r}")
+        return old_import_by_name(name, prefixes)
+
+    ag.find_autosummary_in_lines = debug_find_lines
+    ag.find_autosummary_in_docstring = debug_find_docstring
+    asum.import_by_name = debug_import_by_name
 
 #
 #

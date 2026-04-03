@@ -138,7 +138,7 @@ class AbstractHilbertInterface(abc.ABC, Generic[CoreT]):
         return self._core
 
     @property
-    def hilbert_netket(self) -> nk.hilbert.AbstractHilbert:
+    def hilbert_netket(self) -> nk.hilbert.AbstractHilbert | nk.hilbert.DiscreteHilbert:
         """
         NetKet Hilbert object used for sampling and operator construction.
 

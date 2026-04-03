@@ -80,3 +80,4 @@ The sections below provide direct links to the most commonly referenced guides.
    errors
    debugging
    profiling
+   structs
