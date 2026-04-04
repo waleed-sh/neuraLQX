@@ -493,11 +493,11 @@ class SphericalVertexConstraintBojowaldSwiderskiAdjoint(ComputationalOperator):
         #
         #
         #   option for safe divisions: drop term when its link average is exactly zero
-        # term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
-        # term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
-        # return 0.25 * (term_plus + term_minus)
+        term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
+        term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
+        return 0.25 * (term_plus + term_minus)
 
-        return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
+        # return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
 
     def _gamma_phi(
         self,
@@ -1383,11 +1383,11 @@ class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
         #
         #
         #   option for safe divisions: drop term when its link average is exactly zero
-        # term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
-        # term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
-        # return 0.25 * (term_plus + term_minus)
+        term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
+        term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
+        return 0.25 * (term_plus + term_minus)
 
-        return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
+        # return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
 
     def _gamma_phi(
         self,
@@ -1940,11 +1940,12 @@ class SphericalVertexConstraintBojowaldSwiderskiAdjointFast(ComputationalOperato
         int_plus = 0.5 * (mu_c + mu_p)
         int_minus = 0.5 * (mu_c + mu_m)
 
-        # same floor as slow code (see the implementation above for the safe division option)
-        int_plus = jnp.maximum(int_plus, 1e-12)
-        int_minus = jnp.maximum(int_minus, 1e-12)
-
-        return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
+        #
+        #
+        #   option for safe divisions: drop term when its link average is exactly zero
+        term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
+        term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
+        return 0.25 * (term_plus + term_minus)
 
     def _apply_shifts_multi(
         self, base: jnp.ndarray, comps: jnp.ndarray, deltas: jnp.ndarray
@@ -2452,11 +2453,12 @@ class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
         int_plus = 0.5 * (mu_c + mu_p)
         int_minus = 0.5 * (mu_c + mu_m)
 
-        # same floor as slow code (see the implementation above for the safe division option)
-        int_plus = jnp.maximum(int_plus, 1e-12)
-        int_minus = jnp.maximum(int_minus, 1e-12)
-
-        return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
+        #
+        #
+        #   option for safe divisions: drop term when its link average is exactly zero
+        term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
+        term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
+        return 0.25 * (term_plus + term_minus)
 
     def _apply_shifts_multi(
         self, base: jnp.ndarray, comps: jnp.ndarray, deltas: jnp.ndarray
