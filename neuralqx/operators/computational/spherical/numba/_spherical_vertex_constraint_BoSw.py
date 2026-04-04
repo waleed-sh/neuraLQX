@@ -479,25 +479,18 @@ class SphericalVertexConstraintBojowaldSwiderskiAdjoint(ComputationalOperator):
         # E^x(v) - E^x(v-1)
         Ex_prime_minus = Ex_c - Ex_m
 
-        # Link-averaged μ on each side
-        abs_mu_c = mu_center.astype(_dtype)
-        abs_mu_p = mu_plus.astype(_dtype)
-        abs_mu_m = mu_minus.astype(_dtype)
+        # Link-averaged |μ| on each side (match JAX implementation)
+        abs_mu_c = jnp.abs(mu_center).astype(_dtype)
+        abs_mu_p = jnp.abs(mu_plus).astype(_dtype)
+        abs_mu_m = jnp.abs(mu_minus).astype(_dtype)
 
         int_plus = 0.5 * (abs_mu_c + abs_mu_p)
         int_minus = 0.5 * (abs_mu_c + abs_mu_m)
 
-        int_plus = jnp.maximum(int_plus, 1e-12)
-        int_minus = jnp.maximum(int_minus, 1e-12)
-
-        #
-        #
-        #   option for safe divisions: drop term when its link average is exactly zero
+        # Safe clipping: drop the term when the link-average vanishes
         term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
         term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
         return 0.25 * (term_plus + term_minus)
-
-        # return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
 
     def _gamma_phi(
         self,
@@ -1369,25 +1362,18 @@ class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
         # E^x(v) - E^x(v-1)
         Ex_prime_minus = Ex_c - Ex_m
 
-        # Link-averaged μ on each side
-        abs_mu_c = mu_center.astype(_dtype)
-        abs_mu_p = mu_plus.astype(_dtype)
-        abs_mu_m = mu_minus.astype(_dtype)
+        # Link-averaged |μ| on each side (match JAX implementation)
+        abs_mu_c = jnp.abs(mu_center).astype(_dtype)
+        abs_mu_p = jnp.abs(mu_plus).astype(_dtype)
+        abs_mu_m = jnp.abs(mu_minus).astype(_dtype)
 
         int_plus = 0.5 * (abs_mu_c + abs_mu_p)
         int_minus = 0.5 * (abs_mu_c + abs_mu_m)
 
-        int_plus = jnp.maximum(int_plus, 1e-12)
-        int_minus = jnp.maximum(int_minus, 1e-12)
-
-        #
-        #
-        #   option for safe divisions: drop term when its link average is exactly zero
+        # Safe clipping: drop the term when the link-average vanishes
         term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
         term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
         return 0.25 * (term_plus + term_minus)
-
-        # return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
 
     def _gamma_phi(
         self,
@@ -1933,16 +1919,13 @@ class SphericalVertexConstraintBojowaldSwiderskiAdjointFast(ComputationalOperato
         Ex_prime_plus = Ex_p - Ex_c
         Ex_prime_minus = Ex_c - Ex_m
 
-        mu_c = mu_center.astype(_dtype)
-        mu_p = mu_plus.astype(_dtype)
-        mu_m = mu_minus.astype(_dtype)
+        mu_c = jnp.abs(mu_center).astype(_dtype)
+        mu_p = jnp.abs(mu_plus).astype(_dtype)
+        mu_m = jnp.abs(mu_minus).astype(_dtype)
 
         int_plus = 0.5 * (mu_c + mu_p)
         int_minus = 0.5 * (mu_c + mu_m)
 
-        #
-        #
-        #   option for safe divisions: drop term when its link average is exactly zero
         term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
         term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
         return 0.25 * (term_plus + term_minus)
@@ -2446,16 +2429,13 @@ class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
         Ex_prime_plus = Ex_p - Ex_c
         Ex_prime_minus = Ex_c - Ex_m
 
-        mu_c = mu_center.astype(_dtype)
-        mu_p = mu_plus.astype(_dtype)
-        mu_m = mu_minus.astype(_dtype)
+        mu_c = jnp.abs(mu_center).astype(_dtype)
+        mu_p = jnp.abs(mu_plus).astype(_dtype)
+        mu_m = jnp.abs(mu_minus).astype(_dtype)
 
         int_plus = 0.5 * (mu_c + mu_p)
         int_minus = 0.5 * (mu_c + mu_m)
 
-        #
-        #
-        #   option for safe divisions: drop term when its link average is exactly zero
         term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
         term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
         return 0.25 * (term_plus + term_minus)

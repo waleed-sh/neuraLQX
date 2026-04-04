@@ -51,9 +51,14 @@ def SphericalVertexConstraintBojowaldSwiderskiOperator(
     immirzi: float = 1.0,
     jax: bool = True,
     fast: bool = True,
+    adjoint: bool = False,
 ):
     if jax:
-        return j.SphericalVertexConstraintBojowaldSwiderskiJax(
+        if adjoint:
+            _cls = j.SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint
+        else:
+            _cls = j.SphericalVertexConstraintBojowaldSwiderskiJax
+        return _cls(
             H,
             vertex,
             include_gamma_terms=include_gamma_terms,
@@ -64,7 +69,11 @@ def SphericalVertexConstraintBojowaldSwiderskiOperator(
         )
 
     if fast:
-        return n.SphericalVertexConstraintBojowaldSwiderskiFast(
+        if adjoint:
+            _cls = n.SphericalVertexConstraintBojowaldSwiderskiAdjointFast
+        else:
+            _cls = n.SphericalVertexConstraintBojowaldSwiderskiFast
+        return _cls(
             H,
             vertex,
             include_gamma_terms=include_gamma_terms,
@@ -74,7 +83,12 @@ def SphericalVertexConstraintBojowaldSwiderskiOperator(
             immirzi=immirzi,
         )
 
-    return n.SphericalVertexConstraintBojowaldSwiderski(
+    if adjoint:
+        _cls = n.SphericalVertexConstraintBojowaldSwiderskiAdjoint
+    else:
+        _cls = n.SphericalVertexConstraintBojowaldSwiderski
+
+    return _cls(
         H,
         vertex,
         include_gamma_terms=include_gamma_terms,

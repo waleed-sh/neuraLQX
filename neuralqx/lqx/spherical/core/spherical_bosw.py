@@ -80,6 +80,7 @@ class LqxSphericalBoSw(AbstractLqxSphericalBoSw):
         *,
         jax: bool = True,
         fast: bool = False,
+        adjoint: bool = False,
     ):
         # return H_L(v) + H_C(v) + H_R(v)
         return SphericalVertexConstraintBojowaldSwiderskiOperator(
@@ -92,6 +93,7 @@ class LqxSphericalBoSw(AbstractLqxSphericalBoSw):
             immirzi=self.Immirzi,
             jax=jax,
             fast=fast,
+            adjoint=adjoint,
         )
 
     def hamiltonian_list(self):
