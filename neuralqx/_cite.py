@@ -44,7 +44,7 @@ class _Citation:
   author = {Sherif, Waleed},
   title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
   url = {http://github.com/waleed-sh/neuraLQX},
-  version = {1.1.0},
+  version = {1.1.1},
   year = {2026},
 }
 """.strip(),

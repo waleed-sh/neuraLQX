@@ -5,26 +5,26 @@ Change Log
 ============================================
 
 
-Unreleased
---------------------
+neuraLQX v1.1.1 (April 4, 2026)
+-----------------------------------
 
 Breaking changes
 ~~~~~~~~~~~~~~~~~
-- The Hilbert package was restructured so that `neuralqx.hilbert.utils` now contains abstractions only, concrete indexing/layout/operations now live in concrete Hilbert-space subpackages.
+- The Hilbert package was restructured so that ``neuralqx.hilbert.utils`` now contains abstractions only, concrete indexing/layout/operations now live in concrete Hilbert-space subpackages.
 
-- `AbstractHilbertSpace` and `AbstractHilbertInterface` are now strictly abstract and no longer provide concrete U(1)-specific defaults.
+- ``AbstractHilbertSpace`` and ``AbstractHilbertInterface`` are now strictly abstract and no longer provide concrete U(1)-specific defaults.
 
-- Hilbert interface API cleanup: `.core` has been removed. Use `.hilbert` (neuraLQX core) and `.hilbert_netket` (NetKet Hilbert object).
+- Hilbert interface API cleanup: ``.core`` has been removed. Use ``.hilbert`` (neuraLQX core) and ``.hilbert_netket`` (NetKet Hilbert object).
 
-- Deprecated the legacy `neuralqx.hilbert.utils.layout.gauge_strided` path, use `neuralqx.hilbert.u1.layout.StridedGaugeCopyLayout`.
+- Deprecated the legacy ``neuralqx.hilbert.utils.layout.gauge_strided`` path, use ``neuralqx.hilbert.u1.layout.StridedGaugeCopyLayout``.
 
 New features
 ~~~~~~~~~~~~~
 - Added a richer Hilbert enumerator abstraction with explicit metadata and explainability:
-  `scheme_name`, `ordering_contract`, `supports_lazy_mode`, `requires_full_precompute`,
-  `explain_state_to_number`, and `explain_number_to_state`.
+  ``scheme_name``, ``ordering_contract``, ``supports_lazy_mode``, ``requires_full_precompute``,
+  ``explain_state_to_number``, and ``explain_number_to_state``.
 
-- `states_to_numbers` / `numbers_to_states` now dispatch through plum via each core's attached enumerator class.
+- ``states_to_numbers`` / ``numbers_to_states`` now dispatch through plum via each core's attached enumerator class.
 
 - Added expanded profiling controls (run id, JAX trace/annotation toggles, sampling cadence, trace buffer sizing, and optional deep Python-call tracing) for clearer end-to-end runtime diagnostics.
 
@@ -42,11 +42,11 @@ Changes
 
 - ``NQX_EXPERIMENTAL`` and ``NQX_TESTING`` now accept boolean values (``true`` / ``false``) in addition to ``0`` / ``1``.
 
-- U(1) random/flip operations now live under `neuralqx.hilbert.u1.operations`, the old top-level `neuralqx.hilbert.operations` package has been removed.
+- U(1) random/flip operations now live under ``neuralqx.hilbert.u1.operations``, the old top-level ``neuralqx.hilbert.operations`` package has been removed.
 
-- U(1) concrete layout now lives under `neuralqx.hilbert.u1.layout`.
+- U(1) concrete layout now lives under ``neuralqx.hilbert.u1.layout``.
 
-- U(1)-specific index helpers were moved out of `neuralqx.hilbert.utils.index`, the utils index package is now abstraction-focused.
+- U(1)-specific index helpers were moved out of ``neuralqx.hilbert.utils.index``, the utils index package is now abstraction-focused.
 
 - Slightly improved VMC runtime with fused operator-evaluation kernels in ``expect_and_grad``/``expect_and_forces`` for multi-constraint workloads, while preserving separate constraint estimators.
 
