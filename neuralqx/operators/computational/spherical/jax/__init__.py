@@ -15,13 +15,13 @@
 from ._e_mean import SphericalExJax
 from ._spherical_volume import SphericalVolumeJax
 from ._spherical_vertex_constraint_BoSw import (
+    SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint,
     SphericalVertexConstraintBojowaldSwiderskiJax,
-    SphericalVertexConstraintBojowaldSwiderskiJaxFixed,
 )
 
 __all__ = [
     "SphericalExJax",
     "SphericalVolumeJax",
+    "SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint",
     "SphericalVertexConstraintBojowaldSwiderskiJax",
-    "SphericalVertexConstraintBojowaldSwiderskiJaxFixed",
 ]

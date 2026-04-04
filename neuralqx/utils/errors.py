@@ -609,6 +609,44 @@ class SuboptimalOperatorForGPUWarning(neuralqxWarning):
         )
 
 
+class SymbolicOperatorDefinitionError(neuralqxError):
+    """
+    Raised when a symbolic operator is constructed with invalid DSL declarations.
+
+    Typical causes include empty term lists, unsupported iterator kinds,
+    unresolvable symbol references, or invalid amplitude/predicate expressions.
+    """
+
+
+class SymbolicOperatorExecutionError(neuralqxError):
+    """
+    Raised when a symbolic operator is called before it has been compiled.
+
+    Symbolic operators cannot execute until lowered through
+    ``SymbolicCompiler.compile()``; calling ``get_conn_padded`` on an
+    uncompiled symbolic operator raises this error.
+    """
+
+
+class SymbolicOperatorIRValidationError(neuralqxError):
+    """
+    Raised when symbolic operator IR fails structural or semantic validation.
+
+    Typical causes include unbound site-label references, invalid update-op
+    parameters, or globally-iterated terms that reference site DOFs.
+    """
+
+
+class SymbolicCompilerError(neuralqxError):
+    """
+    Raised when the symbolic compiler pipeline encounters an unrecoverable error.
+
+    This is the top-level error for compilation failures including pass errors,
+    lowering failures, and cache-layer errors.  Inspect the message for the
+    specific failure stage and cause.
+    """
+
+
 class StructError(neuralqxError):
     """
     Base exception for the struct and pytree subsystem.
@@ -701,4 +739,8 @@ __all__ = [
     "FrozenStructError",
     "SerializationError",
     "ValidationError",
+    "SymbolicOperatorDefinitionError",
+    "SymbolicOperatorExecutionError",
+    "SymbolicOperatorIRValidationError",
+    "SymbolicCompilerError",
 ]

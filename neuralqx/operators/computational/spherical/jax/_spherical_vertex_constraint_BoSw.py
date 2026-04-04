@@ -64,21 +64,21 @@ def _gamma_phi_full(
     Ex_prime_plus = Ex_p - Ex_c
     Ex_prime_minus = Ex_c - Ex_m
 
-    mu_c = mu_center.astype(fd)
-    mu_p = mu_plus.astype(fd)
-    mu_m = mu_minus.astype(fd)
+    mu_c = jnp.abs(mu_center).astype(fd)
+    mu_p = jnp.abs(mu_plus).astype(fd)
+    mu_m = jnp.abs(mu_minus).astype(fd)
 
     int_plus = 0.5 * (mu_c + mu_p)
     int_minus = 0.5 * (mu_c + mu_m)
 
-    int_plus = jnp.maximum(int_plus, 1e-12)
-    int_minus = jnp.maximum(int_minus, 1e-12)
+    term_plus = jnp.where(int_plus > 0.0, -Ex_prime_plus / int_plus, 0.0)
+    term_minus = jnp.where(int_minus > 0.0, Ex_prime_minus / int_minus, 0.0)
 
-    return 0.25 * ((-Ex_prime_plus / int_plus) + (Ex_prime_minus / int_minus))
+    return 0.25 * (term_plus + term_minus)
 
 
 @jax.jit
-def _sv_bs_kernel(
+def _sv_bs_kernel_adjoint(
     sigma: jnp.ndarray,
     idx_mu: jnp.ndarray,
     idx_mu_m: jnp.ndarray,
@@ -294,7 +294,7 @@ def _sv_bs_kernel(
 
 
 @jax.jit
-def _sv_bs_kernel_fixed(
+def _sv_bs_kernel(
     sigma: jnp.ndarray,
     idx_mu: jnp.ndarray,
     idx_mu_m: jnp.ndarray,
@@ -559,235 +559,6 @@ def _sv_bs_kernel_fixed(
 
 
 @register_pytree_node_class
-class SphericalVertexConstraintBojowaldSwiderskiJaxFixed(ComputationalJaxOperator):
-
-    @property
-    def max_conn_size(self) -> int:
-        return 19
-
-    @property
-    def is_hermitian(self) -> bool:
-        return False
-
-    @property
-    def dtype(self):
-        return jnp.float64
-
-    def __init__(
-        self,
-        H,
-        vertex: int,
-        *,
-        include_gamma_terms: bool = True,
-        delta: int = 2,
-        outer_km_constant: int = 0,
-        outer_kp_constant: int = 0,
-        immirzi: float = 1.0,
-    ):
-        super().__init__(H.hilbert_netket)
-
-        if int(H.hilbert.gauge_dimensions) != 1:
-            raise ValueError(
-                f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
-            )
-        if not isinstance(H.graph, HalfLadderGraph):
-            raise ValueError(
-                f"This constraint requires `{HalfLadderGraph.__name__}`, got `{type(H.graph).__name__}`."
-            )
-
-        self.D = int(H.size)
-
-        # validate inner vertex
-        verts_k = list(H.graph.vertices_k)
-        inner = verts_k[2:-2]
-        if vertex not in inner:
-            raise ValueError(
-                f"vertex={vertex} must be an inner k-vertex. Valid vertices are: {inner}"
-            )
-        self.v = int(vertex)
-
-        # local state wrap params
-        self._state_min = int(H.allowed_basis_states.start)
-        self._mod_span = int(H.allowed_basis_states.length)
-        self._state_step = int(H.allowed_basis_states.step)
-        self._state_max = int(self._state_min + (self._mod_span - 1) * self._state_step)
-
-        # resolve edges at v
-        [mu_here], k_two = H.graph.get_edges_at_k_vertex(self.v)
-        left = [e for e in k_two if e[1] == self.v]
-        right = [e for e in k_two if e[0] == self.v]
-        if len(left) != 1 or len(right) != 1:
-            raise RuntimeError(
-                f"Could not disambiguate left/right k-edges at v={self.v}: {k_two}"
-            )
-
-        e_minus, e_plus = left[0], right[0]
-        v_minus, v_plus = e_minus[0], e_plus[1]
-        [mu_left] = H.graph.get_edges_at_k_vertex(v_minus)[0]
-        [mu_right] = H.graph.get_edges_at_k_vertex(v_plus)[0]
-
-        #
-        #
-        #   k_--(v)
-        if H.graph.has_k_vertex_neighbours(self.v, "left"):
-            km_list = H.graph.get_kminus_kplus(self.v - 1)[0]
-            self._idx_kmm = (
-                jnp.int64(H.graph.edge_to_index(km_list[0]))
-                if len(km_list) == 1
-                else jnp.int64(-1)
-            )
-        else:
-            self._idx_kmm = jnp.int64(-1)
-
-        #
-        #
-        #   k_++(v)
-        if H.graph.has_k_vertex_neighbours(self.v, "right"):
-            kp_list = H.graph.get_kminus_kplus(self.v + 1)[1]
-            self._idx_kpp = (
-                jnp.int64(H.graph.edge_to_index(kp_list[0]))
-                if len(kp_list) == 1
-                else jnp.int64(-1)
-            )
-        else:
-            self._idx_kpp = jnp.int64(-1)
-
-        #
-        #
-        #   k_+++(v) and μ(v+2)
-        if H.graph.has_k_vertex_neighbours(self.v + 1, "right"):
-            kppp_list = H.graph.get_kminus_kplus(self.v + 2)[1]
-            self._idx_kppp = (
-                jnp.int64(H.graph.edge_to_index(kppp_list[0]))
-                if len(kppp_list) == 1
-                else jnp.int64(-1)
-            )
-            [mupp], _ = H.graph.get_edges_at_k_vertex(self.v + 2)
-            self._idx_mu_pp = jnp.int64(H.graph.edge_to_index(mupp))
-        else:
-            self._idx_kppp = jnp.int64(-1)
-            self._idx_mu_pp = jnp.int64(-1)
-
-        #
-        #
-        #   k_---(v) and μ(v-2)
-        if H.graph.has_k_vertex_neighbours(self.v - 1, "left"):
-            kmmm_list = H.graph.get_kminus_kplus(self.v - 2)[0]
-            self._idx_kmmm = (
-                jnp.int64(H.graph.edge_to_index(kmmm_list[0]))
-                if len(kmmm_list) == 1
-                else jnp.int64(-1)
-            )
-            [mumm], _ = H.graph.get_edges_at_k_vertex(self.v - 2)
-            self._idx_mu_mm = jnp.int64(H.graph.edge_to_index(mumm))
-        else:
-            self._idx_kmmm = jnp.int64(-1)
-            self._idx_mu_mm = jnp.int64(-1)
-
-        # flatten indices
-        self._idx_mu = jnp.int64(H.graph.edge_to_index(mu_here))
-        self._idx_mu_m = jnp.int64(H.graph.edge_to_index(mu_left))
-        self._idx_mu_p = jnp.int64(H.graph.edge_to_index(mu_right))
-        self._idx_km = jnp.int64(H.graph.edge_to_index(e_minus))
-        self._idx_kp = jnp.int64(H.graph.edge_to_index(e_plus))
-
-        # params
-        self._use_gamma = bool(include_gamma_terms)
-        self._delta = int(delta)
-        self._half_delta = int(self._delta // 2)
-        self._outer_km_c = int(outer_km_constant)
-        self._outer_kp_c = int(outer_kp_constant)
-        self._immirzi = float(immirzi)
-
-    #
-    #
-    #   pytree plumbing
-    def tree_flatten(self):
-        leaves = (
-            self._idx_mu,
-            self._idx_mu_m,
-            self._idx_mu_p,
-            self._idx_mu_mm,
-            self._idx_mu_pp,
-            self._idx_km,
-            self._idx_kp,
-            self._idx_kmm,
-            self._idx_kpp,
-            self._idx_kppp,
-            self._idx_kmmm,
-        )
-        aux = dict(
-            hilbert=self.hilbert,
-            D=self.D,
-            v=self.v,
-            use_gamma=self._use_gamma,
-            delta=self._delta,
-            half_delta=self._half_delta,
-            outer_km_c=self._outer_km_c,
-            outer_kp_c=self._outer_kp_c,
-            mod_span=self._mod_span,
-            state_min=self._state_min,
-            immirzi=self._immirzi,
-        )
-        return leaves, aux
-
-    @classmethod
-    def tree_unflatten(cls, aux, leaves):
-        obj = cls.__new__(cls)
-        ComputationalJaxOperator.__init__(obj, aux["hilbert"])
-        obj.D = int(aux["D"])
-        obj.v = int(aux["v"])
-        (
-            obj._idx_mu,
-            obj._idx_mu_m,
-            obj._idx_mu_p,
-            obj._idx_mu_mm,
-            obj._idx_mu_pp,
-            obj._idx_km,
-            obj._idx_kp,
-            obj._idx_kmm,
-            obj._idx_kpp,
-            obj._idx_kppp,
-            obj._idx_kmmm,
-        ) = leaves
-        obj._use_gamma = bool(aux["use_gamma"])
-        obj._delta = int(aux["delta"])
-        obj._half_delta = int(aux["half_delta"])
-        obj._outer_km_c = int(aux["outer_km_c"])
-        obj._outer_kp_c = int(aux["outer_kp_c"])
-        obj._mod_span = int(aux["mod_span"])
-        obj._state_min = int(aux["state_min"])
-        obj._immirzi = float(aux["immirzi"])
-        return obj
-
-    def _get_conn_padded(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        x = jnp.asarray(x, dtype=jnp.int64)
-        sigma_p, mels = _sv_bs_kernel_fixed(
-            sigma=x,
-            idx_mu=self._idx_mu,
-            idx_mu_m=self._idx_mu_m,
-            idx_mu_p=self._idx_mu_p,
-            idx_mu_mm=self._idx_mu_mm,
-            idx_mu_pp=self._idx_mu_pp,
-            idx_km=self._idx_km,
-            idx_kp=self._idx_kp,
-            idx_kmm=self._idx_kmm,
-            idx_kpp=self._idx_kpp,
-            idx_kppp=self._idx_kppp,
-            idx_kmmm=self._idx_kmmm,
-            use_gamma=jnp.asarray(self._use_gamma, dtype=bool),
-            delta_i=jnp.asarray(self._delta, dtype=jnp.int64),
-            half_delta_i=jnp.asarray(self._half_delta, dtype=jnp.int64),
-            outer_km_c=jnp.asarray(self._outer_km_c, dtype=jnp.int64),
-            outer_kp_c=jnp.asarray(self._outer_kp_c, dtype=jnp.int64),
-            mod_span=jnp.asarray(self._mod_span, dtype=jnp.int64),
-            state_min=jnp.asarray(self._state_min, dtype=jnp.int64),
-            immirzi=jnp.asarray(self._immirzi, dtype=jnp.float64),
-        )
-        return sigma_p, mels
-
-
-@register_pytree_node_class
 class SphericalVertexConstraintBojowaldSwiderskiJax(ComputationalJaxOperator):
 
     @property
@@ -992,6 +763,235 @@ class SphericalVertexConstraintBojowaldSwiderskiJax(ComputationalJaxOperator):
     def _get_conn_padded(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
         x = jnp.asarray(x, dtype=jnp.int64)
         sigma_p, mels = _sv_bs_kernel(
+            sigma=x,
+            idx_mu=self._idx_mu,
+            idx_mu_m=self._idx_mu_m,
+            idx_mu_p=self._idx_mu_p,
+            idx_mu_mm=self._idx_mu_mm,
+            idx_mu_pp=self._idx_mu_pp,
+            idx_km=self._idx_km,
+            idx_kp=self._idx_kp,
+            idx_kmm=self._idx_kmm,
+            idx_kpp=self._idx_kpp,
+            idx_kppp=self._idx_kppp,
+            idx_kmmm=self._idx_kmmm,
+            use_gamma=jnp.asarray(self._use_gamma, dtype=bool),
+            delta_i=jnp.asarray(self._delta, dtype=jnp.int64),
+            half_delta_i=jnp.asarray(self._half_delta, dtype=jnp.int64),
+            outer_km_c=jnp.asarray(self._outer_km_c, dtype=jnp.int64),
+            outer_kp_c=jnp.asarray(self._outer_kp_c, dtype=jnp.int64),
+            mod_span=jnp.asarray(self._mod_span, dtype=jnp.int64),
+            state_min=jnp.asarray(self._state_min, dtype=jnp.int64),
+            immirzi=jnp.asarray(self._immirzi, dtype=jnp.float64),
+        )
+        return sigma_p, mels
+
+
+@register_pytree_node_class
+class SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint(ComputationalJaxOperator):
+
+    @property
+    def max_conn_size(self) -> int:
+        return 19
+
+    @property
+    def is_hermitian(self) -> bool:
+        return False
+
+    @property
+    def dtype(self):
+        return jnp.float64
+
+    def __init__(
+        self,
+        H,
+        vertex: int,
+        *,
+        include_gamma_terms: bool = True,
+        delta: int = 2,
+        outer_km_constant: int = 0,
+        outer_kp_constant: int = 0,
+        immirzi: float = 1.0,
+    ):
+        super().__init__(H.hilbert_netket)
+
+        if int(H.hilbert.gauge_dimensions) != 1:
+            raise ValueError(
+                f"{type(self).__name__} requires U(1) `gauge_dimensions = 1`."
+            )
+        if not isinstance(H.graph, HalfLadderGraph):
+            raise ValueError(
+                f"This constraint requires `{HalfLadderGraph.__name__}`, got `{type(H.graph).__name__}`."
+            )
+
+        self.D = int(H.size)
+
+        # validate inner vertex
+        verts_k = list(H.graph.vertices_k)
+        inner = verts_k[2:-2]
+        if vertex not in inner:
+            raise ValueError(
+                f"vertex={vertex} must be an inner k-vertex. Valid vertices are: {inner}"
+            )
+        self.v = int(vertex)
+
+        # local state wrap params
+        self._state_min = int(H.allowed_basis_states.start)
+        self._mod_span = int(H.allowed_basis_states.length)
+        self._state_step = int(H.allowed_basis_states.step)
+        self._state_max = int(self._state_min + (self._mod_span - 1) * self._state_step)
+
+        # resolve edges at v
+        [mu_here], k_two = H.graph.get_edges_at_k_vertex(self.v)
+        left = [e for e in k_two if e[1] == self.v]
+        right = [e for e in k_two if e[0] == self.v]
+        if len(left) != 1 or len(right) != 1:
+            raise RuntimeError(
+                f"Could not disambiguate left/right k-edges at v={self.v}: {k_two}"
+            )
+
+        e_minus, e_plus = left[0], right[0]
+        v_minus, v_plus = e_minus[0], e_plus[1]
+        [mu_left] = H.graph.get_edges_at_k_vertex(v_minus)[0]
+        [mu_right] = H.graph.get_edges_at_k_vertex(v_plus)[0]
+
+        #
+        #
+        #   k_--(v)
+        if H.graph.has_k_vertex_neighbours(self.v, "left"):
+            km_list = H.graph.get_kminus_kplus(self.v - 1)[0]
+            self._idx_kmm = (
+                jnp.int64(H.graph.edge_to_index(km_list[0]))
+                if len(km_list) == 1
+                else jnp.int64(-1)
+            )
+        else:
+            self._idx_kmm = jnp.int64(-1)
+
+        #
+        #
+        #   k_++(v)
+        if H.graph.has_k_vertex_neighbours(self.v, "right"):
+            kp_list = H.graph.get_kminus_kplus(self.v + 1)[1]
+            self._idx_kpp = (
+                jnp.int64(H.graph.edge_to_index(kp_list[0]))
+                if len(kp_list) == 1
+                else jnp.int64(-1)
+            )
+        else:
+            self._idx_kpp = jnp.int64(-1)
+
+        #
+        #
+        #   k_+++(v) and μ(v+2)
+        if H.graph.has_k_vertex_neighbours(self.v + 1, "right"):
+            kppp_list = H.graph.get_kminus_kplus(self.v + 2)[1]
+            self._idx_kppp = (
+                jnp.int64(H.graph.edge_to_index(kppp_list[0]))
+                if len(kppp_list) == 1
+                else jnp.int64(-1)
+            )
+            [mupp], _ = H.graph.get_edges_at_k_vertex(self.v + 2)
+            self._idx_mu_pp = jnp.int64(H.graph.edge_to_index(mupp))
+        else:
+            self._idx_kppp = jnp.int64(-1)
+            self._idx_mu_pp = jnp.int64(-1)
+
+        #
+        #
+        #   k_---(v) and μ(v-2)
+        if H.graph.has_k_vertex_neighbours(self.v - 1, "left"):
+            kmmm_list = H.graph.get_kminus_kplus(self.v - 2)[0]
+            self._idx_kmmm = (
+                jnp.int64(H.graph.edge_to_index(kmmm_list[0]))
+                if len(kmmm_list) == 1
+                else jnp.int64(-1)
+            )
+            [mumm], _ = H.graph.get_edges_at_k_vertex(self.v - 2)
+            self._idx_mu_mm = jnp.int64(H.graph.edge_to_index(mumm))
+        else:
+            self._idx_kmmm = jnp.int64(-1)
+            self._idx_mu_mm = jnp.int64(-1)
+
+        # flatten indices
+        self._idx_mu = jnp.int64(H.graph.edge_to_index(mu_here))
+        self._idx_mu_m = jnp.int64(H.graph.edge_to_index(mu_left))
+        self._idx_mu_p = jnp.int64(H.graph.edge_to_index(mu_right))
+        self._idx_km = jnp.int64(H.graph.edge_to_index(e_minus))
+        self._idx_kp = jnp.int64(H.graph.edge_to_index(e_plus))
+
+        # params
+        self._use_gamma = bool(include_gamma_terms)
+        self._delta = int(delta)
+        self._half_delta = int(self._delta // 2)
+        self._outer_km_c = int(outer_km_constant)
+        self._outer_kp_c = int(outer_kp_constant)
+        self._immirzi = float(immirzi)
+
+    #
+    #
+    #   pytree plumbing
+    def tree_flatten(self):
+        leaves = (
+            self._idx_mu,
+            self._idx_mu_m,
+            self._idx_mu_p,
+            self._idx_mu_mm,
+            self._idx_mu_pp,
+            self._idx_km,
+            self._idx_kp,
+            self._idx_kmm,
+            self._idx_kpp,
+            self._idx_kppp,
+            self._idx_kmmm,
+        )
+        aux = dict(
+            hilbert=self.hilbert,
+            D=self.D,
+            v=self.v,
+            use_gamma=self._use_gamma,
+            delta=self._delta,
+            half_delta=self._half_delta,
+            outer_km_c=self._outer_km_c,
+            outer_kp_c=self._outer_kp_c,
+            mod_span=self._mod_span,
+            state_min=self._state_min,
+            immirzi=self._immirzi,
+        )
+        return leaves, aux
+
+    @classmethod
+    def tree_unflatten(cls, aux, leaves):
+        obj = cls.__new__(cls)
+        ComputationalJaxOperator.__init__(obj, aux["hilbert"])
+        obj.D = int(aux["D"])
+        obj.v = int(aux["v"])
+        (
+            obj._idx_mu,
+            obj._idx_mu_m,
+            obj._idx_mu_p,
+            obj._idx_mu_mm,
+            obj._idx_mu_pp,
+            obj._idx_km,
+            obj._idx_kp,
+            obj._idx_kmm,
+            obj._idx_kpp,
+            obj._idx_kppp,
+            obj._idx_kmmm,
+        ) = leaves
+        obj._use_gamma = bool(aux["use_gamma"])
+        obj._delta = int(aux["delta"])
+        obj._half_delta = int(aux["half_delta"])
+        obj._outer_km_c = int(aux["outer_km_c"])
+        obj._outer_kp_c = int(aux["outer_kp_c"])
+        obj._mod_span = int(aux["mod_span"])
+        obj._state_min = int(aux["state_min"])
+        obj._immirzi = float(aux["immirzi"])
+        return obj
+
+    def _get_conn_padded(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        x = jnp.asarray(x, dtype=jnp.int64)
+        sigma_p, mels = _sv_bs_kernel_adjoint(
             sigma=x,
             idx_mu=self._idx_mu,
             idx_mu_m=self._idx_mu_m,

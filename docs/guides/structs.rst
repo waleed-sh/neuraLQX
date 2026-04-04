@@ -36,14 +36,14 @@ but adds JAX-specific controls.
 
     class TrainState(s.Struct):
         params: object  # JAX array tree (node field)
-        step: int   = s.field(static=True, default=0)  # static metadata
-        tag:  str   = s.field(static=True, default="run")
+        step: int = s.field(static=True, default=0)  # static metadata
+        tag: str = s.field(static=True, default="run")
 
     state = TrainState(params={"w": jnp.ones(4)})
     state2 = state.replace(step=1)  # new instance, original unchanged
 
     payload = state.to_state_dict()  # portable mapping
-    state3  = TrainState.from_state_dict(payload)
+    state3 = TrainState.from_state_dict(payload)
 
 Import path:
 
@@ -140,8 +140,8 @@ Choosing correctly:
 
     class Config(s.Struct):
         weights: object  # NODE: JAX traces this
-        n_layers: int  = s.field(static=True)  # STATIC: re-traces on change
-        cache: object  = s.field(pytree=False, default_factory=dict)  # OPAQUE: invisible to JAX
+        n_layers: int = s.field(static=True)  # STATIC: re-traces on change
+        cache: object = s.field(pytree=False, default_factory=dict)  # OPAQUE: invisible to JAX
 
 
 --------------------------------------------------------------------
@@ -526,7 +526,7 @@ or ``serialize=False``:
     class State(s.Struct):
         params: object
         cache: object = s.field(pytree=False, serialize=True)  # opaque but saved
-        debug: str    = s.field(static=True, serialize=False)  # static but skipped
+        debug: str = s.field(static=True, serialize=False)  # static but skipped
 
 
 --------------------------------------------------------------------

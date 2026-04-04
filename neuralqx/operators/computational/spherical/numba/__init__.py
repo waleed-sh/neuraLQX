@@ -15,17 +15,17 @@
 from ._e_mean import SphericalEx
 from ._spherical_volume import SphericalVolume
 from ._spherical_vertex_constraint_BoSw import (
+    SphericalVertexConstraintBojowaldSwiderskiAdjoint,
+    SphericalVertexConstraintBojowaldSwiderskiAdjointFast,
     SphericalVertexConstraintBojowaldSwiderski,
     SphericalVertexConstraintBojowaldSwiderskiFast,
-    SphericalVertexConstraintBojowaldSwiderskiFixed,
-    SphericalVertexConstraintBojowaldSwiderskiFastFixed,
 )
 
 __all__ = [
     "SphericalEx",
     "SphericalVolume",
+    "SphericalVertexConstraintBojowaldSwiderskiAdjoint",
+    "SphericalVertexConstraintBojowaldSwiderskiAdjointFast",
     "SphericalVertexConstraintBojowaldSwiderski",
     "SphericalVertexConstraintBojowaldSwiderskiFast",
-    "SphericalVertexConstraintBojowaldSwiderskiFixed",
-    "SphericalVertexConstraintBojowaldSwiderskiFastFixed",
 ]

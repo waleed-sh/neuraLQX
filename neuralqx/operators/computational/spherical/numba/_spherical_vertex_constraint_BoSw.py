@@ -105,7 +105,7 @@ from neuralqx.graph import HalfLadderGraph
 from neuralqx.operators.types.computational_operator import ComputationalOperator
 
 
-class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
+class SphericalVertexConstraintBojowaldSwiderskiAdjoint(ComputationalOperator):
     r"""
     A ComputationalOperator implementing the single-vertex Euclidean constraint
     \( H_v = H_L(v) + H_C(v) + H_R(v) \) at a chosen inner k-vertex \(v\).
@@ -995,7 +995,7 @@ class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
         return σp, mels
 
 
-class SphericalVertexConstraintBojowaldSwiderskiFixed(ComputationalOperator):
+class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
     r"""
     A ComputationalOperator implementing the single-vertex Euclidean constraint
     \( H_v = H_L(v) + H_C(v) + H_R(v) \) at a chosen inner k-vertex \(v\).
@@ -1705,7 +1705,7 @@ class SphericalVertexConstraintBojowaldSwiderskiFixed(ComputationalOperator):
         return σp, mels
 
 
-class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
+class SphericalVertexConstraintBojowaldSwiderskiAdjointFast(ComputationalOperator):
     """
 
     This version is an optimised and jax.jit-friendly version of the
@@ -2217,7 +2217,7 @@ class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
         return σp, mels
 
 
-class SphericalVertexConstraintBojowaldSwiderskiFastFixed(ComputationalOperator):
+class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
     """
 
     This version is an optimised and jax.jit-friendly version of the
