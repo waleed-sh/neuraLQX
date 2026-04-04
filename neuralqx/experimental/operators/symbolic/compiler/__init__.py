@@ -15,6 +15,11 @@
 
 """Symbolic operator compiler package."""
 
+from neuralqx.experimental.operators.symbolic.compiler.compiler import SymbolicCompiler
+from neuralqx.experimental.operators.symbolic.compiler.compiler import (
+    compile_symbolic_operator,
+)
+
 from neuralqx.experimental.operators.symbolic.compiler.core.options import (
     SymbolicCompilerOptions,
 )
@@ -34,7 +39,20 @@ from neuralqx.experimental.operators.symbolic.compiler.core.signature import (
     SymbolicCompilationSignature,
 )
 
+from neuralqx.experimental.operators.symbolic.compiler.defaults import (
+    default_symbolic_artifact_store,
+)
+from neuralqx.experimental.operators.symbolic.compiler.defaults import (
+    default_symbolic_lowerer_registry,
+)
+from neuralqx.experimental.operators.symbolic.compiler.defaults import (
+    default_symbolic_pass_pipeline,
+)
+
 __all__ = [
+    # Primary API
+    "SymbolicCompiler",
+    "compile_symbolic_operator",
     # Options
     "SymbolicCompilerOptions",
     # Artifact and context
@@ -42,4 +60,8 @@ __all__ = [
     "SymbolicCompilationContext",
     "SymbolicCacheKey",
     "SymbolicCompilationSignature",
+    # Default factories
+    "default_symbolic_pass_pipeline",
+    "default_symbolic_lowerer_registry",
+    "default_symbolic_artifact_store",
 ]

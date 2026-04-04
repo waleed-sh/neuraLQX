@@ -71,7 +71,18 @@ from neuralqx.experimental.operators.symbolic.compiler import SymbolicCompilatio
 from neuralqx.experimental.operators.symbolic.compiler import (
     SymbolicCompilationSignature,
 )
+from neuralqx.experimental.operators.symbolic.compiler import SymbolicCompiler
 from neuralqx.experimental.operators.symbolic.compiler import SymbolicCompilerOptions
+from neuralqx.experimental.operators.symbolic.compiler import compile_symbolic_operator
+from neuralqx.experimental.operators.symbolic.compiler import (
+    default_symbolic_artifact_store,
+)
+from neuralqx.experimental.operators.symbolic.compiler import (
+    default_symbolic_lowerer_registry,
+)
+from neuralqx.experimental.operators.symbolic.compiler import (
+    default_symbolic_pass_pipeline,
+)
 
 #
 #
@@ -111,11 +122,16 @@ __all__ = [
     "SymbolicOperatorSum",
     "ExpressionContext",
     # Compiler
+    "SymbolicCompiler",
+    "compile_symbolic_operator",
     "SymbolicCompilerOptions",
     "SymbolicCompiledArtifact",
     "SymbolicCompilationContext",
     "SymbolicCacheKey",
     "SymbolicCompilationSignature",
+    "default_symbolic_pass_pipeline",
+    "default_symbolic_lowerer_registry",
+    "default_symbolic_artifact_store",
     # IR
     "SymbolicOperatorIR",
     "SymbolicIRTerm",
