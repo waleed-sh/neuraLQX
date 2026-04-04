@@ -164,10 +164,14 @@ def site(label: str) -> SiteSelector:
     Example:
         >>> from neuralqx.experimental.operators.symbolic.dsl import site
         >>> s = site("i")
-        >>> s.value          # AmplitudeExpr, x[i]
-        >>> s.index          # AmplitudeExpr, i (float)
-        >>> s.value < 3      # PredicateExpr, x[i] < 3
-        >>> s.value + 1      # AmplitudeExpr, x[i] + 1
+        >>> print(s.value)          # AmplitudeExpr, x[i]
+        x[i]
+        >>> print(s.index)          # AmplitudeExpr, i (float)
+        i
+        >>> print(s.value < 3)      # PredicateExpr, x[i] < 3
+        (x[i] < 3)
+        >>> print(s.value + 1)      # AmplitudeExpr, x[i] + 1
+        (x[i] + 1)
     """
     return SiteSelector(label, namespace="site")
 
@@ -179,8 +183,10 @@ def emitted(label: str) -> SiteSelector:
     Example:
         >>> from neuralqx.experimental.operators.symbolic.dsl import emitted
         >>> e = emitted("i")
-        >>> e.value   # AmplitudeExpr, x'[i]
-        >>> e.index   # AmplitudeExpr, i
+        >>> print(e.value)   # AmplitudeExpr, x'[i]
+        x'[i]
+        >>> print(e.index)   # AmplitudeExpr, i
+        i
     """
     return SiteSelector(label, namespace="emit")
 
