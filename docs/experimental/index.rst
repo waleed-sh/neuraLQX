@@ -189,6 +189,13 @@ Quick links
       Immutable, JAX-native data containers with explicit field kinds, derived
       fields, serialisation, and pytree registration for arbitrary classes.
 
+   .. grid-item-card:: Symbolic Operator DSL
+      :link: symbolic_operators
+      :link-type: ref
+
+      Define matrix-free operators declaratively (iterators, predicates,
+      emissions) and compile them into executable JAX-backed operator kernels.
+
    .. grid-item-card:: Stable guides
       :link: guides
       :link-type: ref

@@ -71,6 +71,14 @@ Deprecations
 
 Experimental
 ~~~~~~~~~~~~~
+- Introduced an experimental declarative symbolic operator DSL under
+  ``neuralqx.experimental.operators.symbolic.dsl``. Users can now define
+  operator action by composing iterator scopes, predicates, and emissions
+  instead of hand-writing ``get_conn_padded`` kernels. The compiler lowers the
+  resulting symbolic IR to executable matrix-free operators, and ships with
+  documented extension points for custom passes, iterator semantics, and JAX
+  lowerers.
+
 - Introduced a new struct system under ``neuralqx.utils.struct`` for building immutable, JAX-native data containers.
   Subclass ``Struct`` (or use ``@register_class`` / ``@dataclass`` for existing classes) to get automatic JAX pytree
   registration, a typed field API (``field(static=..., derived=..., converter=..., validator=...)``), and built-in

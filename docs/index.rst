@@ -101,6 +101,7 @@
    documentation/api/index
    Tutorials/index
    guides/index
+   advanced_guides/index
    getting_started/parallelisation/index
 
 

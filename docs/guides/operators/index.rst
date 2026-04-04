@@ -63,6 +63,14 @@ In practice, you will encounter two main ways of representing operators:
    * you want full control over performance and JAX friendliness,
    * you deal with extremely large systems
 
+3. **Declarative symbolic operators (experimental ``DOperator``)**
+   You define connectivity declaratively (iterator + predicate + emission)
+   and let the symbolic compiler lower it to a matrix-free executable operator.
+   This is the route you take when:
+   * you want computational-operator performance without writing kernels by hand,
+   * you need clean inspectable operator definitions for research iterations,
+   * you want pass/lowering extension points for advanced workflows.
+
 Note that neuraLQX provides some implemented operators and custom operator types. The public entry point is the ``neuralqx.operators`` module.
 
 Where to go next
@@ -79,9 +87,14 @@ Where to go next
       :link: computational/computational_operators.html
       :text-align: center
 
+   .. grid-item-card:: Declarative symbolic operators (experimental)
+      :link: symbolic/symbolic_operators.html
+      :text-align: center
+
 .. toctree::
    :hidden:
    :maxdepth: 1
 
    local/local_operators
    computational/computational_operators
+   symbolic/symbolic_operators
