@@ -156,7 +156,7 @@ class PredicateExpr:
 
 
 def _render_predicate(expr: "PredicateExpr") -> str:
-    """Renders a PredicateExpr as a human-readable infix boolean string."""
+    """Renders a PredicateExpr as a readable infix boolean string."""
     from .expressions import _render_amplitude, AmplitudeExpr
 
     op = expr.op

@@ -12,28 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-The experimental API for neuraLQX.
-"""
 
-from .. import cfg
-from ..utils.errors import DeniedExperimentalModuleImportError
+"""Core symbolic operator types."""
 
-if not cfg.get("EXPERIMENTAL"):
-    raise DeniedExperimentalModuleImportError
-
-from . import vqs
-from . import solver
-from . import driver
-from . import nn
-from . import utils
-from . import operators
+from .base import AbstractSymbolicOperator
+from .compiled import CompiledOperator
+from .operator import SymbolicOperator
+from .sum import SymbolicOperatorSum
 
 __all__ = [
-    "vqs",
-    "solver",
-    "driver",
-    "nn",
-    "utils",
-    "operators",
+    "AbstractSymbolicOperator",
+    "CompiledOperator",
+    "SymbolicOperator",
+    "SymbolicOperatorSum",
 ]

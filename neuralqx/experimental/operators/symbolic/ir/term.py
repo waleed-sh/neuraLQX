@@ -97,7 +97,7 @@ class EmissionSpec:
     states from the same site-tuple without splitting into two separate terms.
 
     Attributes:
-        update_program: Site-update program mapping ``x → x'``.
+        update_program: Site-update program mapping ``x -> x'``.
         amplitude: Matrix-element expression evaluated in the source environment.
         branch_tag: Optional diagnostic tag for this emission slot.
     """

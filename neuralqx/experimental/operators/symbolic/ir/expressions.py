@@ -250,7 +250,7 @@ class AmplitudeExpr:
 
 
 def _render_amplitude(expr: "AmplitudeExpr") -> str:
-    """Renders an AmplitudeExpr as a human-readable infix string."""
+    """Renders an AmplitudeExpr as a readable infix string."""
     op = expr.op
     args = expr.args
 
