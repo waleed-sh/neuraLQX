@@ -198,11 +198,14 @@ class AbstractVariationalDriver(NKDriver):
                     with prof_section("log_additional_data (dispatch)", cat="vmc"):
                         self._log_additional_data(log_data, step)
 
-                    # if the cost-function is defined then report it in the progress bar
+                    # If the cost-function is defined then store it in the log payload.
+                    # Avoid formatting it into the progress bar unless the bar is actually
+                    # visible, because stringifying Stats can force host transfers.
                     if self._loss_stats is not None:
-                        pbar.set_postfix_str(
-                            self._loss_name + "=" + str(self._loss_stats)
-                        )
+                        if show_progress and self._is_root:
+                            pbar.set_postfix_str(
+                                self._loss_name + "=" + str(self._loss_stats)
+                            )
                         log_data[self._loss_name] = self._loss_stats
 
                     # Execute callbacks before loggers because they can append to log_data

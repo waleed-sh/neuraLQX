@@ -5,6 +5,42 @@ Change Log
 ============================================
 
 
+
+Unreleased
+-----------------------------------
+
+Breaking changes
+~~~~~~~~~~~~~~~~~
+- None.
+
+New features
+~~~~~~~~~~~~~
+- None.
+
+Changes
+~~~~~~~~
+- None.
+
+Bug fixes
+~~~~~~~~~~
+- Fixed a bug in the debugger which effectively made it always on.
+
+- Fixed a bug in the ``Solver`` which did not propagate ``silent_print=True`` to the VMC driver.
+
+Deprecations
+~~~~~~~~~~~~~
+- None.
+
+
+Experimental
+~~~~~~~~~~~~~
+- Added a ``for_each_distinct_pair()`` to the experimental operator DSL which iterates over sites ``i != j``.
+
+------------
+
+
+
+
 neuraLQX v1.1.1 (April 4, 2026)
 -----------------------------------
 

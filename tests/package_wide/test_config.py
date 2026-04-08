@@ -950,6 +950,53 @@ def test_add_hook_receives_config_mutation_instance(cfgmod_factory):
     assert received[0].mutability is m.ConfigMutability.RUNTIME
 
 
+def test_default_debug_hook_refreshes_runtime_debug_module(cfgmod_factory, monkeypatch):
+    m = cfgmod_factory(env={"NQX_DEBUG": "0"})
+
+    calls = {"init": 0, "refresh": 0}
+    import neuralqx.debug as dbg
+
+    monkeypatch.setattr(
+        dbg,
+        "initialise",
+        lambda force=False: calls.__setitem__("init", calls["init"] + 1),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        dbg,
+        "refresh_settings",
+        lambda reinit=False: calls.__setitem__("refresh", calls["refresh"] + 1),
+        raising=True,
+    )
+
+    m.cfg.set("DEBUG", True)
+    m.cfg.set("DEBUG", False)
+
+    assert calls["init"] == 1
+    assert calls["refresh"] >= 1
+
+
+def test_default_log_level_hook_refreshes_runtime_debug_module(
+    cfgmod_factory, monkeypatch
+):
+    m = cfgmod_factory(env={"NQX_LOG_LEVEL": "INFO"})
+
+    calls = {"refresh": 0}
+    import neuralqx.debug as dbg
+
+    monkeypatch.setattr(dbg, "initialise", lambda force=False: None, raising=True)
+    monkeypatch.setattr(
+        dbg,
+        "refresh_settings",
+        lambda reinit=False: calls.__setitem__("refresh", calls["refresh"] + 1),
+        raising=True,
+    )
+
+    m.cfg.set("LOG_LEVEL", "DEBUG")
+
+    assert calls["refresh"] == 1
+
+
 def test_patch_emits_patch_source(cfgmod_factory):
     m = cfgmod_factory(env={"NQX_DEBUG": "0"})
     events = []

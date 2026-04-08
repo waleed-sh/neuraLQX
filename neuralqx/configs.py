@@ -2156,6 +2156,22 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
         cfg: Configuration manager to configure.
     """
 
+    def _refresh_debug_runtime(*, reinit: bool) -> None:
+        import sys as _sys
+
+        # Avoid importing neuralqx.debug from inside configs import bootstrap
+        if "neuralqx.debug" not in _sys.modules:
+            return
+        try:
+            import neuralqx.debug as _dbg
+
+            if reinit:
+                _dbg.initialise(force=True)
+            else:
+                _dbg.refresh_settings(reinit=False)
+        except Exception:
+            pass
+
     def _log_level_hook(event: ConfigMutation) -> None:
         level_name = str(event.new_value).upper()
         level = getattr(logging, level_name, None)
@@ -2166,11 +2182,17 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
                 level_name,
                 event.source.value,
             )
+            _refresh_debug_runtime(reinit=False)
+
+    def _debug_hook(event: ConfigMutation) -> None:
+        enabled = bool(event.new_value)
+        # Enabling needs full init to create logfile/handlers
+        _refresh_debug_runtime(reinit=enabled)
 
     def _experimental_hook(event: ConfigMutation) -> None:
         if bool(event.new_value):
             _LOGGER.warning(
-                "Experimental mode enabled. APIs and behaviours may change without notice."
+                "neuraLQX: Experimental mode enabled. APIs and behaviours may change without notice."
             )
 
     def _x64_hook(event: ConfigMutation) -> None:
@@ -2200,6 +2222,7 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
         )
 
     cfg.add_hook("LOG_LEVEL", _log_level_hook, run_immediately=True)
+    cfg.add_hook("DEBUG", _debug_hook, run_immediately=False)
     cfg.add_hook("EXPERIMENTAL", _experimental_hook, run_immediately=False)
     cfg.add_hook("ENABLE_X64", _x64_hook, run_immediately=True)
 
@@ -2228,27 +2251,6 @@ cfg = ConfigManager()
 _register_default_hooks(cfg)
 
 __all__ = [
-    "ConfigError",
-    "ConfigManager",
-    "ConfigMutation",
-    "ConfigMutability",
-    "ConfigOption",
-    "ConfigSource",
-    "ConfigValidationError",
-    "ReadOnlyDict",
-    "UnknownOptionError",
-    "UNSET",
     "cfg",
-    "new_error_content",
-    "non_negative_int_validator",
-    "positive_float_validator",
-    "parse_bool",
-    "parse_csv_tuple",
-    "parse_float",
-    "parse_int",
-    "parse_optional_int",
-    "parse_optional_string",
-    "positive_int_validator",
-    "_register_default_hooks",
     "_should_init_jax_distributed",
 ]

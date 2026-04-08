@@ -62,8 +62,7 @@ In practice, that description looks like this:
 
    hop = (
        DOperator(hi, "hopping")
-       .for_each_pair("i", "j")
-       .where(site("i").index != site("j").index)
+       .for_each_distinct_pair("i", "j")
        .where(site("i") > 0)
        .emit(
            shift("i", -1).shift("j", +1),

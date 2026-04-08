@@ -582,6 +582,7 @@ class Solver(AbstractSolver):
             out=self.log,
             callback=ctx.callbacks,
             obs=ctx.observables,
+            show_progress=not ctx.silent_print,
             timeit=ctx.timer,
         )
 

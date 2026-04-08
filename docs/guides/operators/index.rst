@@ -58,6 +58,7 @@ In practice, you will encounter two main ways of representing operators:
 
 2. **Matrix-free algorithmic operators (neuraLQX ``ComputationalOperator``)**
    You provide the connectivity *algorithmically* (a kernel that returns connected states and matrix elements), and neuraLQX/NetKet uses that directly. This is the route you take when:
+
    * an operator is large and matrix bookkeeping becomes heavy,
    * the action is naturally expressed as a move on configurations (graph/loop moves, constraint moves),
    * you want full control over performance and JAX friendliness,
@@ -67,6 +68,7 @@ In practice, you will encounter two main ways of representing operators:
    You define connectivity declaratively (iterator + predicate + emission)
    and let the symbolic compiler lower it to a matrix-free executable operator.
    This is the route you take when:
+
    * you want computational-operator performance without writing kernels by hand,
    * you need clean inspectable operator definitions for research iterations,
    * you want pass/lowering extension points for advanced workflows.

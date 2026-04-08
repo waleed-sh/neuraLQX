@@ -100,6 +100,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -123,6 +124,10 @@ from neuralqx.experimental.operators.symbolic.ir.term import KBodyIteratorSpec
 from neuralqx.experimental.operators.symbolic.ir.term import SymbolicIRTerm
 
 from neuralqx.experimental.operators.symbolic.ir.update import UpdateProgram
+
+if TYPE_CHECKING:
+    from neuralqx.experimental.operators.symbolic import CompiledOperator
+    from neuralqx.experimental.operators.symbolic import SymbolicOperator
 
 
 def _update_op_uses_shift_mod(op: Any) -> bool:
@@ -434,6 +439,29 @@ class DOperator:
             KBodyIteratorSpec(labels=(str(label_a), str(label_b)), index_sets=pairs)
         )
 
+    def for_each_distinct_pair(
+        self,
+        label_a: str = "i",
+        label_b: str = "j",
+    ) -> "DOperator":
+        """
+        Iterates over all ordered pairs ``(i, j)`` with ``i, j ∈ [0, N)`` such
+        that ``i != j``, i.e. excluding diagonal pairs ``(i, i)``. To include them,
+        use ``.for_each_pair()``.
+
+        Args:
+            label_a: Primary site label.
+            label_b: Secondary site label.
+
+        Returns:
+            This builder (for chaining).
+        """
+        n = int(self._hilbert.size)
+        pairs = tuple((i, j) for i in range(n) for j in range(n) if i != j)
+        return self._open_term(
+            KBodyIteratorSpec(labels=(str(label_a), str(label_b)), index_sets=pairs)
+        )
+
     def for_each_triplet(
         self,
         label_a: str,
@@ -669,7 +697,7 @@ class DOperator:
     #
     #   Finalisation
 
-    def build(self) -> Any:  # -> SymbolicOperator
+    def build(self) -> "SymbolicOperator":
         """
         Seals all open terms and returns a
         :class:`~neuralqx.experimental.operators.symbolic.core.operator.SymbolicOperator`.
@@ -708,7 +736,7 @@ class DOperator:
 
     def compile(
         self, *, backend: str = "jax", cache: bool = True
-    ) -> Any:  # -> CompiledOperator
+    ) -> "CompiledOperator":
         """
         Convenience shortcut: ``.build().compile(...)``.
 

@@ -62,6 +62,89 @@ class _NullContext:
         return value
 
 
+_NULL_CONTEXT = _NullContext()
+
+
+class _DisabledProfiler:
+    """
+    Zero-overhead-ish stand-in when profiling is disabled.
+
+    This avoids constructing a full Profiler object (threads, atexit hooks,
+    output directories) while preserving the public API surface expected by
+    decorators and call sites.
+    """
+
+    def __init__(self) -> None:
+        self.config = ProfilingConfig(
+            enabled=False,
+            trace=False,
+            nvtx=False,
+            jax_trace_annotations=False,
+            jax_profiler_trace=False,
+            metrics=False,
+            sync=False,
+            max_events=0,
+            sample_period_s=0.0,
+            mpi_aggregate_on_exit=False,
+        )
+
+    def enabled(self) -> bool:
+        return False
+
+    def refresh_if_needed(self) -> None:
+        return
+
+    def maybe_sync(self, value: Any) -> Any:
+        return value
+
+    def section(
+        self,
+        name: str,
+        cat: str = "",
+        *,
+        args: Optional[Dict[str, Any]] = None,
+        flops: float = 0.0,
+        bytes: float = 0.0,
+    ):
+        return _NULL_CONTEXT
+
+    def step(
+        self,
+        step_num: int,
+        name: str = "step",
+        cat: str = "step",
+        *,
+        args: Optional[Dict[str, Any]] = None,
+    ):
+        return _NULL_CONTEXT
+
+    def summary_dict(self) -> Dict[str, Any]:
+        return {
+            "schema": "neuralqx.profiling.summary.v1",
+            "config": {
+                "trace": False,
+                "nvtx": False,
+                "jax_trace_annotations": False,
+                "jax_profiler_trace": False,
+                "metrics": False,
+                "sync": False,
+                "max_events": 0,
+                "sample_period_s": 0.0,
+                "mpi_aggregate_on_exit": False,
+            },
+            "root": {"name": "root", "cat": "", "stats": {}, "children": []},
+        }
+
+    def trace_events(self) -> List[Dict[str, Any]]:
+        return []
+
+    def flush(self) -> None:
+        return
+
+    def sync_enabled(self) -> bool:
+        return False
+
+
 @dataclass
 class _TLSState:
     stack: List[Frame]
@@ -623,28 +706,48 @@ class _StepCtx:
 
 
 _PROFILER: Optional[Profiler] = None
+_DISABLED_PROFILER = _DisabledProfiler()
 _PROFILER_LOCK = threading.Lock()
 
 
-def get_profiler() -> Profiler:
+def get_profiler() -> Profiler | _DisabledProfiler:
     global _PROFILER
     enabled_now = bool(profiling_enabled())
 
-    # fast path: already initialized and enabled state unchanged
+    # profiling disabled: return a lightweight no-op profiler without creating
+    # a full profiler instance.
+    if not enabled_now:
+        p = _PROFILER
+        if p is None:
+            return _DISABLED_PROFILER
+        if not bool(p.config.enabled):
+            _PROFILER = None
+            return _DISABLED_PROFILER
+
+        # profiling got disabled after being enabled: flush once and drop.
+        with _PROFILER_LOCK:
+            p = _PROFILER
+            if p is not None and bool(p.config.enabled):
+                try:
+                    p.flush()
+                except Exception:
+                    pass
+                _PROFILER = None
+        return _DISABLED_PROFILER
+
+    # fast path: already initialized and enabled
     p = _PROFILER
-    if p is not None and bool(p.config.enabled) == enabled_now:
+    if p is not None and bool(p.config.enabled):
         return p
 
-    # slow path: initialize or reconfigure
+    # slow path: initialize or reconfigure to enabled mode
     with _PROFILER_LOCK:
         p = _PROFILER
         if p is None:
             _PROFILER = Profiler()
             return _PROFILER
 
-        if bool(p.config.enabled) != enabled_now:
-            # if we are turning profiling off (or on), flush what we have and recreate
-            # this is particularly important in notebooks where users might toggle cfg
+        if not bool(p.config.enabled):
             try:
                 p.flush()
             except Exception:

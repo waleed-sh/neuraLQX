@@ -37,3 +37,35 @@ def test_public_flush_safe_when_disabled(monkeypatch, tmp_path):
     import neuralqx.profile as p
 
     p.flush()
+
+
+def test_get_profiler_stays_uninitialised_when_profile_disabled(monkeypatch):
+    monkeypatch.setenv("NQX_PROFILE", "0")
+
+    import neuralqx.profile.profiler as pm
+
+    pm._PROFILER = None
+    prof = pm.get_profiler()
+
+    assert prof.enabled() is False
+    assert pm._PROFILER is None
+
+
+def test_get_profiler_flushes_enabled_instance_on_disable(monkeypatch):
+    monkeypatch.setenv("NQX_PROFILE", "0")
+
+    import types
+    import neuralqx.profile.profiler as pm
+
+    calls = {"flush": 0}
+    fake_prof = types.SimpleNamespace(
+        config=types.SimpleNamespace(enabled=True),
+        flush=lambda: calls.__setitem__("flush", calls["flush"] + 1),
+    )
+    pm._PROFILER = fake_prof
+
+    prof = pm.get_profiler()
+
+    assert prof.enabled() is False
+    assert calls["flush"] == 1
+    assert pm._PROFILER is None
