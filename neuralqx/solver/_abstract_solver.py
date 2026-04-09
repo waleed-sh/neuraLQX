@@ -62,6 +62,8 @@ from neuralqx.utils.io.loggers import Logger
 from neuralqx.utils.misc.auth import get_hash
 from neuralqx.vqs import MCState
 from neuralqx.utils import distributed as _dist
+from neuralqx.utils.io.runtime_loggers import DeferredRuntimeLog
+
 
 from netket.sampler import Sampler
 
@@ -373,7 +375,7 @@ class AbstractSolver(abc.ABC):
         # internals
         self._registered_observables = None
         self._max_iters = None
-        self._nk_log = RuntimeLog()
+        self._nk_log = DeferredRuntimeLog()
 
         # logging
         all_basis_states = (

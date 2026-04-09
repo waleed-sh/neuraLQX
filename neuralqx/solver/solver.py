@@ -106,9 +106,9 @@ from neuralqx.utils.errors import LiveMonitoringUnavailableWarning
 
 import jax.numpy as jnp
 
-from netket.logging import RuntimeLog
 from netket.optimizer import SR, identity_preconditioner
 from netket.utils import is_probably_holomorphic
+from neuralqx.utils.io.runtime_loggers import DeferredRuntimeLog
 
 if TYPE_CHECKING:
     # these imports are only for type checking/docs
@@ -493,6 +493,14 @@ class Solver(AbstractSolver):
 
         # set current run counters
         self.n_iters = int(n_iters)
+
+        # If runtime prints are disabled, defer RuntimeLog materialisation so we avoid
+        # per-step host transfers from history accumulation in the hot loop.
+        if hasattr(self._nk_log, "set_deferred_accumulation"):
+            try:
+                self._nk_log.set_deferred_accumulation(bool(silent_print))
+            except Exception:
+                pass
 
         # log metadata if logger exists
         if hasattr(self, "_logger") and self._logger is not None:
@@ -1051,7 +1059,7 @@ class Solver(AbstractSolver):
 
         # ensure a runtime log exists (do NOT reset it here)
         if not hasattr(self, "_nk_log") or self._nk_log is None:
-            self._nk_log = RuntimeLog()
+            self._nk_log = DeferredRuntimeLog()
 
         # If we are resuming from disk, we MUST ensure a template variational state exists before
         # calling import_state() because deserialize_MCState(...) uses self.variational_state

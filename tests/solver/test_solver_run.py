@@ -15,6 +15,8 @@
 
 from netket.logging import RuntimeLog
 
+from neuralqx.utils.io.runtime_loggers import DeferredRuntimeLog
+
 
 def test_initialize_vmc_builds_vmc(solver_env, nk):
     s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
@@ -55,3 +57,39 @@ def test_run_handles_keyboard_interrupt_gracefully(solver_env, monkeypatch, nk):
     s.run(1)
 
     assert s.is_solved
+
+
+def test_run_toggles_deferred_runtime_log_from_silent_print(solver_env, monkeypatch):
+    s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
+
+    # Avoid entering the expensive simulation/finalisation paths.
+    monkeypatch.setattr(s, "_execute_run", lambda ctx: None)
+    monkeypatch.setattr(s, "_finalise_run", lambda ctx: None)
+    s._driver_flag = True
+
+    s.run(1, silent_print=True, _ct=True)
+    assert isinstance(s.log, DeferredRuntimeLog)
+    assert s.log.defer_accumulation is True
+
+    s.run(1, silent_print=False, _ct=True)
+    assert s.log.defer_accumulation is False
+
+
+def test_continue_simulation_recreates_deferred_runtime_log_if_missing(
+    solver_env, monkeypatch
+):
+    s = solver_env.Solver(solver_env.lqx, output_path=solver_env.output_path)
+
+    captured = {}
+
+    def fake_run(*args, **kwargs):
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(s, "run", fake_run)
+    s._driver_flag = True
+    s._nk_log = None
+
+    s.continue_simulation(n_iters=2, silent_print=True, state_path=None)
+
+    assert isinstance(s.log, DeferredRuntimeLog)
+    assert captured["kwargs"]["silent_print"] is True
