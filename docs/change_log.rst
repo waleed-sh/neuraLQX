@@ -15,7 +15,8 @@ Breaking changes
 
 New features
 ~~~~~~~~~~~~~
-- None.
+- Introduced a new :class:`neuralqx.utils.io.runtime_loggers.DeferredRuntimeLog` which avoids excessive device-to-host
+  transfers in the VMC driver when ``logger(...)`` is called.
 
 Changes
 ~~~~~~~~
