@@ -1985,6 +1985,17 @@ class ConfigManager:
             role="compilation",
             mutability=ConfigMutability.STARTUP,
         )
+        self.define_bool(
+            "FUSED_KERNELS",
+            default=True,
+            doc=(
+                "Enable fused sequence kernels in VQS expectation/forces/gradient paths. "
+                "Disabling this can significantly reduce first-iteration compile time."
+            ),
+            env_default="NQX_FUSED_KERNELS",
+            role="compilation",
+            mutability=ConfigMutability.RUNTIME,
+        )
         self.define_enum(
             "DTYPE_REAL",
             default="float64",

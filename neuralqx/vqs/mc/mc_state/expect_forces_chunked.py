@@ -59,16 +59,34 @@ from netket.vqs.mc.mc_state.state import MCState
 from .expect_chunked import NO_CHUNKING
 from ..kernels import resolve_factored_local_kernel
 from ...mc import get_local_kernel, get_local_kernel_arguments
-from ....operators import PenaltyCost
+from ....operators import PenaltyCost, InverseExpectationCost
 from ....utils.errors import ExpectationValueError
 from ....vqs.mc.mc_state.state import MCState as NQXMCState
 from ....profile import section as prof_section
+from ....configs import cfg
 
 from neuralqx.vqs import expect_and_forces
+from .expect_forces import forces_expect_hermitian_sequence
 
 
 _LOCAL_KERNEL_CACHE_WEAK = WeakKeyDictionary()
 _LOCAL_KERNEL_CACHE_FALLBACK = {}
+
+
+def _use_fused_kernels() -> bool:
+    return bool(cfg.get("FUSED_KERNELS"))
+
+
+def _penalty_scale(operator: AbstractOperator) -> float:
+    """
+    PenaltyCost contributes its factor outside the local kernel, except IEC.
+
+    InverseExpectationCost already includes `factor` in its local-kernel
+    parametrisation, so an external scaling would double-count it.
+    """
+    if isinstance(operator, PenaltyCost) and not isinstance(operator, InverseExpectationCost):
+        return float(operator.factor)
+    return 1.0
 
 
 def _get_local_kernel_cached(vstate, operator, chunk_size):
@@ -282,7 +300,7 @@ def expect_and_forces_impl(  # noqa: F811
         )
         return expect_and_forces(vstate, Ô, None, mutable=mutable)
 
-    scale_factor = Ô.factor if isinstance(Ô, PenaltyCost) else 1.0
+    scale_factor = _penalty_scale(Ô)
 
     with prof_section(
         "expect_and_forces.chunked.kernel",
@@ -350,6 +368,7 @@ def expect_and_forces(
     local_scales: list[float] = []
     use_chunked_kernels: list[bool] = []
     use_factored_kernels: list[bool] = []
+    use_fused = _use_fused_kernels()
 
     with prof_section(
         "expect_and_forces.chunked.sequence.prepare",
@@ -387,30 +406,71 @@ def expect_and_forces(
                 local_factored_kernels.append(factored_kernel)
                 use_factored_kernels.append(factored_kernel is not None)
                 local_args.append(args_op)
-                local_scales.append(
-                    float(ô.factor) if isinstance(ô, PenaltyCost) else 1.0
-                )
+                local_scales.append(_penalty_scale(ô))
 
     with prof_section(
         "expect_and_forces.chunked.sequence.kernel",
         cat="vqs.forces",
-        args={"n_operators": int(len(Ô_list)), "chunk_size": int(chunk_size)},
+        args={
+            "n_operators": int(len(Ô_list)),
+            "chunk_size": int(chunk_size),
+            "fused_kernels": bool(use_fused),
+        },
     ) as sec:
-        stats_sum, grad_sum, _new_model_state = _forces_expect_hermitian_sequence_fused_chunked(
-            int(chunk_size),
-            tuple(local_kernels),
-            tuple(local_factored_kernels),
-            tuple(use_chunked_kernels),
-            tuple(use_factored_kernels),
-            vstate._apply_fun,
-            mutable,
-            vstate.parameters,
-            vstate.model_state,
-            σ,
-            int(n_chains),
-            tuple(local_args),
-            tuple(local_scales),
-        )
+        if use_fused:
+            stats_sum, grad_sum, _new_model_state = _forces_expect_hermitian_sequence_fused_chunked(
+                int(chunk_size),
+                tuple(local_kernels),
+                tuple(local_factored_kernels),
+                tuple(use_chunked_kernels),
+                tuple(use_factored_kernels),
+                vstate._apply_fun,
+                mutable,
+                vstate.parameters,
+                vstate.model_state,
+                σ,
+                int(n_chains),
+                tuple(local_args),
+                tuple(local_scales),
+            )
+        else:
+            total_loc = None
+            grad_sum = None
+            for i, local_kernel in enumerate(local_kernels):
+                if use_chunked_kernels[i]:
+                    loc_i, grad_i, _ = forces_expect_hermitian_sequence_chunked(
+                        int(chunk_size),
+                        local_kernel,
+                        vstate._apply_fun,
+                        mutable,
+                        vstate.parameters,
+                        vstate.model_state,
+                        σ,
+                        local_args[i],
+                    )
+                else:
+                    loc_i, grad_i, _ = forces_expect_hermitian_sequence(
+                        local_kernel,
+                        vstate._apply_fun,
+                        mutable,
+                        vstate.parameters,
+                        vstate.model_state,
+                        σ,
+                        local_args[i],
+                    )
+
+                sf = float(local_scales[i])
+                loc_i = sf * loc_i
+                grad_i = jax.tree_util.tree_map(lambda g: sf * g, grad_i)
+
+                total_loc = loc_i if total_loc is None else total_loc + loc_i
+                grad_sum = (
+                    grad_i
+                    if grad_sum is None
+                    else jax.tree_util.tree_map(lambda a, b: a + b, grad_sum, grad_i)
+                )
+
+            stats_sum = statistics(total_loc.reshape((int(n_chains), -1)))
         sec.sync((stats_sum, grad_sum))
 
     return stats_sum, grad_sum

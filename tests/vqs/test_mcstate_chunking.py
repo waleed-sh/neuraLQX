@@ -196,11 +196,12 @@ def test_expect_sequence_chunked_dispatches_sequence_kernel(
 
     monkeypatch.setattr(mod, "_expect_sequence_chunked", wrapped)
 
-    with _set_chunk_size(mcstate, None):
-        stats_ref, _ = _capture_warnings(mcstate.expect, ops)
+    with nqx.cfg.patch("FUSED_KERNELS", True):
+        with _set_chunk_size(mcstate, None):
+            stats_ref, _ = _capture_warnings(mcstate.expect, ops)
 
-    with _set_chunk_size(mcstate, cs):
-        stats_chk, w = _capture_warnings(mcstate.expect, ops)
+        with _set_chunk_size(mcstate, cs):
+            stats_chk, w = _capture_warnings(mcstate.expect, ops)
 
     assert called["count"] >= 1, "Chunked expect(sequence) kernel was not called."
     _assert_no_chunk_ignored(w)
@@ -270,16 +271,17 @@ def test_expect_and_forces_sequence_chunked_uses_chunked_vjp_and_matches(
 
     monkeypatch.setattr(nkjax, "vjp_chunked", wrapped_vjp)
 
-    with _set_chunk_size(mcstate, None):
-        (stats_ref, f_ref), _ = _capture_warnings(
-            mcstate.expect_and_forces, ops, mutable=False
-        )
-
-    with _set_chunk_size(mcstate, cs):
-        with jax.disable_jit():
-            (stats_chk, f_chk), w = _capture_warnings(
+    with nqx.cfg.patch("FUSED_KERNELS", True):
+        with _set_chunk_size(mcstate, None):
+            (stats_ref, f_ref), _ = _capture_warnings(
                 mcstate.expect_and_forces, ops, mutable=False
             )
+
+        with _set_chunk_size(mcstate, cs):
+            with jax.disable_jit():
+                (stats_chk, f_chk), w = _capture_warnings(
+                    mcstate.expect_and_forces, ops, mutable=False
+                )
 
     assert (
         called["seq_fused_chunked"] >= 1
@@ -341,16 +343,17 @@ def test_expect_and_forces_sequence_chunked_iec_warns_and_matches(
 
     monkeypatch.setattr(nkjax, "vjp_chunked", wrapped_vjp)
 
-    with _set_chunk_size(mcstate, None):
-        (stats_ref, f_ref), _ = _capture_warnings(
-            mcstate.expect_and_forces, ops, mutable=False
-        )
-
-    with _set_chunk_size(mcstate, cs):
-        with jax.disable_jit():
-            (stats_chk, f_chk), w = _capture_warnings(
+    with nqx.cfg.patch("FUSED_KERNELS", True):
+        with _set_chunk_size(mcstate, None):
+            (stats_ref, f_ref), _ = _capture_warnings(
                 mcstate.expect_and_forces, ops, mutable=False
             )
+
+        with _set_chunk_size(mcstate, cs):
+            with jax.disable_jit():
+                (stats_chk, f_chk), w = _capture_warnings(
+                    mcstate.expect_and_forces, ops, mutable=False
+                )
 
     _assert_chunk_ignored(w, match=r"chunking is not supported")
     assert (
@@ -381,16 +384,17 @@ def test_expect_and_grad_sequence_chunked_uses_chunked_forces_under_the_hood(
         mod_forces, "_forces_expect_hermitian_sequence_fused_chunked", wrapped_seq
     )
 
-    with _set_chunk_size(mcstate, None):
-        (stats_ref, g_ref), _ = _capture_warnings(
-            mcstate.expect_and_grad, ops, mutable=False
-        )
-
-    with _set_chunk_size(mcstate, cs):
-        with jax.disable_jit():
-            (stats_chk, g_chk), w = _capture_warnings(
+    with nqx.cfg.patch("FUSED_KERNELS", True):
+        with _set_chunk_size(mcstate, None):
+            (stats_ref, g_ref), _ = _capture_warnings(
                 mcstate.expect_and_grad, ops, mutable=False
             )
+
+        with _set_chunk_size(mcstate, cs):
+            with jax.disable_jit():
+                (stats_chk, g_chk), w = _capture_warnings(
+                    mcstate.expect_and_grad, ops, mutable=False
+                )
 
     assert (
         called["seq_fused_chunked"] >= 1
@@ -442,3 +446,23 @@ def test_chunked_expect_and_grad_empty_sequence_raises(mcstate):
     with _set_chunk_size(mcstate, cs):
         with pytest.raises(ExpectationValueError):
             mcstate.expect_and_grad([], mutable=False)
+
+
+def test_expect_and_grad_nonhermitian_sequence_unfused_matches_fused(
+    mcstate, ops_spin_2, nk
+):
+    sx0, sz0, _ = ops_spin_2
+    ops = [nk.operator.Squared(sx0), nk.operator.Squared(sz0)]
+
+    with nqx.cfg.patch("FUSED_KERNELS", False):
+        (stats_unfused, g_unfused), _ = _capture_warnings(
+            mcstate.expect_and_grad, ops, mutable=False
+        )
+
+    with nqx.cfg.patch("FUSED_KERNELS", True):
+        (stats_fused, g_fused), _ = _capture_warnings(
+            mcstate.expect_and_grad, ops, mutable=False
+        )
+
+    _assert_stats_close(stats_unfused, stats_fused)
+    _tree_allclose(g_unfused, g_fused)

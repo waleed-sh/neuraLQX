@@ -55,14 +55,32 @@ from netket.vqs.mc.mc_state.state import MCState
 
 from ...mc import get_local_kernel, get_local_kernel_arguments
 from ..kernels import resolve_factored_local_kernel
-from ....operators import PenaltyCost
+from ....operators import PenaltyCost, InverseExpectationCost
 from ....utils.errors import ExpectationValueError
 from ....vqs.mc.mc_state.state import MCState as NQXMCState
 from ....profile import section as prof_section
+from ....configs import cfg
 
 
 _LOCAL_KERNEL_CACHE_WEAK = WeakKeyDictionary()
 _LOCAL_KERNEL_CACHE_FALLBACK = {}
+
+
+def _use_fused_kernels() -> bool:
+    return bool(cfg.get("FUSED_KERNELS"))
+
+
+def _penalty_scale(operator: AbstractOperator) -> float:
+    """
+    PenaltyCost contributes its factor outside the local kernel, except IEC.
+
+    InverseExpectationCost already folds `factor` into its dynamic local-kernel
+    arguments (`fprime`, `g`), so applying an extra external scale would
+    double-count the factor.
+    """
+    if isinstance(operator, PenaltyCost) and not isinstance(operator, InverseExpectationCost):
+        return float(operator.factor)
+    return 1.0
 
 
 def _get_local_kernel_cached(vstate, operator):
@@ -189,6 +207,7 @@ def expect_and_forces(
     use_factored_kernels: list[bool] = []
     local_args: list[PyTree] = []
     local_scales: list[float] = []
+    use_fused = _use_fused_kernels()
 
     with prof_section(
         "expect_and_forces.sequence.prepare",
@@ -209,27 +228,58 @@ def expect_and_forces(
                 local_factored_kernels.append(factored_kernel)
                 use_factored_kernels.append(factored_kernel is not None)
                 local_args.append(args_op)
-                local_scales.append(
-                    float(ô.factor) if isinstance(ô, PenaltyCost) else 1.0
-                )
+                local_scales.append(_penalty_scale(ô))
 
     with prof_section(
         "expect_and_forces.sequence.kernel",
         cat="vqs.forces",
-        args={"n_operators": int(len(Ô_list))},
+        args={
+            "n_operators": int(len(Ô_list)),
+            "fused_kernels": bool(use_fused),
+        },
     ) as sec:
-        stats_sum, grad_sum, new_model_state = _forces_expect_hermitian_sequence_fused(
-            tuple(local_kernels),
-            tuple(local_factored_kernels),
-            tuple(use_factored_kernels),
-            vstate._apply_fun,
-            mutable,
-            vstate.parameters,
-            vstate.model_state,
-            σ,
-            tuple(local_args),
-            tuple(local_scales),
-        )
+        if use_fused:
+            stats_sum, grad_sum, new_model_state = _forces_expect_hermitian_sequence_fused(
+                tuple(local_kernels),
+                tuple(local_factored_kernels),
+                tuple(use_factored_kernels),
+                vstate._apply_fun,
+                mutable,
+                vstate.parameters,
+                vstate.model_state,
+                σ,
+                tuple(local_args),
+                tuple(local_scales),
+            )
+        else:
+            n_chains = int(σ.shape[0])
+            total_loc = None
+            grad_sum = None
+            new_model_state = None
+            for i, local_kernel in enumerate(local_kernels):
+                loc_i, grad_i, op_model_state = forces_expect_hermitian_sequence(
+                    local_kernel,
+                    vstate._apply_fun,
+                    mutable,
+                    vstate.parameters,
+                    vstate.model_state,
+                    σ,
+                    local_args[i],
+                )
+                sf = float(local_scales[i])
+                loc_i = sf * loc_i
+                grad_i = jax.tree_util.tree_map(lambda g: sf * g, grad_i)
+
+                total_loc = loc_i if total_loc is None else total_loc + loc_i
+                grad_sum = (
+                    grad_i
+                    if grad_sum is None
+                    else jax.tree_util.tree_map(lambda a, b: a + b, grad_sum, grad_i)
+                )
+                if mutable is not False and op_model_state is not None:
+                    new_model_state = op_model_state
+
+            stats_sum = statistics(total_loc.reshape((n_chains, -1)))
         sec.sync((stats_sum, grad_sum))
 
     if mutable is not False:
@@ -260,7 +310,7 @@ def expect_and_forces(  # noqa: F811
     ):
         local_estimator_fun = _get_local_kernel_cached(vstate, Ô)
 
-    scale_factor = Ô.factor if isinstance(Ô, PenaltyCost) else 1.0
+    scale_factor = _penalty_scale(Ô)
 
     with prof_section(
         "expect_and_forces.kernel",

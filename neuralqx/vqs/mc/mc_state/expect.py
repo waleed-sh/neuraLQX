@@ -75,6 +75,11 @@ from ...mc import get_local_kernel_arguments, get_local_kernel
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
 from ....utils.parsing import strict_type
 from ....profile import section as prof_section
+from ....configs import cfg
+
+
+def _use_fused_kernels() -> bool:
+    return bool(cfg.get("FUSED_KERNELS"))
 
 
 @dispatch
@@ -418,6 +423,7 @@ def expect(
     use_factored_kernels: list[bool] = []
     local_args: list[PyTree] = []
     local_scales: list[float] = []
+    use_fused = _use_fused_kernels()
 
     with prof_section(
         "expect.sequence.prepare",
@@ -448,19 +454,42 @@ def expect(
     with prof_section(
         "expect.sequence.kernel",
         cat="vqs.expect",
-        args={"n_operators": int(len(Ô_list))},
+        args={
+            "n_operators": int(len(Ô_list)),
+            "fused_kernels": bool(use_fused),
+        },
     ) as sec:
-        out = _expect_sequence_fused(
-            tuple(local_kernels),
-            tuple(local_factored_kernels),
-            tuple(use_factored_kernels),
-            vstate._apply_fun,
-            vstate.parameters,
-            vstate.model_state,
-            σ,
-            tuple(local_args),
-            tuple(local_scales),
-        )
+        if use_fused:
+            out = _expect_sequence_fused(
+                tuple(local_kernels),
+                tuple(local_factored_kernels),
+                tuple(use_factored_kernels),
+                vstate._apply_fun,
+                vstate.parameters,
+                vstate.model_state,
+                σ,
+                tuple(local_args),
+                tuple(local_scales),
+            )
+        else:
+            n_chains = int(σ.shape[0])
+            model_state = vstate.model_state or {}
+            total_loc = None
+            for i, local_kernel in enumerate(local_kernels):
+                loc_i = _expect_sequence(
+                    local_kernel,
+                    vstate._apply_fun,
+                    vstate.sampler.machine_pow,
+                    vstate.parameters,
+                    model_state,
+                    σ,
+                    local_args[i],
+                )
+                scale_i = jnp.asarray(local_scales[i], dtype=loc_i.dtype)
+                loc_i = scale_i * loc_i
+                total_loc = loc_i if total_loc is None else total_loc + loc_i
+
+            out = statistics(total_loc.reshape((n_chains, -1)))
         return sec.sync(out)
 
 

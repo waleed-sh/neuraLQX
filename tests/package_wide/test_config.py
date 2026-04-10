@@ -1097,6 +1097,21 @@ def test_profile_defaults(cfgmod_factory):
     assert m.cfg.get("PROFILE_RUN_ID") == ""
 
 
+def test_fused_kernels_default_is_false(cfgmod_factory):
+    m = cfgmod_factory()
+    assert m.cfg.get("FUSED_KERNELS") is True
+
+
+def test_fused_kernels_env_default_respected(cfgmod_factory):
+    m = cfgmod_factory(env={"NQX_FUSED_KERNELS": "1"})
+    assert m.cfg.get("FUSED_KERNELS") is True
+
+
+def test_fused_kernels_is_runtime_mutable(cfgmod_factory):
+    m = cfgmod_factory()
+    assert m.cfg.is_runtime_mutable("FUSED_KERNELS") is True
+
+
 def test_enable_x64_env_default_respected(cfgmod_factory, monkeypatch):
     m = cfgmod_factory(env={"JAX_ENABLE_X64": "0"})
     assert m.cfg.get("ENABLE_X64") is False

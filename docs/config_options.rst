@@ -185,6 +185,12 @@ Environment Variables
      - ``0``
      - Enable caching when possible.
      - No
+   * - ``NQX_FUSED_KERNELS``
+     - ``bool``
+     - ``False`` | ``True``
+     - ``False``
+     - Enable fused sequence kernels in VQS expectation/forces/gradient paths.
+     - Yes
    * - ``NQX_ENABLE_X64``
      - ``bool``
      - ``False`` | ``True``

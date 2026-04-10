@@ -78,8 +78,14 @@ from neuralqx.vqs.mc import (
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
 from ....utils.parsing import strict_type
 from ....profile import section as prof_section
+from ....configs import cfg
 
 from neuralqx.vqs import expect
+from .expect import _expect_sequence
+
+
+def _use_fused_kernels() -> bool:
+    return bool(cfg.get("FUSED_KERNELS"))
 
 #
 #
@@ -391,6 +397,7 @@ def expect_mcstate_operator_chunked_sequence(
     use_factored_kernels: list[bool] = []
     local_args: list[PyTree] = []
     local_scales: list[float] = []
+    use_fused = _use_fused_kernels()
 
     with prof_section(
         "expect.chunked.sequence.prepare",
@@ -435,22 +442,58 @@ def expect_mcstate_operator_chunked_sequence(
     with prof_section(
         "expect.chunked.sequence.kernel",
         cat="vqs.expect",
-        args={"n_operators": int(len(Ô_list)), "chunk_size": int(chunk_size)},
+        args={
+            "n_operators": int(len(Ô_list)),
+            "chunk_size": int(chunk_size),
+            "fused_kernels": bool(use_fused),
+        },
     ) as sec:
-        out = _expect_sequence_chunked(
-            int(chunk_size),
-            tuple(local_kernels),
-            tuple(local_factored_kernels),
-            tuple(use_chunked_kernels),
-            tuple(use_factored_kernels),
-            vstate._apply_fun,
-            vstate.parameters,
-            vstate.model_state,
-            σ,
-            n_chains,
-            tuple(local_args),
-            tuple(local_scales),
-        )
+        if use_fused:
+            out = _expect_sequence_chunked(
+                int(chunk_size),
+                tuple(local_kernels),
+                tuple(local_factored_kernels),
+                tuple(use_chunked_kernels),
+                tuple(use_factored_kernels),
+                vstate._apply_fun,
+                vstate.parameters,
+                vstate.model_state,
+                σ,
+                n_chains,
+                tuple(local_args),
+                tuple(local_scales),
+            )
+        else:
+            model_state = vstate.model_state or {}
+            total_loc = None
+            for i, local_kernel in enumerate(local_kernels):
+                if use_chunked_kernels[i]:
+                    loc_i = _expect_sequence_chunked_single_local(
+                        int(chunk_size),
+                        local_kernel,
+                        vstate._apply_fun,
+                        vstate.sampler.machine_pow,
+                        vstate.parameters,
+                        model_state,
+                        σ,
+                        local_args[i],
+                    )
+                else:
+                    loc_i = _expect_sequence(
+                        local_kernel,
+                        vstate._apply_fun,
+                        vstate.sampler.machine_pow,
+                        vstate.parameters,
+                        model_state,
+                        σ,
+                        local_args[i],
+                    )
+
+                scale_i = jnp.asarray(local_scales[i], dtype=loc_i.dtype)
+                loc_i = scale_i * loc_i
+                total_loc = loc_i if total_loc is None else total_loc + loc_i
+
+            out = statistics(total_loc.reshape((n_chains, -1)))
         return sec.sync(out)
 
 @partial(jax.jit, static_argnums=(0, 1, 2))

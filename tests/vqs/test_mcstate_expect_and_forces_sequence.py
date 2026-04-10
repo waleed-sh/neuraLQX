@@ -18,6 +18,14 @@ import jax.numpy as jnp
 import neuralqx as nqx
 
 from neuralqx.utils.errors import ExpectationValueError
+from neuralqx.vqs.mc.common import force_to_grad
+
+
+def _tree_max_abs(a, b, jnp):
+    leaves_a, treedef_a = jax.tree_util.tree_flatten(a)
+    leaves_b, treedef_b = jax.tree_util.tree_flatten(b)
+    assert treedef_a == treedef_b
+    return max(float(jnp.max(jnp.abs(x - y))) for x, y in zip(leaves_a, leaves_b))
 
 
 def test_expect_and_forces_sequence_matches_sum_operator(mcstate, ops_spin_2, helpers):
@@ -86,3 +94,33 @@ def test_expect_and_forces_single_penaltycost_scales_like_parent(
 
     assert jnp.allclose(mean(stats_pc), mean(stats_ref), rtol=1e-6, atol=1e-7)
     tree_allclose(forces_pc, forces_ref, rtol=1e-6, atol=1e-7)
+
+
+def test_expect_and_forces_single_iec_matches_expect_and_grad(
+    mcstate, ops_spin_2, helpers
+):
+    mean, _ = helpers
+    _, sz0, _ = ops_spin_2
+    iec = nqx.operators.InverseExpectationCost(sz0, factor=0.7, alpha=0.2)
+
+    stats_f, forces = mcstate.expect_and_forces(iec, mutable=False)
+    stats_g, grad = mcstate.expect_and_grad(iec, mutable=False)
+    grad_from_forces = force_to_grad(forces, mcstate.parameters)
+
+    assert jnp.allclose(mean(stats_f), mean(stats_g), rtol=1e-6, atol=1e-7)
+    assert _tree_max_abs(grad_from_forces, grad, jnp) < 1e-3
+
+
+def test_expect_and_forces_sequence_single_iec_matches_expect_and_grad(
+    mcstate, ops_spin_2, helpers
+):
+    mean, _ = helpers
+    _, sz0, _ = ops_spin_2
+    iec = nqx.operators.InverseExpectationCost(sz0, factor=0.7, alpha=0.2)
+
+    stats_f, forces = mcstate.expect_and_forces([iec], mutable=False)
+    stats_g, grad = mcstate.expect_and_grad([iec], mutable=False)
+    grad_from_forces = force_to_grad(forces, mcstate.parameters)
+
+    assert jnp.allclose(mean(stats_f), mean(stats_g), rtol=1e-6, atol=1e-7)
+    assert _tree_max_abs(grad_from_forces, grad, jnp) < 1e-3

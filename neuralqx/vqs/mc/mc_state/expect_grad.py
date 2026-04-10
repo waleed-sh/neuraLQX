@@ -67,10 +67,15 @@ from ....utils.parsing import strict_type
 from ....profile import section as prof_section
 from ....vqs import expect_and_grad, expect_and_forces
 from ....vqs.mc.common import force_to_grad
+from ....configs import cfg
 
 
 _LOCAL_KERNEL_CACHE_WEAK = WeakKeyDictionary()
 _LOCAL_KERNEL_CACHE_FALLBACK = {}
+
+
+def _use_fused_kernels() -> bool:
+    return bool(cfg.get("FUSED_KERNELS"))
 
 
 def _get_local_kernel_cached(vstate, operator, *, chunk_size=None):
@@ -462,6 +467,7 @@ def expect_and_grad_nonhermitian(
     use_factored_kernels: list[bool] = []
     fused_args: list[PyTree] = []
     fused_scales: list[float] = []
+    use_fused = _use_fused_kernels()
 
     with prof_section(
         "expect_and_grad.nonhermitian.sequence.prepare",
@@ -539,33 +545,71 @@ def expect_and_grad_nonhermitian(
                         else jax.tree_util.tree_map(lambda a, b: a + b, grad_sum, Ō_grad_i)
                     )
 
-    # Single fused VJP for all non-IEC non-Hermitian terms.
+    # Optional fused VJP for all non-IEC non-Hermitian terms.
     if fused_kernels:
-        with prof_section(
-            "expect_and_grad.nonhermitian.sequence.fused_kernel",
-            cat="vqs.grad",
-            args={"n_fused_operators": int(len(fused_kernels))},
-        ) as sec:
-            L_fused, _Ō_stat, Ō_grad_fused, _new_model_state = _grad_expect_nonherm_kernel_sequence_fused(
-                tuple(fused_kernels),
-                tuple(fused_factored_kernels),
-                tuple(use_factored_kernels),
-                vstate._apply_fun,
-                False,
-                vstate.sampler.machine_pow,
-                vstate.parameters,
-                vstate.model_state,
-                σ,
-                tuple(fused_args),
-                tuple(fused_scales),
+        if use_fused:
+            with prof_section(
+                "expect_and_grad.nonhermitian.sequence.fused_kernel",
+                cat="vqs.grad",
+                args={"n_fused_operators": int(len(fused_kernels))},
+            ) as sec:
+                L_fused, _Ō_stat, Ō_grad_fused, _new_model_state = _grad_expect_nonherm_kernel_sequence_fused(
+                    tuple(fused_kernels),
+                    tuple(fused_factored_kernels),
+                    tuple(use_factored_kernels),
+                    vstate._apply_fun,
+                    False,
+                    vstate.sampler.machine_pow,
+                    vstate.parameters,
+                    vstate.model_state,
+                    σ,
+                    tuple(fused_args),
+                    tuple(fused_scales),
+                )
+                sec.sync((L_fused, Ō_grad_fused))
+            L_σ_sum = L_σ_sum + L_fused
+            grad_sum = (
+                Ō_grad_fused
+                if grad_sum is None
+                else jax.tree_util.tree_map(lambda a, b: a + b, grad_sum, Ō_grad_fused)
             )
-            sec.sync((L_fused, Ō_grad_fused))
-        L_σ_sum = L_σ_sum + L_fused
-        grad_sum = (
-            Ō_grad_fused
-            if grad_sum is None
-            else jax.tree_util.tree_map(lambda a, b: a + b, grad_sum, Ō_grad_fused)
-        )
+        else:
+            with prof_section(
+                "expect_and_grad.nonhermitian.sequence.unfused_kernel",
+                cat="vqs.grad",
+                args={"n_operators": int(len(fused_kernels))},
+            ) as sec:
+                for i, local_estimator_fun in enumerate(fused_kernels):
+                    # Keep local estimators on the original non-fused path.
+                    L_i = _locals_only(
+                        local_estimator_fun,
+                        vstate._apply_fun,
+                        vstate.parameters,
+                        vstate.model_state,
+                        σ,
+                        fused_args[i],
+                    )
+                    sf = jnp.asarray(fused_scales[i], dtype=L_i.dtype)
+                    L_i = sf * L_i
+
+                    _Ō_stat_i, Ō_grad_i, _new_model_state = _grad_expect_nonherm_kernel(
+                        local_estimator_fun,
+                        vstate._apply_fun,
+                        False,
+                        vstate.sampler.machine_pow,
+                        vstate.parameters,
+                        vstate.model_state,
+                        σ,
+                        fused_args[i],
+                        fused_scales[i],
+                    )
+                    L_σ_sum = L_σ_sum + L_i
+                    grad_sum = (
+                        Ō_grad_i
+                        if grad_sum is None
+                        else jax.tree_util.tree_map(lambda a, b: a + b, grad_sum, Ō_grad_i)
+                    )
+                sec.sync((L_σ_sum, grad_sum))
 
     # compute the final Stats object for L_σ_sum
     # we do "statistics(...)" on the sum of local values

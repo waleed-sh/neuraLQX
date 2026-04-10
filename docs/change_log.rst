@@ -20,7 +20,8 @@ New features
 
 Changes
 ~~~~~~~~
-- None.
+- Added a new configuration variable ``NQX_FUSED_KERNELS`` (default ``True``) which when set to ``True``, will avoid
+  a fused kernel in the VQS path (expect/gradient/forces) which can reduce the first step compile time in the VMC.
 
 Bug fixes
 ~~~~~~~~~~
