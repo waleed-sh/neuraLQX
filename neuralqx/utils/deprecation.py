@@ -39,11 +39,15 @@ import functools
 import inspect
 import warnings
 from textwrap import dedent
-from typing import TypeVar
+from typing import Any
 from typing import Callable
+from typing import Iterable
+from typing import MutableMapping
+from typing import TypeVar
 
 # TODO: move to types
 T = TypeVar("T", bound=type)
+_PUBLIC_API_DEPRECATION_MARKER = "__neuralqx_public_api_deprecated__"
 
 
 def deprecated(
@@ -302,3 +306,155 @@ def deprecated_module(module_name: str, reason: str = "") -> None:
     if reason:
         msg += f"\n\nNotes:\n{dedent(reason)}"
     warnings.warn(dedent(msg), category=FutureWarning, stacklevel=2)
+
+
+def _normalise_deprecation_reason(
+    reason: str | Callable[[str], str] | None,
+    target: str,
+) -> str | None:
+    if reason is None:
+        return None
+    if callable(reason):
+        resolved = reason(target)
+    else:
+        resolved = reason
+
+    resolved = dedent(resolved).strip()
+    return resolved or None
+
+
+def _is_public_api_deprecated(obj: Any) -> bool:
+    return bool(getattr(obj, _PUBLIC_API_DEPRECATION_MARKER, False))
+
+
+def _mark_public_api_deprecated(obj: Any) -> None:
+    try:
+        setattr(obj, _PUBLIC_API_DEPRECATION_MARKER, True)
+    except Exception:
+        pass
+
+
+def _apply_internal_class_guard(
+    cls: type,
+    *,
+    internal_module_prefixes: tuple[str, ...],
+) -> type:
+    """
+    Suppresses class deprecation warnings when instantiated from internal modules.
+
+    Useful for deprecated APIs that still instantiate internal sentinel/default
+    objects during import or bootstrap.
+    """
+    if not internal_module_prefixes:
+        return cls
+
+    warning_init = cls.__init__
+    original_init = getattr(warning_init, "__wrapped__", warning_init)
+
+    @functools.wraps(original_init)
+    def guarded_init(self, *args, **kwargs):
+        caller_frame = inspect.currentframe()
+        caller_module = ""
+        try:
+            if caller_frame is not None and caller_frame.f_back is not None:
+                caller_module = caller_frame.f_back.f_globals.get("__name__", "")
+        finally:
+            del caller_frame
+
+        if any(caller_module.startswith(pfx) for pfx in internal_module_prefixes):
+            return original_init(self, *args, **kwargs)
+
+        return warning_init(self, *args, **kwargs)
+
+    try:
+        guarded_init.__signature__ = inspect.signature(original_init)  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        pass
+
+    cls.__init__ = guarded_init  # type: ignore[assignment]
+    return cls
+
+
+def _deprecate_public_api_object(
+    obj: Any,
+    *,
+    qualified_name: str,
+    reason: str | None,
+    internal_module_prefixes: tuple[str, ...],
+) -> Any:
+    if _is_public_api_deprecated(obj):
+        return obj
+
+    if inspect.isclass(obj):
+        cls = deprecated_class(
+            reason=reason,
+            class_name=qualified_name,
+        )(obj)
+        cls = _apply_internal_class_guard(
+            cls,
+            internal_module_prefixes=internal_module_prefixes,
+        )
+        _mark_public_api_deprecated(cls)
+        return cls
+
+    if callable(obj):
+        wrapped = deprecated(
+            reason=reason,
+            func_name=qualified_name,
+        )(obj)
+        _mark_public_api_deprecated(wrapped)
+        return wrapped
+
+    return obj
+
+
+def deprecate_public_api(
+    namespace: MutableMapping[str, Any],
+    exports: Iterable[str] | None = None,
+    *,
+    module_name: str | None = None,
+    reason: str | Callable[[str], str] | None = None,
+    warn_on_module_import: bool = False,
+    internal_module_prefixes: tuple[str, ...] = (),
+) -> None:
+    """
+    Deprecates an entire public API namespace, typically a package or module ``__init__``.
+
+    This utility wraps exported functions and classes with deprecation warnings. It can
+    also emit a module-level deprecation warning when the module is imported.
+
+    Args:
+        namespace: Module globals dictionary, usually ``globals()``.
+        exports: Public names to deprecate. Defaults to ``namespace["__all__"]``.
+        module_name: Fully qualified module name used in warning labels. Defaults to
+            ``namespace["__name__"]``.
+        reason: Additional migration guidance. Can be either a static string or a
+            callable that receives the fully qualified target name and returns a
+            message.
+        warn_on_module_import: Whether to emit a module-level deprecation warning at
+            import time.
+        internal_module_prefixes: Optional module-name prefixes for internal call
+            sites where class instantiation should not emit deprecation warnings.
+    """
+    if module_name is None:
+        module_name = str(namespace.get("__name__", "<module>"))
+
+    if exports is None:
+        exports = namespace.get("__all__", ())
+
+    if warn_on_module_import:
+        module_reason = _normalise_deprecation_reason(reason, module_name)
+        deprecated_module(module_name=module_name, reason=module_reason or "")
+
+    for public_name in exports:
+        if public_name not in namespace:
+            continue
+
+        qualified_name = f"{module_name}.{public_name}"
+        object_reason = _normalise_deprecation_reason(reason, qualified_name)
+        namespace[public_name] = _deprecate_public_api_object(
+            namespace[public_name],
+            qualified_name=qualified_name,
+            reason=object_reason,
+            internal_module_prefixes=internal_module_prefixes,
+        )
