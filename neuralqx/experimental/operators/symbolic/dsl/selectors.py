@@ -1,4 +1,16 @@
-# Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
+#  Copyright (c) 2026. The neuraLQX Authors - All Rights Reserved
+#
+#  Licensed under the Apache License 2.0, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -162,31 +174,31 @@ def site(label: str) -> SiteSelector:
         Site selector handle.
 
     Example:
-        >>> from neuralqx.experimental.operators.symbolic.dsl import site
-        >>> s = site("i")
-        >>> print(s.value)          # AmplitudeExpr, x[i]
-        x[i]
-        >>> print(s.index)          # AmplitudeExpr, i (float)
-        i
-        >>> print(s.value < 3)      # PredicateExpr, x[i] < 3
-        (x[i] < 3)
-        >>> print(s.value + 1)      # AmplitudeExpr, x[i] + 1
-        (x[i] + 1)
+        .. code-block:: python
+
+            from neuralqx.experimental.operators.symbolic.dsl import site
+
+            s = site("i")
+            print(s.value)          # AmplitudeExpr, x[i]
+            print(s.index)          # AmplitudeExpr, i
+            print(s.value < 3)      # PredicateExpr, x[i] < 3
+            print(s.value + 1)      # AmplitudeExpr, x[i] + 1
     """
     return SiteSelector(label, namespace="site")
 
 
 def emitted(label: str) -> SiteSelector:
     """
-    Returns a symbolic selector bound to the emitted/connected state x'.
+    Returns a symbolic selector bound to the emitted or connected state ``x'``.
 
     Example:
-        >>> from neuralqx.experimental.operators.symbolic.dsl import emitted
-        >>> e = emitted("i")
-        >>> print(e.value)   # AmplitudeExpr, x'[i]
-        x'[i]
-        >>> print(e.index)   # AmplitudeExpr, i
-        i
+        .. code-block:: python
+
+            from neuralqx.experimental.operators.symbolic.dsl import emitted
+
+            e = emitted("i")
+            print(e.value)   # AmplitudeExpr, x'[i]
+            print(e.index)   # AmplitudeExpr, i
     """
     return SiteSelector(label, namespace="emit")
 
