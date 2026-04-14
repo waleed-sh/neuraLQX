@@ -11,7 +11,7 @@ Unreleased
 
 Breaking changes
 ~~~~~~~~~~~~~~~~~
-- None.
+- neuraLQX now supports Python ``>=3.11,<3.14``. Python ``3.14`` and newer are not supported.
 
 New features
 ~~~~~~~~~~~~~
@@ -31,7 +31,11 @@ Bug fixes
 
 Deprecations
 ~~~~~~~~~~~~~
-- None.
+- The experimental symbolic API under :mod:`neuralqx.experimental.operators.symbolic` is now deprecated in favour of nkDSL (the independent DSL for both NetKet and neuraLQX), and will be removed in the next release.
+
+  Users should migrate to nkDSL and follow its documentation:
+  https://nkdsl.readthedocs.io/en/latest/?badge=latest
+
 
 
 Experimental
