@@ -215,3 +215,116 @@ def test_deprecated_stacklevel_points_to_caller(dmod):
         f()
 
     assert wrec[0].filename.endswith("test_deprecation.py")
+
+
+def test_deprecate_public_api_wraps_exported_function_and_class(dmod):
+    def f(x):
+        return x + 1
+
+    class C:
+        def __init__(self, x):
+            self.x = x
+
+    namespace = {
+        "__name__": "pkg.symbolic",
+        "__all__": ("f", "C"),
+        "f": f,
+        "C": C,
+    }
+
+    dmod.deprecate_public_api(
+        namespace,
+        reason=lambda target: f"Use nkDSL instead of `{target}`.",
+    )
+
+    with warnings.catch_warnings(record=True) as wrec_f:
+        warnings.simplefilter("always")
+        out = namespace["f"](2)
+    assert out == 3
+    _assert_futurewarning_with_text(
+        wrec_f,
+        [
+            "deprecated function 'pkg.symbolic.f'",
+            "Use nkDSL instead of `pkg.symbolic.f`.",
+        ],
+    )
+
+    with warnings.catch_warnings(record=True) as wrec_c:
+        warnings.simplefilter("always")
+        c = namespace["C"](7)
+    assert c.x == 7
+    _assert_futurewarning_with_text(
+        wrec_c,
+        [
+            "deprecated class 'pkg.symbolic.C'",
+            "Use nkDSL instead of `pkg.symbolic.C`.",
+        ],
+    )
+
+
+def test_deprecate_public_api_can_warn_on_module_import(dmod):
+    namespace = {"__name__": "pkg.symbolic"}
+
+    with warnings.catch_warnings(record=True) as wrec:
+        warnings.simplefilter("always")
+        dmod.deprecate_public_api(
+            namespace,
+            exports=(),
+            module_name="pkg.symbolic",
+            reason="Use nkDSL.",
+            warn_on_module_import=True,
+        )
+
+    _assert_futurewarning_with_text(
+        wrec,
+        [
+            "Module `pkg.symbolic` is deprecated",
+            "Use nkDSL.",
+        ],
+    )
+
+
+def test_deprecate_public_api_internal_prefix_suppresses_class_warning(dmod):
+    class C:
+        def __init__(self, x):
+            self.x = x
+
+    namespace = {
+        "__name__": "pkg.symbolic",
+        "__all__": ("C",),
+        "C": C,
+    }
+
+    dmod.deprecate_public_api(
+        namespace,
+        reason="Use nkDSL.",
+        internal_module_prefixes=("pkg.symbolic.internal",),
+    )
+
+    wrapped_cls = namespace["C"]
+    internal_globals = {
+        "__name__": "pkg.symbolic.internal.bootstrap",
+        "WrappedC": wrapped_cls,
+    }
+    exec(
+        "def _build_internal_instance():\n" "    return WrappedC(11)\n",
+        internal_globals,
+    )
+    internal_builder = internal_globals["_build_internal_instance"]
+
+    with warnings.catch_warnings(record=True) as wrec_internal:
+        warnings.simplefilter("always")
+        out = internal_builder()
+    assert out.x == 11
+    assert len(wrec_internal) == 0
+
+    with warnings.catch_warnings(record=True) as wrec_external:
+        warnings.simplefilter("always")
+        wrapped_cls(12)
+    _assert_futurewarning_with_text(
+        wrec_external,
+        [
+            "deprecated class 'pkg.symbolic.C'",
+            "Use nkDSL.",
+        ],
+    )

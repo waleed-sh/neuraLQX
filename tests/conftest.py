@@ -29,6 +29,11 @@ warnings.filterwarnings(
     message=r"Implicit conversion of an array to a dtype is deprecated.*",
     category=DeprecationWarning,
 )
+warnings.filterwarnings(
+    "ignore",
+    message=r"\s*Module `neuralqx.experimental.operators.symbolic` is deprecated.*",
+    category=FutureWarning,
+)
 
 
 def _enable_experimental():

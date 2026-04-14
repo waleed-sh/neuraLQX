@@ -15,6 +15,10 @@
 
 """Core symbolic operator types."""
 
+from neuralqx.experimental.operators.symbolic._deprecation import (
+    deprecate_symbolic_public_api,
+)
+
 from .base import AbstractSymbolicOperator
 from .compiled import CompiledOperator
 from .operator import SymbolicOperator
@@ -26,3 +30,7 @@ __all__ = [
     "SymbolicOperator",
     "SymbolicOperatorSum",
 ]
+
+deprecate_symbolic_public_api(
+    globals(),
+)

@@ -15,6 +15,10 @@
 
 """Symbolic operator compiler package."""
 
+from neuralqx.experimental.operators.symbolic._deprecation import (
+    deprecate_symbolic_public_api,
+)
+
 from neuralqx.experimental.operators.symbolic.compiler.compiler import SymbolicCompiler
 from neuralqx.experimental.operators.symbolic.compiler.compiler import (
     compile_symbolic_operator,
@@ -65,3 +69,7 @@ __all__ = [
     "default_symbolic_lowerer_registry",
     "default_symbolic_artifact_store",
 ]
+
+deprecate_symbolic_public_api(
+    globals(),
+)

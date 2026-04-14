@@ -32,6 +32,10 @@ Typical workflow::
     xp, mels = compiled.get_conn_padded(x_batch)
 """
 
+from neuralqx.experimental.operators.symbolic._deprecation import (
+    deprecate_symbolic_public_api,
+)
+
 #
 #
 #   Primary user-facing entry points
@@ -144,3 +148,8 @@ __all__ = [
     "coerce_amplitude_expr",
     "coerce_predicate_expr",
 ]
+
+deprecate_symbolic_public_api(
+    globals(),
+    warn_on_module_import=True,
+)

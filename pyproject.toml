@@ -224,6 +224,7 @@ markers = [
     "jaxjit: tests that require JAX JIT enabled (others run with jit disabled)",
 ]
 filterwarnings = [
+    "ignore:\\s*Module `neuralqx.experimental.operators.symbolic` is deprecated.*:FutureWarning",
     "error::DeprecationWarning:neuralqx\\.",
     "error::FutureWarning:neuralqx\\.",
     "default::ResourceWarning",

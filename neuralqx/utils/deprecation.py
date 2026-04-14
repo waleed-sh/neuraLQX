@@ -297,7 +297,12 @@ def deprecated_class(
     return decorator
 
 
-def deprecated_module(module_name: str, reason: str = "") -> None:
+def deprecated_module(
+    module_name: str,
+    reason: str = "",
+    *,
+    stacklevel: int = 2,
+) -> None:
     msg = f"""
     Module `{module_name}` is deprecated and will be removed in a future release.
 
@@ -305,7 +310,7 @@ def deprecated_module(module_name: str, reason: str = "") -> None:
     """
     if reason:
         msg += f"\n\nNotes:\n{dedent(reason)}"
-    warnings.warn(dedent(msg), category=FutureWarning, stacklevel=2)
+    warnings.warn(dedent(msg), category=FutureWarning, stacklevel=stacklevel)
 
 
 def _normalise_deprecation_reason(
@@ -386,9 +391,11 @@ def _deprecate_public_api_object(
         return obj
 
     if inspect.isclass(obj):
+        class_warning_stacklevel = 3 if internal_module_prefixes else 2
         cls = deprecated_class(
             reason=reason,
             class_name=qualified_name,
+            stacklevel=class_warning_stacklevel,
         )(obj)
         cls = _apply_internal_class_guard(
             cls,
@@ -416,12 +423,13 @@ def deprecate_public_api(
     reason: str | Callable[[str], str] | None = None,
     warn_on_module_import: bool = False,
     internal_module_prefixes: tuple[str, ...] = (),
+    module_warning_stacklevel: int = 5,
 ) -> None:
     """
     Deprecates an entire public API namespace, typically a package or module ``__init__``.
 
     This utility wraps exported functions and classes with deprecation warnings. It can
-    also emit a module-level deprecation warning when the module is imported.
+    also optionally emit a module-level deprecation warning at import time.
 
     Args:
         namespace: Module globals dictionary, usually ``globals()``.
@@ -435,6 +443,9 @@ def deprecate_public_api(
             import time.
         internal_module_prefixes: Optional module-name prefixes for internal call
             sites where class instantiation should not emit deprecation warnings.
+        module_warning_stacklevel: Stack level used for module-level import warnings.
+            Defaults to ``5`` so warnings typically point to the import call site
+            rather than inside deprecation internals.
     """
     if module_name is None:
         module_name = str(namespace.get("__name__", "<module>"))
@@ -444,7 +455,11 @@ def deprecate_public_api(
 
     if warn_on_module_import:
         module_reason = _normalise_deprecation_reason(reason, module_name)
-        deprecated_module(module_name=module_name, reason=module_reason or "")
+        deprecated_module(
+            module_name=module_name,
+            reason=module_reason or "",
+            stacklevel=module_warning_stacklevel,
+        )
 
     for public_name in exports:
         if public_name not in namespace:

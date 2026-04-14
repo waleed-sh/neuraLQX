@@ -15,6 +15,10 @@
 
 """Symbolic operator intermediate representation (IR)."""
 
+from neuralqx.experimental.operators.symbolic._deprecation import (
+    deprecate_symbolic_public_api,
+)
+
 from .expressions import AmplitudeExpr
 from .expressions import coerce_amplitude_expr
 
@@ -44,3 +48,7 @@ __all__ = [
     "UpdateProgram",
     "validate_symbolic_ir",
 ]
+
+deprecate_symbolic_public_api(
+    globals(),
+)
