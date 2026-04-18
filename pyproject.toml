@@ -60,6 +60,7 @@ dependencies = [
     "dash>=2.18.2",
     "plotly>=5.24.1,<=6.0.0",
     "optax>=0.2.4",
+    "simplejson<4.0.0",
 ]
 
 #
