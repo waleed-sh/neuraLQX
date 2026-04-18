@@ -23,7 +23,7 @@ Changes
 - Added a new configuration variable ``NQX_FUSED_KERNELS`` (default ``True``) which when set to ``False``, will avoid
   a fused kernel in the VQS path (expect/gradient/forces) for sequences of operators which can reduce the first step compile time in the VMC.
 
-- Added a `.adjoint` property to the :class:`neuralqx.operators.types.ComputationalOperator` and
+- Added an ``.adjoint`` property to the :class:`neuralqx.operators.types.ComputationalOperator` and
   :class:`neuralqx.operators.types.ComputationalJaxOperator`. Subclasses ideally, but not necessarily, should implement
   this property to return an operator of the same type implementing the adjoint action.
 

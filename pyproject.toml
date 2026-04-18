@@ -14,6 +14,7 @@ build-backend = "hatchling.build"
 name = "neuraLQX"
 dynamic = ["version"]
 description = "A high-performance simulations toolkit for loop quantum gravity."
+# TODO: support 3.14 on next NetKet release
 requires-python = ">=3.11,<3.14"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
@@ -49,6 +50,8 @@ dependencies = [
     "humanize",
     "psutil",
     "NetKet>=3.19.0",
+    "jax<0.10.0",
+    "jaxlib<0.10.0",
     "bs4",
     "plum-dispatch",
     "cryptography",
