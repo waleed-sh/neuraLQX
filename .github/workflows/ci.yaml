@@ -50,17 +50,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --locked --extra dev
+          uv sync --extra dev
 
       - name: Main tests
         if: ${{ matrix.kind == 'main' }}
         run: |
-          uv run --locked pytest --cov=neuralqx --cov-report=xml
+          uv run pytest --cov=neuralqx --cov-report=xml
 
       - name: Doc tests
         if: ${{ matrix.kind == 'doctest' }}
         run: |
-          uv run --locked pytest --cov=neuralqx --cov-append --cov-report=xml --doctest-continue-on-failure --doctest-modules neuralqx/
+          uv run pytest --cov=neuralqx --cov-append --cov-report=xml --doctest-continue-on-failure --doctest-modules neuralqx/
 
       - name: Upload coverage artifact
         if: always()
