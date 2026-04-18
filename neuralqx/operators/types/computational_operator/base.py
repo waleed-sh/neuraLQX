@@ -81,6 +81,24 @@ class ComputationalOperator(DiscreteOperator):
         matrix elements returned by this operator)
         """
 
+    @property
+    def adjoint(self) -> "ComputationalOperator":
+        """
+        Return the adjoint (Hermitian conjugate) of this operator as a fully constructed
+        operator of the same family type.
+
+        Subclasses must override this property. For Hermitian operators the natural
+        implementation is ``return self``. For non-Hermitian operators the implementation
+        should construct and return the conjugate-transpose operator.
+
+        Raises:
+            NotImplementedError: if this operator family has not implemented an adjoint.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement the `adjoint` property. "
+            "Override it in your subclass to enable the bi-covariance gradient path."
+        )
+
     @abstractmethod
     def _get_conn_padded_kernel(self, x_local: np.ndarray | jnp.ndarray):
         r"""

@@ -20,8 +20,12 @@ New features
 
 Changes
 ~~~~~~~~
-- Added a new configuration variable ``NQX_FUSED_KERNELS`` (default ``True``) which when set to ``True``, will avoid
-  a fused kernel in the VQS path (expect/gradient/forces) which can reduce the first step compile time in the VMC.
+- Added a new configuration variable ``NQX_FUSED_KERNELS`` (default ``True``) which when set to ``False``, will avoid
+  a fused kernel in the VQS path (expect/gradient/forces) for sequences of operators which can reduce the first step compile time in the VMC.
+
+- Added a `.adjoint` property to the :class:`neuralqx.operators.types.ComputationalOperator` and
+  :class:`neuralqx.operators.types.ComputationalJaxOperator`. Subclasses ideally, but not necessarily, should implement
+  this property to return an operator of the same type implementing the adjoint action.
 
 Bug fixes
 ~~~~~~~~~~
@@ -31,10 +35,9 @@ Bug fixes
 
 Deprecations
 ~~~~~~~~~~~~~
-- The experimental symbolic API under :mod:`neuralqx.experimental.operators.symbolic` is now deprecated in favour of nkDSL (the independent DSL for both NetKet and neuraLQX), and will be removed in the next release.
-
-  Users should migrate to nkDSL and follow its documentation:
-  https://nkdsl.readthedocs.io/en/latest/?badge=latest
+- The experimental symbolic API under :mod:`neuralqx.experimental.operators.symbolic` is now deprecated in favour of
+  nkDSL (the independent DSL for both NetKet and neuraLQX), and will be removed in the next release. Users should migrate
+  to nkDSL and follow its documentation: https://nkdsl.readthedocs.io/en/latest/?badge=latest
 
 
 
