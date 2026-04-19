@@ -173,6 +173,12 @@ Environment Variables
      - ``False``
      - Enable experimental functions throughout the neuralqx and netket packages.
      - Yes
+   * - ``NQX_EXPERIMENTAL_GRAD``
+     - ``bool``
+     - ``False`` | ``True``
+     - ``False``
+     - Enable the experimental bi-covariance gradient path for non-Hermitian operators that expose ``.adjoint`` (requires ``NQX_EXPERIMENTAL=1``).
+     - Yes
    * - ``NQX_TESTING``
      - ``bool``
      - ``False`` | ``True``
@@ -281,6 +287,38 @@ the preferred approach for batch jobs and HPC scripts because it is visible in r
    before your cell runs, so the write is silently ignored.
 
    Always use ``nqx.cfg.update("EXPERIMENTAL", True)`` for in-process enablement.
+
+
+Experimental non-Hermitian gradient path
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``NQX_EXPERIMENTAL_GRAD`` enables the experimental exact bi-covariance path for
+non-Hermitian gradients in :meth:`neuralqx.vqs.MCState.expect_and_grad`.
+It does not unlock ``neuralqx.experimental`` imports by itself; namespace access
+remains guarded only by ``NQX_EXPERIMENTAL``.
+
+When both ``NQX_EXPERIMENTAL=1`` and ``NQX_EXPERIMENTAL_GRAD=1`` are enabled,
+neuraLQX attempts to evaluate
+
+.. math::
+
+   \\nabla\\langle A \\rangle
+   = \\operatorname{Cov}(\\overline{O}, L_A)
+   + \\operatorname{Cov}(O, \\overline{L_{A^\\dagger}})
+
+for operators (or operator sequences) that implement ``.adjoint``.
+If an adjoint is unavailable, neuraLQX emits a warning and falls back to the
+generic non-Hermitian VJP path.
+
+The experimental path also warns and falls back when:
+
+* the operator (or any operator in a sequence) has a complex dtype
+  (excluding ``Squared`` terms, which are real-valued objectives by construction),
+* a complex-parameter model is detected as non-holomorphic by NetKet's
+  ``is_probably_holomorphic`` diagnostic.
+
+This option is runtime-mutable, so it can be toggled with ``cfg.update`` or
+temporarily scoped with ``cfg.patch``.
 
 
 Unused Configurations

@@ -23,15 +23,14 @@ Changes
 - Added a new configuration variable ``NQX_FUSED_KERNELS`` (default ``True``) which when set to ``False``, will avoid
   a fused kernel in the VQS path (expect/gradient/forces) for sequences of operators which can reduce the first step compile time in the VMC.
 
-- Added an ``.adjoint`` property to the :class:`neuralqx.operators.types.ComputationalOperator` and
-  :class:`neuralqx.operators.types.ComputationalJaxOperator`. Subclasses ideally, but not necessarily, should implement
-  this property to return an operator of the same type implementing the adjoint action.
-
 Bug fixes
 ~~~~~~~~~~
 - Fixed a bug in the debugger which effectively made it always on.
 
 - Fixed a bug in the ``Solver`` which did not propagate ``silent_print=True`` to the VMC driver.
+
+- Fixed an import-side effect where the symbolic operator deprecation warning could be emitted when only the
+  experimental gradient path was touched, by lazily importing ``neuralqx.experimental`` submodules.
 
 Deprecations
 ~~~~~~~~~~~~~
@@ -40,10 +39,13 @@ Deprecations
   to nkDSL and follow its documentation: https://nkdsl.readthedocs.io/en/latest/?badge=latest
 
 
-
 Experimental
 ~~~~~~~~~~~~~
 - Added a ``for_each_distinct_pair()`` to the experimental operator DSL which iterates over sites ``i != j``.
+
+- Added an exact bi-covariance gradient route for non-Hermitian objectives in
+  ``expect_and_grad`` (single operators, sequences, and ``Squared`` objectives) behind
+  ``NQX_EXPERIMENTAL_GRAD``.
 
 ------------
 

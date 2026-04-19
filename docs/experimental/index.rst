@@ -153,6 +153,7 @@ Pages
    :caption: Experimental API
 
    mvmc
+   api/nonhermitian_gradients
 
 
 -------------------------------------------
@@ -195,6 +196,13 @@ Quick links
 
       Define matrix-free operators declaratively (iterators, predicates,
       emissions) and compile them into executable JAX-backed operator kernels.
+
+   .. grid-item-card:: Non-Hermitian Gradients
+      :link: nonhermitian_gradients
+      :link-type: doc
+
+      Exact experimental bi-covariance gradients for non-Hermitian operators
+      and sequences using the ``.adjoint`` interface.
 
    .. grid-item-card:: Stable guides
       :link: guides
