@@ -100,7 +100,7 @@ Bundle A: neuraLQX + NetKet
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.1.1},
+        version = {1.1.2},
         year = {2026},
       }
 
@@ -136,7 +136,7 @@ Bundle B: neuraLQX + NetKet + MPI
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.1.1},
+        version = {1.1.2},
         year = {2026},
       }
 
@@ -183,7 +183,7 @@ Bundle C: neuraLQX + NetKet + JAX/Flax
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.1.1},
+        version = {1.1.2},
         year = {2026},
       }
 
@@ -231,7 +231,7 @@ Bundle D: Full stack (everything on this page)
         title = {{neuraLQX}: a high-performance simulations toolkit for loop quantum gravity},
         author = {Sherif, Waleed},
         url = {http://github.com/waleed-sh/neuraLQX},
-        version = {1.1.1},
+        version = {1.1.2},
         year = {2026},
       }
 

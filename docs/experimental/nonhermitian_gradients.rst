@@ -207,7 +207,7 @@ Hermitian by construction. For routing purposes neuraLQX treats ``Squared(P)`` s
 * The objective is real-valued, so the complex-dtype fallback is not triggered even when ``P.dtype``
   is complex.
 * The gradient assembles as :math:`g_j = F_{\text{Sq}}^{(j)} + \overline{F_{\text{Sq}}^{(j)}}`,
-  which simplifies to :math:`2\,\Re[F_{\text{Sq}}^{(j)}}]`, the standard Hermitian covariance form.
+  which simplifies to :math:`2\,\Re[F_{\text{Sq}}^{(j)}]`, the standard Hermitian covariance form.
 
 This means ``Squared`` objectives receive an exact gradient regardless of the parent operator's dtype,
 as long as the bi-covariance flags are enabled.
