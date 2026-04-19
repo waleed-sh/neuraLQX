@@ -1810,6 +1810,21 @@ class ConfigManager:
             role="debugging",
             mutability=ConfigMutability.RUNTIME,
         )
+        self.define_bool(
+            "EXPERIMENTAL_GRAD",
+            default=False,
+            doc=(
+                "Enable the experimental bi-covariance gradient path for non-Hermitian "
+                "operators. When True, non-Hermitian operators that expose an `adjoint` "
+                "property use the exact two-sided covariance formula "
+                "grad = Cov(conj(O), L_A) + Cov(O, conj(L_{A†})) instead of generic "
+                "reverse-mode autodiff through the local estimator. "
+                "Falls back to the standard path if `adjoint` is not implemented."
+            ),
+            env_default="NQX_EXPERIMENTAL_GRAD",
+            role="debugging",
+            mutability=ConfigMutability.RUNTIME,
+        )
 
         #
         #
