@@ -78,6 +78,51 @@ def _use_fused_kernels() -> bool:
     return bool(cfg.get("FUSED_KERNELS"))
 
 
+def _use_experimental_grad() -> bool:
+    """Return whether experimental non-Hermitian gradient routing is enabled.
+
+    The bi-covariance route is available only when the experimental namespace is
+    enabled and the dedicated gradient flag is enabled.
+    """
+    return bool(cfg.get("EXPERIMENTAL")) and bool(cfg.get("EXPERIMENTAL_GRAD"))
+
+
+def _try_biadjoint_single(vstate, Ô, chunk_size, *, mutable):
+    """Attempt the bi-covariance path for one non-Hermitian operator.
+
+    Args:
+        vstate: Variational state.
+        Ô: Operator to differentiate.
+        chunk_size: Optional chunk size passed to the forces path.
+        mutable: Flax mutable collection filter.
+
+    Returns:
+        ``(stats, grad)`` on success, or ``None`` when an adjoint is unavailable.
+    """
+    from neuralqx.experimental.vqs.mc.mc_state.expect_grad_biadjoint import (
+        expect_and_grad_biadjoint,
+    )
+    return expect_and_grad_biadjoint(vstate, Ô, chunk_size, mutable=mutable)
+
+
+def _try_biadjoint_sequence(vstate, Ô_list, chunk_size, *, mutable):
+    """Attempt the bi-covariance path for a non-Hermitian operator sequence.
+
+    Args:
+        vstate: Variational state.
+        Ô_list: Operator sequence.
+        chunk_size: Optional chunk size passed to the forces path.
+        mutable: Flax mutable collection filter.
+
+    Returns:
+        ``(stats, grad)`` on success, or ``None`` when any adjoint is unavailable.
+    """
+    from neuralqx.experimental.vqs.mc.mc_state.expect_grad_biadjoint import (
+        expect_and_grad_biadjoint_sequence,
+    )
+    return expect_and_grad_biadjoint_sequence(vstate, Ô_list, chunk_size, mutable=mutable)
+
+
 def _get_local_kernel_cached(vstate, operator, *, chunk_size=None):
     """
     Resolve and cache local-kernel dispatch for a (vstate type, operator, chunk_size) triple.
@@ -256,6 +301,19 @@ def expect_and_grad_default_formula_sequence(
             Ō_grad = force_to_grad(Ō_grad, vstate.parameters)
             return Ō, Ō_grad
     else:
+        # Experimental bi-covariance path for non-Hermitian operator sequences.
+        if _use_experimental_grad():
+            with prof_section(
+                "expect_and_grad.sequence.biadjoint",
+                cat="vqs.grad",
+                args={"n_operators": int(len(Ô))},
+            ) as sec:
+                result = _try_biadjoint_sequence(vstate, Ô, chunk_size, mutable=mutable)
+                sec.sync(result)
+            if result is not None:
+                return result
+            # At least one adjoint unavailable — fall through to generic path.
+
         # non-hermitian path
         with prof_section(
             "expect_and_grad.sequence.nonhermitian",
@@ -266,8 +324,6 @@ def expect_and_grad_default_formula_sequence(
                 vstate, Ô, chunk_size, *args, mutable=mutable
             )
 
-
-# General implementation checking hermitianity
 @expect_and_grad.dispatch
 def expect_and_grad_default_formula(
     vstate: Union[MCState, NQXMCState],
@@ -294,6 +350,19 @@ def expect_and_grad_default_formula(
             Ō_grad = force_to_grad(Ō_grad, vstate.parameters)
             return Ō, Ō_grad
     else:
+        # Experimental bi-covariance path for non-Hermitian operators.
+        if _use_experimental_grad():
+            with prof_section(
+                "expect_and_grad.biadjoint",
+                cat="vqs.grad",
+                args={"operator_type": type(Ô).__name__},
+            ) as sec:
+                result = _try_biadjoint_single(vstate, Ô, chunk_size, mutable=mutable)
+                sec.sync(result)
+            if result is not None:
+                return result
+            # Adjoint unavailable, fall through to generic path.
+
         with prof_section(
             "expect_and_grad.nonhermitian",
             cat="vqs.grad",
@@ -319,6 +388,16 @@ def expect_and_grad_squared_op(
             "Cannot specify `use_covariance` with Squared[...] operator.\n"
             "This operator must use the same formula as non-hermitian operators to work."
         )
+    if _use_experimental_grad():
+        with prof_section(
+            "expect_and_grad.squared.biadjoint",
+            cat="vqs.grad",
+            args={"operator_type": type(Ô).__name__},
+        ) as sec:
+            result = _try_biadjoint_single(vstate, Ô, chunk_size, mutable=mutable)
+            sec.sync(result)
+        if result is not None:
+            return result
     return expect_and_grad_nonhermitian(vstate, Ô, chunk_size, *args, mutable=mutable)
 
 
@@ -353,10 +432,26 @@ def expect_and_grad_squared_op_sequence(
     if len(Ô) == 0:
         raise ExpectationValueError("expect_and_grad")
 
+    if _use_experimental_grad():
+        with prof_section(
+            "expect_and_grad.sequence.squared.biadjoint",
+            cat="vqs.grad",
+            args={"n_operators": int(len(Ô))},
+        ) as sec:
+            result = _try_biadjoint_sequence(vstate, Ô, chunk_size, mutable=mutable)
+            sec.sync(result)
+        if result is not None:
+            return result
+
     # now we have a list of squared operators: we route them to the non-hermitian logic
     # by calling `expect_and_grad_nonhermitian(...)` with the entire list
     # This will dispatch the multi-operator summation approach
-    return expect_and_grad_nonhermitian(vstate, Ô, chunk_size, *args, mutable=mutable)
+    with prof_section(
+        "expect_and_grad.sequence.squared.nonhermitian",
+        cat="vqs.grad",
+        args={"n_operators": int(len(Ô))},
+    ):
+        return expect_and_grad_nonhermitian(vstate, Ô, chunk_size, *args, mutable=mutable)
 
 
 @dispatch.dispatch
