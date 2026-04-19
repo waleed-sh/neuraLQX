@@ -12,6 +12,23 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from . import symbolic
+from __future__ import annotations
+
+import importlib
+
+_OPERATORS_SUBMODULES = {"symbolic"}
+
+
+def __getattr__(name: str):
+    if name in _OPERATORS_SUBMODULES:
+        module = importlib.import_module(f".{name}", __name__)
+        globals()[name] = module
+        return module
+    raise AttributeError(f"Module {__name__} has no attribute `{name}`.")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals().keys()) | _OPERATORS_SUBMODULES)
+
 
 __all__ = ["symbolic"]
