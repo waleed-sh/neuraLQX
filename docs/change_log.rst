@@ -6,7 +6,7 @@ Change Log
 
 
 
-Unreleased
+neuraLQX v1.1.2 (April 19, 2026)
 -----------------------------------
 
 Breaking changes
