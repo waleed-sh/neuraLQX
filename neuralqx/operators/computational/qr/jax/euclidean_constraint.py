@@ -149,6 +149,11 @@ class EuclideanConstraintJax(ComputationalJaxOperator):
         return True
 
     @property
+    def adjoint(self) -> "EuclideanConstraintJax":
+        """The Euclidean constraint is Hermitian, so its adjoint is itself."""
+        return self
+
+    @property
     def dtype(self):
         return jnp.float64
 

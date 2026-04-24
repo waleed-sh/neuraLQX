@@ -404,6 +404,15 @@ class SphericalVertexConstraintBojowaldSwiderskiAdjoint(ComputationalOperator):
         return False
 
     @property
+    def adjoint(self) -> "SphericalVertexConstraintBojowaldSwiderski":
+        """Return the non-adjoint operator."""
+        obj = SphericalVertexConstraintBojowaldSwiderski.__new__(
+            SphericalVertexConstraintBojowaldSwiderski
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         """All matrix elements are real, use float64 for numerical stability."""
         return jnp.float64
@@ -1287,6 +1296,15 @@ class SphericalVertexConstraintBojowaldSwiderski(ComputationalOperator):
         return False
 
     @property
+    def adjoint(self) -> "SphericalVertexConstraintBojowaldSwiderskiAdjoint":
+        """Return the adjoint operator."""
+        obj = SphericalVertexConstraintBojowaldSwiderskiAdjoint.__new__(
+            SphericalVertexConstraintBojowaldSwiderskiAdjoint
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         """All matrix elements are real, use float64 for numerical stability."""
         return jnp.float64
@@ -1885,6 +1903,15 @@ class SphericalVertexConstraintBojowaldSwiderskiAdjointFast(ComputationalOperato
         return False
 
     @property
+    def adjoint(self) -> "SphericalVertexConstraintBojowaldSwiderskiFast":
+        """Return the non-adjoint operator."""
+        obj = SphericalVertexConstraintBojowaldSwiderskiFast.__new__(
+            SphericalVertexConstraintBojowaldSwiderskiFast
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         return self._fdtype
 
@@ -2393,6 +2420,15 @@ class SphericalVertexConstraintBojowaldSwiderskiFast(ComputationalOperator):
     @property
     def is_hermitian(self) -> bool:
         return False
+
+    @property
+    def adjoint(self) -> "SphericalVertexConstraintBojowaldSwiderskiAdjointFast":
+        """Return the adjoint operator."""
+        obj = SphericalVertexConstraintBojowaldSwiderskiAdjointFast.__new__(
+            SphericalVertexConstraintBojowaldSwiderskiAdjointFast
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
 
     @property
     def dtype(self):

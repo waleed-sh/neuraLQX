@@ -99,6 +99,15 @@ class Euclidean3dVertexTRCOperator(ComputationalOperator):
         return False
 
     @property
+    def adjoint(self) -> "Euclidean3dVertexTRCAdjointOperator":
+        """Return the adjoint operator."""
+        obj = Euclidean3dVertexTRCAdjointOperator.__new__(
+            Euclidean3dVertexTRCAdjointOperator
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         return jnp.float64
 
@@ -405,6 +414,13 @@ class Euclidean3dVertexTRCAdjointOperator(Euclidean3dVertexTRCOperator):
           Δ_s^†(σ) = sqrtV(σ) - sqrtV(h_s σ)
       - loop holonomy is daggered: loop shifts are negated.
     """
+
+    @property
+    def adjoint(self) -> "Euclidean3dVertexTRCOperator":
+        """Return the non-adjoint operator."""
+        obj = Euclidean3dVertexTRCOperator.__new__(Euclidean3dVertexTRCOperator)
+        obj.__dict__.update(self.__dict__)
+        return obj
 
     def _get_conn_padded_kernel(self, σ: jnp.ndarray):
         σ = jnp.asarray(σ, dtype=jnp.int32)

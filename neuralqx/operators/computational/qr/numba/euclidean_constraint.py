@@ -137,6 +137,11 @@ class EuclideanConstraint(ComputationalOperator):
         return True
 
     @property
+    def adjoint(self) -> "EuclideanConstraint":
+        """The Euclidean constraint is Hermitian, so its adjoint is itself."""
+        return self
+
+    @property
     def dtype(self):
         return jnp.float64
 

@@ -226,6 +226,18 @@ class Euclidean3dVertexTRCOperatorJax(ComputationalJaxOperator):
         return False
 
     @property
+    def adjoint(self) -> "Euclidean3dVertexTRCAdjointOperatorJax":
+        """Return the adjoint operator."""
+        obj = Euclidean3dVertexTRCAdjointOperatorJax.__new__(
+            Euclidean3dVertexTRCAdjointOperatorJax
+        )
+        obj.__dict__.update(self.__dict__)
+        obj._segk_shift = (-self._segk_shift).astype(jnp.int32)
+        obj._segl_shift = (-self._segl_shift).astype(jnp.int32)
+        obj._loop_shifts = (-self._loop_shifts).astype(jnp.int32)
+        return obj
+
+    @property
     def dtype(self):
         return jnp.float64
 
@@ -529,6 +541,16 @@ class Euclidean3dVertexTRCAdjointOperatorJax(Euclidean3dVertexTRCOperatorJax):
 
         # dagger loop: h_alpha -> h_alpha^\dagger
         self._loop_shifts = (-self._loop_shifts).astype(jnp.int32)
+
+    @property
+    def adjoint(self) -> "Euclidean3dVertexTRCOperatorJax":
+        """Return the non-adjoint operator."""
+        obj = Euclidean3dVertexTRCOperatorJax.__new__(Euclidean3dVertexTRCOperatorJax)
+        obj.__dict__.update(self.__dict__)
+        obj._segk_shift = (-self._segk_shift).astype(jnp.int32)
+        obj._segl_shift = (-self._segl_shift).astype(jnp.int32)
+        obj._loop_shifts = (-self._loop_shifts).astype(jnp.int32)
+        return obj
 
 
 def ThiemannRegularisedVertexConstraint3dJax(

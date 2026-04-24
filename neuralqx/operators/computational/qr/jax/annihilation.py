@@ -82,6 +82,13 @@ class QRAnnihilationJax(ComputationalJaxOperator):
         return False
 
     @property
+    def adjoint(self) -> "QRCreationJax":
+        """The adjoint of an annihilation operator is the creation operator."""
+        from .creation import QRCreationJax
+
+        return QRCreationJax(self._H, site=self._site, n=self._n)
+
+    @property
     def dtype(self):
         return jnp.float32
 

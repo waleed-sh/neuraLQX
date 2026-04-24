@@ -62,6 +62,13 @@ class QRCreation(ComputationalOperator):
         return False
 
     @property
+    def adjoint(self) -> "QRAnnihilation":
+        """The adjoint of a creation operator is the annihilation operator."""
+        from .annihilation import QRAnnihilation
+
+        return QRAnnihilation(self._H, site=self.site, n=self.n)
+
+    @property
     def dtype(self):
         return jnp.float32
 

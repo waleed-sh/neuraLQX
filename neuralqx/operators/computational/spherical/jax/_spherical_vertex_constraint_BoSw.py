@@ -570,6 +570,15 @@ class SphericalVertexConstraintBojowaldSwiderskiJax(ComputationalJaxOperator):
         return False
 
     @property
+    def adjoint(self) -> "SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint":
+        """Return the adjoint operator."""
+        obj = SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint.__new__(
+            SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         return jnp.float64
 
@@ -797,6 +806,15 @@ class SphericalVertexConstraintBojowaldSwiderskiJaxAdjoint(ComputationalJaxOpera
     @property
     def is_hermitian(self) -> bool:
         return False
+
+    @property
+    def adjoint(self) -> "SphericalVertexConstraintBojowaldSwiderskiJax":
+        """Return the non-adjoint operator."""
+        obj = SphericalVertexConstraintBojowaldSwiderskiJax.__new__(
+            SphericalVertexConstraintBojowaldSwiderskiJax
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
 
     @property
     def dtype(self):

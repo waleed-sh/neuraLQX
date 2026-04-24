@@ -323,6 +323,15 @@ class EuclideanVertexTRCOperator(ComputationalOperator):
         return False
 
     @property
+    def adjoint(self) -> "EuclideanVertexTRCAdjointOperator":
+        """Return the adjoint operator."""
+        obj = EuclideanVertexTRCAdjointOperator.__new__(
+            EuclideanVertexTRCAdjointOperator
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         return jnp.float64
 
@@ -788,6 +797,15 @@ class EuclideanVertexTRCOperatorFast(ComputationalOperator):
         return False
 
     @property
+    def adjoint(self) -> "EuclideanVertexTRCAdjointOperatorFast":
+        """Return the adjoint operator."""
+        obj = EuclideanVertexTRCAdjointOperatorFast.__new__(
+            EuclideanVertexTRCAdjointOperatorFast
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self) -> DType:
         return self._fdtype
 
@@ -959,6 +977,13 @@ class EuclideanVertexTRCAdjointOperator(EuclideanVertexTRCOperator):
         for σ' = h_{α}†σ ->  + coeff_t * ΔV_adj(σ')
     """
 
+    @property
+    def adjoint(self) -> "EuclideanVertexTRCOperator":
+        """Return the non-adjoint operator."""
+        obj = EuclideanVertexTRCOperator.__new__(EuclideanVertexTRCOperator)
+        obj.__dict__.update(self.__dict__)
+        return obj
+
     def _get_conn_padded_kernel(self, σ: jnp.ndarray):
         single_input = σ.ndim == 2
         if single_input:
@@ -1046,6 +1071,13 @@ class EuclideanVertexTRCAdjointOperatorFast(EuclideanVertexTRCOperatorFast):
     r"""
     Fast adjoint version of EuclideanVertexTRCOperatorFast.
     """
+
+    @property
+    def adjoint(self) -> "EuclideanVertexTRCOperatorFast":
+        """Return the non-adjoint operator."""
+        obj = EuclideanVertexTRCOperatorFast.__new__(EuclideanVertexTRCOperatorFast)
+        obj.__dict__.update(self.__dict__)
+        return obj
 
     @partial(jax.jit, static_argnums=0)
     def _get_conn_padded_kernel(self, σ: jnp.ndarray):

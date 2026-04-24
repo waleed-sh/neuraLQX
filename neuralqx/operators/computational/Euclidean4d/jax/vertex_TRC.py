@@ -509,6 +509,15 @@ class EuclideanVertexTRCOperatorJax(ComputationalJaxOperator):
         return False
 
     @property
+    def adjoint(self) -> "EuclideanVertexTRCAdjointOperatorJax":
+        """Return the adjoint operator."""
+        obj = EuclideanVertexTRCAdjointOperatorJax.__new__(
+            EuclideanVertexTRCAdjointOperatorJax
+        )
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    @property
     def dtype(self):
         return self._fdtype
 
@@ -747,6 +756,13 @@ class EuclideanVertexTRCAdjointOperatorJax(EuclideanVertexTRCOperatorJax):
             apply_lapse=self._apply_lapse,
         )
         return σp, mels
+
+    @property
+    def adjoint(self) -> "EuclideanVertexTRCOperatorJax":
+        """Return the non-adjoint operator."""
+        obj = EuclideanVertexTRCOperatorJax.__new__(EuclideanVertexTRCOperatorJax)
+        obj.__dict__.update(self.__dict__)
+        return obj
 
 
 def ThiemannRegularisedVertexConstraintJax(

@@ -153,6 +153,11 @@ class LorentzianConstraintJax(ComputationalJaxOperator):
         return True
 
     @property
+    def adjoint(self) -> "LorentzianConstraintJax":
+        """The Lorentzian constraint is Hermitian, so its adjoint is itself."""
+        return self
+
+    @property
     def dtype(self):
         return jnp.float64
 
