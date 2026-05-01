@@ -212,29 +212,20 @@ def _coerce_policy_bound(
 _DEFAULT_POLICIES = (
     DependencyPolicy(
         name="flax",
-        minimum="0.6.5",
-        rationale=(
-            "Versions prior to 0.5 did not properly support complex valued layers. As Flax is "
-            "NetKet's default neural-network library, using older version of Flax may not support "
-            "complex valued wavefunctions. This can lead to the inability to correctly solve "
-            "constraints which are negative."
-        ),
+        minimum="0.10.2",
+        rationale=("Flax versions below 0.10.2 are currently not supported."),
     ),
     DependencyPolicy(
         name="netket",
-        minimum="3.19.0",
+        minimum="3.20.0",
         rationale=(
-            "neuraLQX requires a NetKet version above 3.19.0 for JAX sharding support."
+            "neuraLQX requires a NetKet version above 3.20.0 for JAX sharding support."
         ),
     ),
     DependencyPolicy(
         name="jax",
-        minimum="0.5.0",
-        rationale=(
-            "JAX versions below 0.5.0 are currently not supported. This is because some modified "
-            "code requires certain NetKet and JAX versions for just-in-time compilation of "
-            "some functions."
-        ),
+        minimum="0.7.0",
+        rationale=("JAX versions below 0.7.0 are currently not supported."),
     ),
 )
 

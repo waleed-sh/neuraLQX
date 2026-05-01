@@ -5,6 +5,40 @@ Change Log
 ============================================
 
 
+Unreleased
+-----------------------------------
+
+Breaking changes
+~~~~~~~~~~~~~~~~~
+- None.
+
+New features
+~~~~~~~~~~~~~
+- None.
+
+Changes
+~~~~~~~~
+- The minimum supported NetKet version is now 3.20.0 instead of 3.19.0.
+
+- The minimum supported JAX version is now 0.7.0 instead of 0.5.0.
+
+- The minimum supported Flax version is now 0.10.2 instead of 0.6.5.
+
+Bug fixes
+~~~~~~~~~~
+- None.
+
+Deprecations
+~~~~~~~~~~~~~
+- None.
+
+
+Experimental
+~~~~~~~~~~~~~
+- None.
+
+------------
+
 
 neuraLQX v1.1.2 (April 19, 2026)
 -----------------------------------
