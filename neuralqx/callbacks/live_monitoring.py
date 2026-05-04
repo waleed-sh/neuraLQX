@@ -247,6 +247,7 @@ class LiveMonitor:
 
         # observable toggles (objective is always shown)
         self._selected_observables: list[str] = []
+        self._last_select_all_clicks = 0
 
         # stable colors per observable
         self._color_map: dict[str, str] = {}
@@ -285,12 +286,15 @@ class LiveMonitor:
                 Output("stats-bar", "children"),
                 Output("obs-checklist", "options"),
                 Output("obs-checklist", "value"),
+                Output("select-all-btn", "children"),
+                Output("select-all-btn", "disabled"),
                 Output("subtitle-line", "children"),
                 Output("interval-component", "disabled"),
             ],
             [
                 Input("interval-component", "n_intervals"),
                 Input("obs-checklist", "value"),
+                Input("select-all-btn", "n_clicks"),
             ],
             [State("obs-checklist", "options")],
         )(self._update_ui)
@@ -580,6 +584,7 @@ class LiveMonitor:
             "paddingLeft": "16px",
             "display": "flex",
             "flexDirection": "column",
+            "minHeight": "0",
         }
 
         panel_title_style = {
@@ -604,8 +609,29 @@ class LiveMonitor:
             "backgroundColor": "#F8F8FA",
             "border": "1px solid #EFEFF4",
             "borderRadius": "14px",
-            "maxHeight": "520px",
+            "flex": "1 1 auto",
+            "minHeight": "0",
+            "maxHeight": "430px",
             "overflowY": "auto",
+        }
+
+        selection_toolbar_style = {
+            "display": "flex",
+            "marginTop": "10px",
+            "marginBottom": "8px",
+        }
+
+        select_all_btn_style = {
+            "padding": "6px 10px",
+            "borderRadius": "10px",
+            "border": "1px solid #D9DDE5",
+            "backgroundColor": "#F1F4FA",
+            "color": "#2E3440",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "cursor": "pointer",
+            "outline": "none",
+            "width": "100%",
         }
 
         stats_style = {
@@ -710,6 +736,18 @@ class LiveMonitor:
                                                 "height": "16px",
                                             },
                                             style=checklist_style,
+                                        ),
+                                        html.Div(
+                                            style=selection_toolbar_style,
+                                            children=[
+                                                html.Button(
+                                                    "Select all",
+                                                    id="select-all-btn",
+                                                    n_clicks=0,
+                                                    disabled=True,
+                                                    style=select_all_btn_style,
+                                                )
+                                            ],
                                         ),
                                         html.Div(
                                             style=abort_btn_wrapper_style,
@@ -1102,6 +1140,7 @@ class LiveMonitor:
         self,
         n: int,
         selected: list[str] | None,
+        select_all_clicks: int | None,
         _options_state,  # pylint: disable=unused-argument
     ):
         """
@@ -1116,9 +1155,11 @@ class LiveMonitor:
 
         :param n: Interval tick count (unused except to trigger updates).
         :param selected: Current checklist selection (observable names).
+        :param select_all_clicks: Click count for the select-all toggle button.
         :param _options_state: Current checklist options state (unused).
         :return: tuple matching the Dash outputs: updated figure, stats bar children, checklist
-            options, checklist value, subtitle text, and interval disabled flag.
+            options, checklist value, select-all button label/disabled state, subtitle text,
+            and interval disabled flag.
         """
 
         # disable interval as soon as shutdown starts
@@ -1126,6 +1167,8 @@ class LiveMonitor:
             active = self._updates_active
         if not active:
             return (
+                dash.no_update,
+                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -1149,7 +1192,22 @@ class LiveMonitor:
         if selected is None:
             selected = list(self._selected_observables)
         selected = [s for s in selected if s in observable_names]
+
+        # toggle selection when the button is clicked
+        click_count = int(select_all_clicks or 0)
+        if click_count > self._last_select_all_clicks:
+            all_selected_before = len(observable_names) > 0 and len(selected) == len(
+                observable_names
+            )
+            selected = [] if all_selected_before else list(observable_names)
+            self._last_select_all_clicks = click_count
+
         self._selected_observables = list(selected)
+        all_selected = len(observable_names) > 0 and len(selected) == len(
+            observable_names
+        )
+        select_btn_text = "Deselect all" if all_selected else "Select all"
+        select_btn_disabled = len(observable_names) == 0
 
         # if nothing changed, avoid re-render
         selected_tuple = tuple(selected)
@@ -1162,6 +1220,8 @@ class LiveMonitor:
                 dash.no_update,
                 options,
                 selected,
+                select_btn_text,
+                select_btn_disabled,
                 dash.no_update,
                 False,
             )
@@ -1173,7 +1233,16 @@ class LiveMonitor:
         fig["data"] = self._build_traces(selected)
 
         stats = self._build_stats_bar(selected)
-        return fig, stats, options, selected, subtitle, False
+        return (
+            fig,
+            stats,
+            options,
+            selected,
+            select_btn_text,
+            select_btn_disabled,
+            subtitle,
+            False,
+        )
 
 
 class LiveMonitoringCallback:
