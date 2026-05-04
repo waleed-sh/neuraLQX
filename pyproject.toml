@@ -63,6 +63,11 @@ dependencies = [
     "simplejson<4.0.0",
 ]
 
+[tool.uv]
+constraint-dependencies = [
+  "grpcio-tools>=1.70.0",
+]
+
 #
 #
 #   Optional dependencies
