@@ -166,10 +166,8 @@ def build_sampler(cfg: Exact, hilbert, **rt):
 
 @dispatch
 def build_sampler(cfg: AutoregressiveDirect, hilbert, **rt):
-    kw = dict(
-        hilbert=hilbert,
-        machine_pow=_machine_pow_scalar(cfg.machine_pow),
-    )
+    # NetKet's ARDirectSampler rejects explicit machine_pow, it is defined by the model
+    kw = dict(hilbert=hilbert)
     s = nk.sampler.ARDirectSampler(**kw)
     return _ret(s, kw)
 

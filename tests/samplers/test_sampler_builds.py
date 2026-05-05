@@ -136,8 +136,7 @@ def test_build_autoregressive_direct_sampler_uses_netket_ardirect(
     s, _, kw = bmod.build_sampler(cfg, hilbert)
 
     assert rec.calls[-1][0] == "ARDirectSampler"
-    assert kw["hilbert"] is hilbert
-    assert kw["machine_pow"] == 3
+    assert kw == {"hilbert": hilbert}
 
 
 @pytest.mark.parametrize(

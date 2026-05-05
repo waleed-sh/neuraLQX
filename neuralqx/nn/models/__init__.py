@@ -21,6 +21,7 @@ from ._resnet import ResNet
 from ._revenetc import RevNetComplex
 from ._cfvtnet import CFVTNet, make_cfvtnet_kwargs
 from ._graph_nqs import LocalGraphNQS, make_local_graph_nqs_kwargs
+from ._complex_arnn import ComplexARNNDense
 
 __all__ = [
     "RevNet",
@@ -31,4 +32,5 @@ __all__ = [
     "CFVTNet",
     "LocalGraphNQS",
     "make_local_graph_nqs_kwargs",
+    "ComplexARNNDense",
 ]
