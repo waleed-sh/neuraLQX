@@ -91,6 +91,11 @@ class Exact:
     pass
 
 
+@dataclass(frozen=True)
+class AutoregressiveDirect(Common):
+    pass
+
+
 #
 #
 #   gauge-invariant Metropolis (rules supplied internally)
@@ -186,6 +191,9 @@ SAMPLER_REGISTRY: Dict[str, Any] = {
     "metropolis multi hamiltonian": MetropolisMultiHamiltonian,
     "metropolis exchange": MetropolisExchange,
     "exact sampler": Exact,
+    "autoregressive direct sampler": AutoregressiveDirect,
+    "autoregressive sampler": AutoregressiveDirect,
+    "ar direct sampler": AutoregressiveDirect,
     "u1 gauge sampler": U1Gauge,
     "nonzero u1 gauge sampler": U1GaugeNonzero,
     "random u1 gauge sampler": RandomU1Gauge,

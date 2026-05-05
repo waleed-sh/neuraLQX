@@ -147,6 +147,11 @@ def fake_netket():
             super().__init__(**kwargs)
             rec.record("ExactSampler", **kwargs)
 
+    class ARDirectSampler(_FakeSamplerBase):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            rec.record("ARDirectSampler", **kwargs)
+
     nk = types.SimpleNamespace(
         sampler=types.SimpleNamespace(
             MetropolisSampler=MetropolisSampler,
@@ -154,6 +159,7 @@ def fake_netket():
             MetropolisHamiltonian=MetropolisHamiltonian,
             MetropolisExchange=MetropolisExchange,
             ExactSampler=ExactSampler,
+            ARDirectSampler=ARDirectSampler,
             rules=types.SimpleNamespace(
                 LocalRule=LocalRule,
                 ExchangeRule=ExchangeRule,

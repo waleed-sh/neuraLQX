@@ -29,6 +29,7 @@ from .types import MetropolisKLocal
 from .types import MetropolisHamiltonian
 from .types import MetropolisExchange
 from .types import Exact
+from .types import AutoregressiveDirect
 from .types import U1Gauge
 from .types import RandomU1Gauge
 from .types import U1GaugeNonzero
@@ -160,6 +161,16 @@ def build_sampler(cfg: MetropolisExchange, hilbert, **rt):
 def build_sampler(cfg: Exact, hilbert, **rt):
     kw = dict(hilbert=hilbert)
     s = nk.sampler.ExactSampler(**kw)
+    return _ret(s, kw)
+
+
+@dispatch
+def build_sampler(cfg: AutoregressiveDirect, hilbert, **rt):
+    kw = dict(
+        hilbert=hilbert,
+        machine_pow=_machine_pow_scalar(cfg.machine_pow),
+    )
+    s = nk.sampler.ARDirectSampler(**kw)
     return _ret(s, kw)
 
 

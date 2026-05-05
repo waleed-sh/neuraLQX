@@ -125,6 +125,21 @@ def test_build_exact_sampler_only_passes_hilbert(sampler_modules, patch_builds_n
     assert kw == {"hilbert": hilbert}
 
 
+def test_build_autoregressive_direct_sampler_uses_netket_ardirect(
+    sampler_modules, patch_builds_netket
+):
+    tmod, bmod, _, _ = sampler_modules
+    _, rec = patch_builds_netket
+
+    cfg = _mk_common(tmod, tmod.AutoregressiveDirect)
+    hilbert = object()
+    s, _, kw = bmod.build_sampler(cfg, hilbert)
+
+    assert rec.calls[-1][0] == "ARDirectSampler"
+    assert kw["hilbert"] is hilbert
+    assert kw["machine_pow"] == 3
+
+
 @pytest.mark.parametrize(
     "cfg_cls, expected_rule_name",
     [

@@ -25,9 +25,12 @@ def test_sampler_registry_contains_expected_aliases(sampler_modules):
 
     assert "metropolis local" in reg
     assert "exact sampler" in reg
+    assert "autoregressive direct sampler" in reg
     assert "pt metropolis local" in reg
     assert "parallel tempering local" in reg
 
+    assert reg["autoregressive sampler"] is reg["autoregressive direct sampler"]
+    assert reg["ar direct sampler"] is reg["autoregressive direct sampler"]
     assert reg["pt metropolis local"] is reg["parallel tempering local"]
     assert reg["pt metropolis exchange"] is reg["parallel tempering exchange"]
     assert reg["pt weighted sampler"] is reg["parallel tempering weighted sampler"]
@@ -64,6 +67,10 @@ def test_sampler_registry_contains_expected_aliases(sampler_modules):
                 reset_chains=True,
                 d_max=7,
             ),
+        ),
+        (
+            "AutoregressiveDirect",
+            dict(n_chains_per_rank=2, sweep_size=2, machine_pow=2, reset_chains=True),
         ),
         (
             "Weighted",
