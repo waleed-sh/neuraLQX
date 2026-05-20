@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Any, Optional, Tuple, Union, Callable
+from typing import Any, Optional, Tuple, Union, Callable, Sequence
 
 import numpy as np
 import jax
@@ -37,19 +37,6 @@ from neuralqx.vqs.mc.mc_state.state import jit_evaluate
 from neuralqx.vqs.mc.mc_state.state import local_estimators
 
 from neuralqx.utils import distributed as _dist
-
-
-def _is_master() -> bool:
-    """
-    Determine whether the current process should act as the global master for user-facing output.
-
-    The master process is the one that should print logs, progress bars, and diagnostics in
-    distributed runs.
-
-    :return: ``True`` if this process is the global master, otherwise ``False``.
-    """
-
-    return bool(_dist.is_global_master())
 
 
 def _get_stats_mean_sigma(stats_obj: Any) -> Tuple[float, float]:
@@ -145,7 +132,7 @@ def _fidelity_expect_joint(
     Hilbert-space fidelity unless ``machine_pow == 2``.
 
     Implementation notes
-    --------------------
+    ---------------------
     - If samples include both chain and sweep dimensions, they are collapsed following NetKet
       conventions before forming the joint batch.
     - The two sample sets are truncated to the same number of configurations (the minimum of
@@ -175,7 +162,6 @@ def _fidelity_expect_joint(
     if sigma_j.ndim >= 3:
         sigma_j = jax.lax.collapse(sigma_j, 0, 2)
 
-    # Python int (static under jit)
     n = min(sigma_i.shape[0], sigma_j.shape[0])
     sigma_i, sigma_j = sigma_i[:n], sigma_j[:n]
 
@@ -215,6 +201,33 @@ def _fidelity_expect_joint(
     return fid_val.real, fid_stats
 
 
+def _ensure_state_sequence(states: Sequence[MCState]) -> list[MCState]:
+    """Validate and materialise a sequence of MCState instances."""
+
+    states = list(states)
+    if len(states) == 0:
+        raise ValueError("MultiMCState requires at least one MCState.")
+    for i, state in enumerate(states):
+        if not isinstance(state, MCState):
+            raise TypeError(
+                f"MultiMCState expects MCState instances; item {i} has type "
+                f"{type(state).__name__}."
+            )
+    return states
+
+
+def _normalise_per_state_value(value: Any, n_states: int, *, name: str) -> list[Any]:
+    """Return one value per state, broadcasting scalar values when needed."""
+
+    if isinstance(value, (list, tuple)):
+        if len(value) != n_states:
+            raise ValueError(
+                f"{name} must contain exactly {n_states} entries; got {len(value)}."
+            )
+        return list(value)
+    return [value] * n_states
+
+
 class MultiMCState:
     """
     Container for multiple :class:`~neuralqx.vqs.mc.mc_state.state.MCState` objects with overlap diagnostics.
@@ -232,7 +245,7 @@ class MultiMCState:
     :raises ValueError: If ``states`` is empty or if any pair of states has a different Hilbert space.
     """
 
-    def __init__(self, states: list[MCState]):
+    def __init__(self, states: Sequence[MCState]):
         """
         Create a multi-state container.
 
@@ -244,19 +257,24 @@ class MultiMCState:
         :raises ValueError: If ``states`` is empty or if any pair of states has mismatching Hilbert spaces.
         """
 
-        if len(states) == 0:
-            raise ValueError("MultiMCState requires at least one MCState.")
-        self.states = states
+        self.states = _ensure_state_sequence(states)
 
-        for i, state_i in enumerate(states):
-            for j, state_j in enumerate(states):
-                if state_i.hilbert != state_j.hilbert:
-                    raise ValueError(
-                        f"MultiMCState instances must share the same hilbert space. Your provided state at "
-                        f"index {i} and {j} indices do not match."
-                    )
+        self._hilbert = self.states[0].hilbert
+        for i, state in enumerate(self.states[1:], start=1):
+            if state.hilbert != self._hilbert:
+                raise ValueError(
+                    "MultiMCState instances must share the same hilbert space. "
+                    f"The state at index 0 and index {i} do not match."
+                )
 
-        self._hilbert = states[0].hilbert
+    def __len__(self) -> int:
+        return self.n_states
+
+    def __iter__(self):
+        return iter(self.states)
+
+    def __getitem__(self, state: int) -> MCState:
+        return self.states[state]
 
     def init_parameters(
         self, init_fun: NNInitFunc | None = None, *, seed: PRNGKeyT | None = None
@@ -284,14 +302,17 @@ class MultiMCState:
         return [state.n_samples for state in self.states]
 
     @n_samples.setter
-    def n_samples(self, values: int) -> None:
+    def n_samples(self, values: int | Sequence[int]) -> None:
         """
         Set the number of samples for each state.
 
         :param values: the number of samples for each state.
         """
-        for state in self.states:
-            state.n_samples = values
+        for state, value in zip(
+            self.states,
+            _normalise_per_state_value(values, self.n_states, name="n_samples"),
+        ):
+            state.n_samples = int(value)
 
     @property
     def sampler(self) -> list[Sampler]:
@@ -303,7 +324,30 @@ class MultiMCState:
         return [state.sampler for state in self.states]
 
     @property
-    def model(self) -> Optional[list[Any]]:
+    def sampler_state(self) -> list[Any]:
+        """
+        Return the current sampler state for each contained state.
+
+        This mirrors the single-state ``MCState.sampler_state`` attribute and keeps the
+        container compatible with NetKet-style driver logging hooks.
+        """
+
+        return [state.sampler_state for state in self.states]
+
+    @sampler_state.setter
+    def sampler_state(self, sampler_states: Sequence[Any]) -> None:
+        for state, sampler_state in zip(
+            self.states,
+            _normalise_per_state_value(
+                sampler_states,
+                self.n_states,
+                name="sampler_state",
+            ),
+        ):
+            state.sampler_state = sampler_state
+
+    @property
+    def model(self) -> list[Any]:
         """
         Returns the model definition for each state.
         """
@@ -317,12 +361,19 @@ class MultiMCState:
         return [state.n_samples_per_rank for state in self.states]
 
     @n_samples_per_rank.setter
-    def n_samples_per_rank(self, value: int) -> None:
+    def n_samples_per_rank(self, value: int | Sequence[int]) -> None:
         """
         Set the number of samples per rank at each sampling step for each state.
         """
-        for state in self.states:
-            state.n_samples_per_rank = value
+        for state, per_state_value in zip(
+            self.states,
+            _normalise_per_state_value(
+                value,
+                self.n_states,
+                name="n_samples_per_rank",
+            ),
+        ):
+            state.n_samples_per_rank = int(per_state_value)
 
     @property
     def chain_length(self) -> list[int]:
@@ -334,12 +385,19 @@ class MultiMCState:
         return [state.chain_length for state in self.states]
 
     @chain_length.setter
-    def chain_length(self, value: int) -> None:
+    def chain_length(self, value: int | Sequence[int]) -> None:
         """
         Set the length of the Markov chain used for sampling configurations for each state.
         """
-        for state in self.states:
-            state.chain_length = value
+        for state, per_state_value in zip(
+            self.states,
+            _normalise_per_state_value(
+                value,
+                self.n_states,
+                name="chain_length",
+            ),
+        ):
+            state.chain_length = int(per_state_value)
 
     @property
     def n_discard_per_chain(self) -> list[int]:
@@ -349,12 +407,35 @@ class MultiMCState:
         return [state.n_discard_per_chain for state in self.states]
 
     @n_discard_per_chain.setter
-    def n_discard_per_chain(self, value: int) -> None:
+    def n_discard_per_chain(self, value: int | Sequence[int]) -> None:
         """
         Set the number of discarded samples at the beginning of the chain for each state.
         """
-        for state in self.states:
-            state.n_discard_per_chain = value
+        for state, per_state_value in zip(
+            self.states,
+            _normalise_per_state_value(
+                value,
+                self.n_states,
+                name="n_discard_per_chain",
+            ),
+        ):
+            state.n_discard_per_chain = int(per_state_value)
+
+    @property
+    def chunk_size(self) -> list[int | None]:
+        """
+        Suggested chunk size for each contained state.
+        """
+
+        return [state.chunk_size for state in self.states]
+
+    @chunk_size.setter
+    def chunk_size(self, value: int | None | Sequence[int | None]) -> None:
+        for state, per_state_value in zip(
+            self.states,
+            _normalise_per_state_value(value, self.n_states, name="chunk_size"),
+        ):
+            state.chunk_size = per_state_value
 
     def sample(
         self,
@@ -373,12 +454,14 @@ class MultiMCState:
         :param n_samples: the total number of samples across all MPI ranks for each state.
         :param n_discard_per_chain: number of discarded samples at the beginning of the chain for each state.
         """
-        for state in self.states:
+        return [
             state.sample(
                 chain_length=chain_length,
                 n_samples=n_samples,
                 n_discard_per_chain=n_discard_per_chain,
             )
+            for state in self.states
+        ]
 
     @property
     def samples(self) -> list[jnp.ndarray]:
@@ -386,6 +469,38 @@ class MultiMCState:
         Return the set of cached samples for each state.
         """
         return [state.samples for state in self.states]
+
+    @property
+    def variables(self) -> list[Any]:
+        """
+        Variables of all contained states, one pytree per state.
+        """
+
+        return [state.variables for state in self.states]
+
+    @variables.setter
+    def variables(self, variables: Sequence[Any]) -> None:
+        if not isinstance(variables, (list, tuple)):
+            if self.n_states == 1:
+                variables = [variables]
+            else:
+                raise ValueError(
+                    f"variables must contain exactly {self.n_states} entries."
+                )
+        if len(variables) != self.n_states:
+            raise ValueError(
+                f"variables must contain exactly {self.n_states} entries; got {len(variables)}."
+            )
+        for state, state_variables in zip(self.states, variables):
+            state.variables = state_variables
+
+    @property
+    def model_state(self) -> list[Any]:
+        """
+        Model-state collections for all contained states.
+        """
+
+        return [state.model_state for state in self.states]
 
     def log_value(self, σ: jnp.ndarray) -> list[jnp.ndarray]:
         r"""
@@ -516,7 +631,7 @@ class MultiMCState:
         if state is None:
             return [state.to_array(normalize=normalize) for state in self.states]
 
-        if state > self.n_states:
+        if state < 0 or state >= self.n_states:
             raise ValueError(f"There are only {self.n_states} states available.")
         return self.states[state].to_array(normalize=normalize)
 
@@ -546,8 +661,15 @@ class MultiMCState:
 
         :returns: A new MCState with the wrapped model and transplanted parameters.
         """
-        raise NotImplementedError(
-            "This feature is still under development. If you are interested, please get in touch!"
+        return MultiMCState(
+            [
+                state.project(
+                    wrap_model,
+                    reuse_cached_samples=reuse_cached_samples,
+                    **wrapper_kwargs,
+                )
+                for state in self.states
+            ]
         )
 
     def to_group_averaged(
@@ -564,8 +686,17 @@ class MultiMCState:
         the trained vanilla model parameters, reusing the SAME sampler, SamplerState,
         n_samples, n_discard_per_chain, chunk_size, and mutables policy.
         """
-        raise NotImplementedError(
-            "This feature is still under development. If you are interested, please get in touch!"
+        return MultiMCState(
+            [
+                state.to_group_averaged(
+                    symmetries=symmetries,
+                    graph=graph,
+                    index_perms=index_perms,
+                    characters=characters,
+                    reuse_cached_samples=reuse_cached_samples,
+                )
+                for state in self.states
+            ]
         )
 
     @property
@@ -595,15 +726,42 @@ class MultiMCState:
         """
         Set the parameters of all contained states.
 
-        The input is zipped with the current list of states, if the sequence is shorter than the
-        number of states, remaining states are unchanged. For best practice, pass a sequence of
-        length :attr:`n_states`.
+        The input must contain exactly one parameter pytree per contained state.
 
         :param pars: Sequence of parameter pytrees matching the number and structure of states.
         """
 
+        if not isinstance(pars, (list, tuple)):
+            if self.n_states == 1:
+                pars = [pars]
+            else:
+                raise ValueError(
+                    f"parameters must contain exactly {self.n_states} entries."
+                )
+        if len(pars) != self.n_states:
+            raise ValueError(
+                f"parameters must contain exactly {self.n_states} entries; got {len(pars)}."
+            )
         for s, p in zip(self.states, pars):
             s.parameters = p
+
+    @property
+    def n_parameters(self) -> list[int]:
+        """
+        Number of trainable parameters in each contained state.
+        """
+
+        return [int(state.n_parameters) for state in self.states]
+
+    @property
+    def is_group_averaged(self) -> list[bool]:
+        """
+        Whether each contained state was constructed as group averaged.
+        """
+
+        return [
+            bool(getattr(state, "_is_group_averaged", False)) for state in self.states
+        ]
 
     def reset(self) -> None:
         """
@@ -683,7 +841,7 @@ class MultiMCState:
         dF = np.zeros((n, n), dtype=float)
 
         # sanity: machine_pow
-        if assume_machine_pow_2 and _is_master():
+        if assume_machine_pow_2:
             bad = []
             for i, st in enumerate(self.states):
                 mp = getattr(getattr(st, "sampler", None), "machine_pow", 2)
@@ -827,7 +985,7 @@ class MultiMCState:
         :param assume_machine_pow_2: Forwarded to :meth:`overlap_matrix`.
         """
 
-        if not _is_master():
+        if not bool(_dist.is_global_master()):
             # still compute (MPI collectives may be inside), but do not print
             _ = self.overlap_matrix(
                 kind=kind,
@@ -888,5 +1046,5 @@ class MultiMCState:
             + f"\n  n_discard_per_chain = {self.n_discard_per_chain},"
             + f"\n  sampler_state = {self.sampler_state},"
             + f"\n  n_parameters = {self.n_parameters},"
-            + f"\n  is_group_averaged = {self._is_group_averaged})"
+            + f"\n  is_group_averaged = {self.is_group_averaged})"
         )

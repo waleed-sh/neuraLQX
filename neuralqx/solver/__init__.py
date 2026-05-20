@@ -18,8 +18,14 @@ This module implements end-to-end solvers for neuraLQX.
 
 from ._abstract_solver import AbstractSolver
 from .solver import Solver
+from .multi_state_solver import MultiSolver
+from .multi_state_solver import deserialize_MultiMCState
+from .multi_state_solver import serialize_MultiMCState
 
 __all__ = [
     "AbstractSolver",
     "Solver",
+    "MultiSolver",
+    "serialize_MultiMCState",
+    "deserialize_MultiMCState",
 ]

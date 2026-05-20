@@ -17,7 +17,7 @@ Multi-state VMC driver with an optional orthogonality regularisation term.
 
 This module extends a standard variational Monte Carlo (VMC) optimisation loop to train
 multiple independent :class:`~neuralqx.vqs.MCState` instances jointly via a
-:class:`~neuralqx.experimental.vqs.mc.mc_state.MultiMCState` container.
+:class:`~neuralqx.vqs.mc.mc_state.MultiMCState` container.
 
 At each optimisation step the driver computes an energy gradient for every state. When
 enabled, an additional pairwise penalty based on a fidelity-like overlap estimator is
@@ -38,10 +38,9 @@ from netket.jax import tree_cast
 from netket.operator import AbstractOperator
 from netket.optimizer import PreconditionerT
 from netket.optimizer import identity_preconditioner
-from neuralqx.utils import distributed as _dist
 from netket.utils.types import Optimizer
 
-from neuralqx.driver import VMC
+from .vmc import VMC
 from ..vqs.mc.mc_state import MultiMCState
 from neuralqx.vqs import MCState
 from neuralqx.profile import section as prof_section
@@ -119,15 +118,8 @@ def fidelity_expect_and_grad_joint(
     expectation value under the chosen sampling distributions but is not equal to the
     Hilbert-space fidelity unless ``machine_pow == 2``.
 
-    MPI semantics
-    -------------
-    The value and statistics are computed using :func:`netket.jax.expect`, which internally
-    uses MPI-aware reductions for statistics.
-
-    For gradients, note that :func:`netket.jax.expect` uses an MPI mean inside its custom VJP
-    rule. As a consequence, gradients produced by automatic differentiation are scaled by
-    ``1 / n_ranks`` on each rank. To obtain rank-independent gradients suitable for parameter
-    updates, this function performs an MPI *sum* over ranks on the AD gradients.
+    Gradients are produced through NetKet's VJP wrapper and therefore follow the same
+    distributed semantics as NetKet expectation gradients.
 
     :param apply_fun_i: Apply function for state *i* mapping variables and samples to ``log(psi)``.
     :param apply_fun_j: Apply function for state *j* mapping variables and samples to ``log(psi)``.
@@ -197,7 +189,7 @@ def fidelity_expect_and_grad_joint(
 
 class MultiStateVMC(VMC):
     r"""
-    VMC driver for :class:`~neuralqx.experimental.vqs.mc.mc_state.MultiMCState` with an optional orthogonality penalty.
+    VMC driver for :class:`~neuralqx.vqs.MultiMCState` with an optional orthogonality penalty.
 
     For each contained state, this driver computes energy statistics and gradients of the
     Hamiltonian objective. If ``lambda_ortho`` is nonzero and more than one state is present,
@@ -208,7 +200,7 @@ class MultiStateVMC(VMC):
     problem over all parameters, this corresponds to a block-diagonal preconditioner.
 
     :param variational_state: Multi-state variational object containing multiple independent states.
-    :param hamiltonian: Operator or list of operators defining the objective for each state.
+    :param hamiltonian: Operator or list of operators defining the shared objective.
     :param optimizer: Optimiser used to update parameters from the (preconditioned) gradients.
     :param preconditioner: Preconditioner applied per state to transform raw gradients.
     :param lambda_ortho: Strength of the orthogonality penalty. Set to ``0`` to disable.
@@ -239,7 +231,10 @@ class MultiStateVMC(VMC):
         :param lambda_ortho: Strength of the orthogonality penalty. Set to ``0`` to disable.
         """
 
-        # Note: a Hilbert space check is carried out in MultiMCState init
+        if not isinstance(variational_state, MultiMCState):
+            raise TypeError(
+                "MultiStateVMC requires a neuralqx.vqs.MultiMCState variational state."
+            )
 
         super().__init__(
             hamiltonian=hamiltonian,
@@ -309,7 +304,7 @@ class MultiStateVMC(VMC):
                         ) as sec:
                             # force jax to block until ready to get accurate measurements and not only dispatch time
                             # this is only going to sync if a user requests it explicitly
-                            _, fid_stats, fid_grads = sec.sync(
+                            _, _, fid_grads = sec.sync(
                                 fidelity_expect_and_grad_joint(
                                     si._apply_fun,
                                     sj._apply_fun,
@@ -349,8 +344,8 @@ class MultiStateVMC(VMC):
                     d = tree_cast(d, st.parameters)
                 dp.append(d)
 
-        self._last_energies = energies  # energies is list[Stats]
-        self._loss_stats = float(sum(float(e.mean) for e in energies))
+        self._last_energies = energies
+        self._loss_stats = jnp.real(sum(jnp.asarray(e.mean) for e in energies))
 
         return dp
 
@@ -437,7 +432,7 @@ class MultiStateVMC(VMC):
                     try:
                         # stats mean/sigma are not trivially averaged, so store list or first
                         # here: store the sum of means as a simple scalar curve
-                        m = sum(float(getattr(st, "Mean", st.mean)) for st in node)
+                        m = sum(float(st.mean) for st in node)
                         # build a dummy Stats-like scalar? easiest: keep list out of flat
                         flat[f"{name}/sum_mean"] = m
                     except Exception:

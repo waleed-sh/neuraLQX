@@ -27,7 +27,7 @@ from .base import (
     expect_and_forces,
 )
 
-from .mc import MCState, get_local_kernel_arguments, get_local_kernel
+from .mc import MCState, MultiMCState, get_local_kernel_arguments, get_local_kernel
 
 __all__ = [
     "VariationalState",
@@ -36,6 +36,7 @@ __all__ = [
     "expect_and_grad",
     "expect_and_forces",
     "MCState",
+    "MultiMCState",
     "get_local_kernel_arguments",
     "get_local_kernel",
 ]

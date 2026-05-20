@@ -16,7 +16,6 @@
 Experimental end-to-end solvers in neuraLQX.
 """
 
-from .multi_state_solver import MultiSolver
 from .stmh_solver import STMultiSolver
 
-__all__ = ["MultiSolver", "STMultiSolver"]
+__all__ = ["STMultiSolver"]

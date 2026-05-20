@@ -18,10 +18,12 @@
 from .common import check_hilbert, get_local_kernel_arguments, get_local_kernel
 
 from .mc_state import MCState
+from .mc_state import MultiMCState
 
 __all__ = [
     "check_hilbert",
     "get_local_kernel_arguments",
     "get_local_kernel",
     "MCState",
+    "MultiMCState",
 ]

@@ -25,6 +25,7 @@ in the runtime log.
 from __future__ import annotations
 
 import os
+import re
 import warnings
 from datetime import datetime
 
@@ -34,6 +35,7 @@ from typing import Optional
 from typing import Union
 from typing import Sequence
 from typing import TYPE_CHECKING
+from typing import cast
 
 import humanize
 import numpy as np
@@ -45,7 +47,9 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from neuralqx.solver.solver import Solver
 from neuralqx.solver.solver import reject_outliers
 
+from neuralqx.driver import MultiStateVMC
 from neuralqx.vqs import MCState
+from neuralqx.vqs import MultiMCState
 
 from neuralqx.utils import distributed as _dist
 from neuralqx.utils.serialization import load_from_file
@@ -56,10 +60,8 @@ from neuralqx.nn.projectors.group_projector import wrap_model
 from neuralqx.vqs.mc.mc_state.state import serialize_MCState
 from neuralqx.vqs.mc.mc_state.state import deserialize_MCState
 
-from neuralqx.experimental.vqs.mc.mc_state.mtmh_state import MultiMCState
-from neuralqx.experimental.driver.mvmc import MultiStateVMC
-
 from netket.optimizer import SR
+from netket.optimizer import identity_preconditioner
 from netket.utils import is_probably_holomorphic
 
 if TYPE_CHECKING:
@@ -69,20 +71,44 @@ if TYPE_CHECKING:
     from netket.stats.mc_stats import Stats
 
 
+def _is_per_state_constraint_key(name: str) -> bool:
+    """Return True for public and legacy per-state constraint log keys."""
+
+    return name.startswith("Constraint (") or re.match(r"^Constraint/s\d+$", name)
+
+
+def _constraint_state_index(name: str) -> int:
+    """Extract the state index from public or legacy per-state constraint log keys."""
+
+    match = re.search(r"state\s*(\d+)", name)
+    if match is not None:
+        return int(match.group(1))
+
+    match = re.search(r"/s(\d+)", name)
+    if match is not None:
+        return int(match.group(1))
+
+    return 10**9
+
+
 def serialize_MultiMCState(vstate: MultiMCState) -> dict:
     """
-    Serialize a :class:`~neuralqx.experimental.vqs.MultiMCState` into a plain Python dictionary.
+    Serialize a :class:`~neuralqx.vqs.MultiMCState` into a plain Python dictionary.
 
     The resulting dictionary is suitable for writing to disk with the neuraLQX
-    serialization utilities. Each contained :class:`~neuralqx.experimental.vqs.MultiMCState` is serialized using
+    serialization utilities. Each contained :class:`~neuralqx.vqs.MCState` is serialized using
     ``serialize_MCState``.
 
     :param vstate: Multi state variational state to serialize.
     :return: Dictionary representation of the multi state, including per state payloads.
     """
 
+    if not isinstance(vstate, MultiMCState):
+        raise TypeError("serialize_MultiMCState expects a MultiMCState instance.")
+
     return {
         "kind": "MultiMCState",
+        "schema_version": 1,
         "n_states": vstate.n_states,
         "states": [serialize_MCState(s) for s in vstate.states],
         # optional top-level distributed info, per-state dict already has metadata too
@@ -97,30 +123,56 @@ def deserialize_MultiMCState(
     force_load_mpi: bool = False,
 ) -> MultiMCState:
     """
-    Deserialize a :class:`~neuralqx.experimental.vqs.MultiMCState` from a dictionary into a new
-    :class:`~neuralqx.experimental.vqs.MultiMCState` instance.
+    Deserialize a :class:`~neuralqx.vqs.MultiMCState` from a dictionary into a new
+    :class:`~neuralqx.vqs.MultiMCState` instance.
 
     The function uses an existing `template` multi state to provide structure and
     implementation details required by `deserialize_MCState`. For backward compatibility,
     a dictionary that represents a single `MCState` is accepted and wrapped into a
-    single state :class:`~neuralqx.experimental.vqs.MultiMCState`.
+    single state :class:`~neuralqx.vqs.MultiMCState`.
 
     :param template: Existing multi state used as a template for reconstructing each state.
     :param state_dict: Dictionary payload previously produced by serialization utilities.
     :param force_load_mpi: If True, attempt to load MPI related fields even if they differ
         from the current run configuration.
-    :return: Newly reconstructed :class`~neuralqx.experimental.vqs.MultiMCState`.
+    :return: Newly reconstructed :class:`~neuralqx.vqs.MultiMCState`.
     :raises ValueError: If the number of saved states does not match `template.n_states`.
     """
 
-    # Backward compatibility: if a single MCState dict was saved, wrap it as one state
+    if not isinstance(template, MultiMCState):
+        raise TypeError("deserialize_MultiMCState requires a MultiMCState template.")
+    if not isinstance(state_dict, dict):
+        raise TypeError("MultiMCState checkpoint payload must be a dictionary.")
+
+    # Backward compatibility: if a single MCState dict was saved, wrap it as one state.
     if "states" not in state_dict:
         new_single = deserialize_MCState(
             template.states[0], state_dict, force_load_mpi=force_load_mpi
         )
         return MultiMCState([new_single])
 
+    kind = state_dict.get("kind")
+    if kind not in (None, "MultiMCState"):
+        raise ValueError(
+            f"Malformed MultiMCState checkpoint: expected kind='MultiMCState', got {kind!r}."
+        )
+
+    schema_version = state_dict.get("schema_version", 1)
+    if int(schema_version) != 1:
+        raise ValueError(
+            "Unsupported MultiMCState checkpoint schema_version="
+            f"{schema_version!r}; expected 1."
+        )
+
     saved_states = state_dict["states"]
+    if not isinstance(saved_states, list):
+        raise ValueError("Malformed MultiMCState checkpoint: 'states' must be a list.")
+    expected_n_states = state_dict.get("n_states")
+    if expected_n_states is not None and int(expected_n_states) != len(saved_states):
+        raise ValueError(
+            "Malformed MultiMCState checkpoint: top-level n_states does not match "
+            "the number of serialized states."
+        )
     if len(saved_states) != template.n_states:
         raise ValueError(
             f"Loaded MultiMCState has n_states={len(saved_states)} but current template has "
@@ -128,7 +180,7 @@ def deserialize_MultiMCState(
         )
 
     new_states: List[MCState] = []
-    for i, (tmpl, sd) in enumerate(zip(template.states, saved_states)):
+    for tmpl, sd in zip(template.states, saved_states):
         new_states.append(deserialize_MCState(tmpl, sd, force_load_mpi=force_load_mpi))
 
     return MultiMCState(new_states)
@@ -139,8 +191,8 @@ class MultiSolver(Solver):
     Solver subclass that trains multiple variational states jointly.
 
     This solver is a drop in variant of :class:`~neuralqx.solver.Solver` that runs
-    :class:`~neuralqx.experimental.driver.MultiStateVMC` with a
-    :class:`~neuralqx.experimental.vqs.MultiMCState` backend. It supports configuring multiple networks, building one
+    :class:`~neuralqx.driver.MultiStateVMC` with a
+    :class:`~neuralqx.vqs.MultiMCState` backend. It supports configuring multiple networks, building one
     :class:`~neuralqx.vqs.MCState` per network during VMC initialization, evaluating expectations per state
     or for all states, exporting and importing multi state checkpoints, and logging
     final constraint results both aggregated and per state.
@@ -161,6 +213,34 @@ class MultiSolver(Solver):
 
         return self._lambda_ortho
 
+    @property
+    def variational_state(self) -> MultiMCState:
+        """
+        Return the active multi-state variational state.
+
+        This narrows the base :class:`~neuralqx.solver.Solver` return type from
+        :class:`~neuralqx.vqs.MCState` to :class:`~neuralqx.vqs.MultiMCState` for static type
+        checkers and IDE completion, while preserving the base runtime availability checks.
+
+        :return: The active :class:`~neuralqx.vqs.MultiMCState`.
+        """
+
+        return cast(MultiMCState, super().variational_state)
+
+    @property
+    def vmc_driver(self) -> MultiStateVMC:
+        """
+        Return the active multi-state VMC driver.
+
+        This narrows the base :class:`~neuralqx.solver.Solver` return type from
+        :class:`~neuralqx.driver.VMC` to :class:`~neuralqx.driver.MultiStateVMC` without changing
+        runtime behavior.
+
+        :return: The active :class:`~neuralqx.driver.MultiStateVMC`.
+        """
+
+        return cast(MultiStateVMC, super().vmc_driver)
+
     def set_network(
         self,
         network: Union["FlaxModule", Sequence["FlaxModule"]],
@@ -168,6 +248,7 @@ class MultiSolver(Solver):
         diff_invariant: bool = False,
         symmetries: Optional[Sequence[Any]] = None,
         lambda_ortho: Optional[float] = None,
+        chunk_size: Optional[int] = None,
         **kwargs,
     ) -> None:
         """
@@ -183,6 +264,7 @@ class MultiSolver(Solver):
         :param symmetries: Optional symmetry data forwarded to the model wrapper.
         :param lambda_ortho: Optional override for the orthogonalization strength used during
             multi state optimisation.
+        :param chunk_size: Optional chunk size forwarded to each constructed ``MCState``.
         :param kwargs: Additional keyword arguments accepted for forward compatibility.
         :return: None.
         """
@@ -197,6 +279,8 @@ class MultiSolver(Solver):
             networks = list(network)
         else:
             networks = [network]
+        if len(networks) == 0:
+            raise ValueError("MultiSolver.set_network requires at least one network.")
 
         # optionally wrap each model for diffeo projection
         self._diff_inv = diff_invariant
@@ -242,10 +326,12 @@ class MultiSolver(Solver):
         except Exception:
             pass
 
-        if lambda_ortho is not None:
-            self._lambda_ortho = lambda_ortho
-        else:
-            self._lambda_ortho = 1.0
+        self._lambda_ortho = (
+            float(lambda_ortho)
+            if lambda_ortho is not None
+            else float(getattr(self, "_lambda_ortho", 1.0))
+        )
+        self._chunk_size = chunk_size if chunk_size is not None else None
 
         # mark flag + inform user
         self._network_flag = True
@@ -395,6 +481,7 @@ class MultiSolver(Solver):
                 is_group_averaged=self.diffeomorphism_invariant_simulation,
                 seed=int(self.seed + 1337 * i),
                 sampler_seed=int(self.seed // 2 + 7331 * i),
+                chunk_size=self.chunk_size,
             )
             states.append(st)
 
@@ -457,9 +544,22 @@ class MultiSolver(Solver):
 
         self._vstate_flag = True
 
-        # pick SR holomorphic conservatively, True only if ALL states holomorphic
-        # dev: SR for each state means SR can be differently holomorphic for each state, this needs a fix
+        # Pick SR holomorphic conservatively: one shared preconditioner is applied per
+        # state, so the safe default is holomorphic only when every state qualifies.
         holomorphic = bool(all(holo_flags))
+
+        if self.preconditioner is None:
+            if self._use_sr:
+                self.preconditioner = SR(
+                    diag_shift=self.diagonal_shift,
+                    holomorphic=holomorphic,
+                    solver=self.preconditioner_solver,
+                )
+            else:
+                self.preconditioner = identity_preconditioner
+
+        self._logger.add_field("Optimizer Configs", "Preconditioner")
+        self._logger.log("Preconditioner", type(self.preconditioner).__name__)
 
         # build MultiStateVMC driver
         lambda_ortho = float(kwargs.get("lambda_ortho", self.lambda_ortho))
@@ -468,11 +568,7 @@ class MultiSolver(Solver):
             variational_state=self._variational_state,
             hamiltonian=self.lqx.constraint,
             optimizer=self.optimizer,
-            preconditioner=SR(
-                diag_shift=self.diagonal_shift,
-                holomorphic=holomorphic,
-                solver=self.preconditioner_solver,
-            ),
+            preconditioner=self.preconditioner,
             lambda_ortho=lambda_ortho,
         )
 
@@ -501,14 +597,16 @@ class MultiSolver(Solver):
 
         self.final_constraint_stats = stats_list
         self.final_constraint_mean = [
-            self._coerce_mean_value(s.mean, sigma=getattr(s, "Sigma", None))
-            for s in stats_list
+            self._coerce_mean_value(s.mean, sigma=s.Sigma) for s in stats_list
         ]
 
         # Backward compatible: log aggregated "Network result" as the list
         if hasattr(self, "_logger") and self._logger is not None:
             try:
                 self._logger.log("Network result", stats_list)
+                self._logger.log(
+                    "Network result (mean scalar)", self.final_constraint_mean
+                )
             except Exception:
                 pass
 
@@ -525,6 +623,16 @@ class MultiSolver(Solver):
                 except Exception:
                     pass
 
+                mean_key = f"State[{i}] Network result (mean scalar)"
+                try:
+                    self._logger.add_field("Optimization Results", mean_key)
+                except Exception:
+                    pass
+                try:
+                    self._logger.log(mean_key, self.final_constraint_mean[i])
+                except Exception:
+                    pass
+
             # exact diag
             if self.lqx.has_ground_energy:
                 try:
@@ -533,6 +641,70 @@ class MultiSolver(Solver):
                     )
                 except Exception:
                     pass
+
+    def _log_trailing_averages(self, window: int = 100) -> None:
+        """
+        Log trailing-window summaries for each multi-state constraint curve.
+        """
+
+        if not hasattr(self, "_logger") or self._logger is None:
+            return
+
+        try:
+            data = self.log.data
+            series_items = [
+                (name, data[name])
+                for name in data.keys()
+                if isinstance(name, str) and _is_per_state_constraint_key(name)
+            ]
+            if not series_items:
+                return super()._log_trailing_averages(window=window)
+
+            def _series_attr(series, attr: str):
+                if hasattr(series, attr):
+                    return getattr(series, attr)
+                return series[attr]
+
+            for name, series in sorted(
+                series_items, key=lambda kv: _constraint_state_index(kv[0])
+            ):
+                idx = _constraint_state_index(name)
+                means = np.asarray(_series_attr(series, "Mean"))
+                if means.size == 0:
+                    continue
+
+                w = int(min(window, means.size))
+                avg_m = np.mean(means[-w:])
+                err_m = np.std(means[-w:]) / np.sqrt(w)
+
+                try:
+                    r_hats = np.asarray(_series_attr(series, "R_hat"))
+                    if r_hats.size >= w:
+                        avg_r = np.mean(r_hats[-w:])
+                        err_r = np.std(r_hats[-w:]) / np.sqrt(w)
+                        r_str = f"{avg_r:.3f}({err_r:.3f})"
+                    else:
+                        r_str = "N/A"
+                except Exception:
+                    r_str = "N/A"
+
+                mean_key = (
+                    f"State[{idx}] Average min<C> over last 100 iterations (stddev)"
+                )
+                rhat_key = (
+                    f"State[{idx}] Average R_Hat over last 100 iterations (stddev)"
+                )
+                for key in (mean_key, rhat_key):
+                    try:
+                        self._logger.add_field("Optimization Results", key)
+                    except Exception:
+                        pass
+                self._logger.log(
+                    [mean_key, rhat_key],
+                    [f"{avg_m:.3f}({err_m:.3f})", r_str],
+                )
+        except Exception:
+            return
 
     def export_state(
         self,
@@ -553,7 +725,7 @@ class MultiSolver(Solver):
         :param silent: If True, suppress user facing printing on successful export.
         :param marker: Optional string appended to the filename for easier identification.
         :param kwargs: Additional keyword arguments accepted for forward compatibility.
-        :return: None.
+        :return: Exported checkpoint path on success, otherwise ``None``.
         :raises TypeError: If the provided or current state is not a `MultiMCState`.
         """
 
@@ -565,6 +737,7 @@ class MultiSolver(Solver):
 
         _dist.barrier()
 
+        filename = None
         if _dist.is_global_master():
             os.makedirs(self.output_path, exist_ok=True)
             if marker:
@@ -580,7 +753,7 @@ class MultiSolver(Solver):
                 self.printer.print("MultiState serialised to disk.")
 
         _dist.barrier()
-        return None
+        return _dist.bcast(filename, root=0)
 
     def import_state(
         self,
@@ -611,7 +784,9 @@ class MultiSolver(Solver):
 
         nvs = _dist.mpi_bcast(nvs, root=0)
 
-        if not isinstance(self.variational_state, MultiMCState):
+        if not getattr(self, "_vstate_flag", False) or not isinstance(
+            self.variational_state, MultiMCState
+        ):
             raise RuntimeError(
                 "MultiSolver.import_state requires an existing MultiMCState template. "
                 "Call initialize_vmc() after setting networks/sampler/optimizer before loading."
@@ -642,8 +817,6 @@ class MultiSolver(Solver):
         :param kwargs: Additional keyword arguments accepted for forward compatibility.
         :return: None.
         """
-
-        # dev: this is still WIP...
 
         # set the dpi, a high dpi is used for publishing
         dpi = 300
@@ -696,11 +869,11 @@ class MultiSolver(Solver):
                 hasattr(obj, "iters") and hasattr(obj, "Mean") and hasattr(obj, "Sigma")
             )
 
-        # Prefer multi-state keys Constraint/s{i}
+        # Prefer multi-state per-state constraint keys.
         constraint_series = []
         # data_nn behaves like a dict
         for k in list(data_nn.keys()):
-            if isinstance(k, str) and k.startswith("Constraint ("):
+            if isinstance(k, str) and _is_per_state_constraint_key(k):
                 try:
                     s = data_nn[k]
                     if _is_stats_series(s):
@@ -708,18 +881,7 @@ class MultiSolver(Solver):
                 except Exception:
                     pass
 
-        # sort by state index if possible (Constraint/s0, Constraint/s1, ...)
-        def _state_index(name: str) -> int:
-            # name like "Constraint/s3"
-            try:
-                suffix = name.split("(")[-1]
-                if suffix.startswith("s"):
-                    return int(suffix[1:])
-            except Exception:
-                pass
-            return 10**9
-
-        constraint_series.sort(key=lambda kv: _state_index(kv[0]))
+        constraint_series.sort(key=lambda kv: _constraint_state_index(kv[0]))
 
         # fallback to single-state "Constraint"
         if (
@@ -731,6 +893,7 @@ class MultiSolver(Solver):
 
         if not constraint_series:
             self.printer.print("No 'Constraint' series found in log, skipping plot.")
+            plt.close(fig)
             return
 
         for name, series in constraint_series:
@@ -738,7 +901,7 @@ class MultiSolver(Solver):
             if name == "Constraint":
                 lbl = "neuraLQX"
             else:
-                idx = _state_index(name)
+                idx = _constraint_state_index(name)
                 lbl = f"State {idx}" if idx != 10**9 else name
 
             ax.errorbar(
@@ -759,7 +922,7 @@ class MultiSolver(Solver):
 
         # customise the axes
         ax.set_xlabel("Iteration", fontsize="xx-large")
-        ax.set_ylabel(r"$\langle \hat{C}\rangle$", fontsize="xx-large")
+        ax.set_ylabel(r"$\langle \hat{\mathcal{Q}}\rangle$", fontsize="xx-large")
         ax.tick_params(axis="both", which="both", labelsize="x-large")
 
         # add grid
@@ -770,7 +933,11 @@ class MultiSolver(Solver):
             inset_position = [ip * dpi_ratio for ip in inset_position_100dpi]
 
             max_x = self._max_iters
-            min_x = max_x - 20
+            if max_x is None:
+                max_x = max(
+                    int(np.max(series.iters)) for _, series in constraint_series
+                )
+            min_x = max(0, int(max_x) - 20)
 
             ax_ins = inset_axes(
                 ax, width="30%", height="30%", bbox_to_anchor=inset_position
@@ -781,7 +948,7 @@ class MultiSolver(Solver):
                 if name == "Constraint":
                     lbl = "NN"
                 else:
-                    idx = _state_index(name)
+                    idx = _constraint_state_index(name)
                     lbl = f"State {idx}" if idx != 10**9 else name
 
                 ax_ins.errorbar(
@@ -815,7 +982,9 @@ class MultiSolver(Solver):
                     # series supports slicing like series[min_x:max_x]
                     window_vals = np.asarray(series[min_x:max_x].Mean)
                     if window_vals.size:
-                        all_vals.append(reject_outliers(window_vals))
+                        cleaned_window = reject_outliers(window_vals)
+                        if cleaned_window.size:
+                            all_vals.append(cleaned_window)
                 except Exception:
                     pass
 
@@ -826,23 +995,37 @@ class MultiSolver(Solver):
             else:
                 # fallback: use first series
                 cleaned = reject_outliers(np.asarray(constraint_series[0][1].Mean))
-                data_min = float(np.min(cleaned))
-                data_max = float(np.max(cleaned))
+                if cleaned.size == 0:
+                    with_inset = False
+                else:
+                    data_min = float(np.min(cleaned))
+                    data_max = float(np.max(cleaned))
 
-            if has_ge:
-                min_y = min(data_min, float(ge)) - 0.05
-                max_y = max(data_max, float(ge)) + 0.15
+            if with_inset:
+                if has_ge:
+                    min_y = min(data_min, float(ge)) - 0.05
+                    max_y = max(data_max, float(ge)) + 0.15
+                else:
+                    min_y = data_min - 0.05
+                    max_y = data_max + 0.15
+
+                ax_ins.set_xlim(min_x, max_x)
+                ax_ins.set_ylim(min_y, max_y)
+
+                mark_inset(
+                    ax,
+                    ax_ins,
+                    loc1=3,
+                    loc2=1,
+                    fc="none",
+                    ec="0.6",
+                    linestyle="--",
+                )
+
+                ax_ins.grid(True, linestyle="--", alpha=0.7)
+                ax_ins.minorticks_on()
             else:
-                min_y = data_min - 0.05
-                max_y = data_max + 0.15
-
-            ax_ins.set_xlim(min_x, max_x)
-            ax_ins.set_ylim(min_y, max_y)
-
-            mark_inset(ax, ax_ins, loc1=3, loc2=1, fc="none", ec="0.6", linestyle="--")
-
-            ax_ins.grid(True, linestyle="--", alpha=0.7)
-            ax_ins.minorticks_on()
+                ax_ins.remove()
 
         ax.minorticks_on()
 
@@ -860,6 +1043,11 @@ class MultiSolver(Solver):
         else:
             plt.close()
 
-    # TODO: do something about this
     def __repr__(self) -> str:
-        return "MultiSolver()"
+        return (
+            "MultiSolver("
+            + f"n_states={getattr(getattr(self, '_variational_state', None), 'n_states', None)}, "
+            + f"is_initialised={self.is_initialised}, "
+            + f"seed={self.seed}, "
+            + f"hash={self.hash})"
+        )

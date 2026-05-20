@@ -16,6 +16,7 @@
 # fmt: off
 
 from .state import MCState
+from .multi_state import MultiMCState
 
 from . import expect
 from . import expect_grad
@@ -27,6 +28,7 @@ from . import expect_forces_chunked
 
 __all__ = [
     "MCState",
+    "MultiMCState",
     "expect",
     "expect_grad",
     "expect_forces",

@@ -17,7 +17,9 @@ The VMC driver module
 """
 
 from .vmc import VMC
+from .multi_state_vmc import MultiStateVMC
 
 __all__ = [
     "VMC",
+    "MultiStateVMC",
 ]

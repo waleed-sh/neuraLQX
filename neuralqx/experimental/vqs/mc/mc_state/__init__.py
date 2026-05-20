@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .mtmh_state import MultiMCState
 from .stmh_state import STMultiMCState
 
 __all__ = [
-    "MultiMCState",
     "STMultiMCState",
 ]

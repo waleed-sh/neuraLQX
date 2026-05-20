@@ -16,12 +16,10 @@
 Experimental variational quantum states in neuraLQX.
 """
 
-from .mc.mc_state import MultiMCState
 from .mc.mc_state import STMultiMCState
 from . import mc
 
 __all__ = [
     "mc",
-    "MultiMCState",
     "STMultiMCState",
 ]

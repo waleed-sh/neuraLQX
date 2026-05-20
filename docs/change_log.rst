@@ -10,11 +10,15 @@ Unreleased
 
 Breaking changes
 ~~~~~~~~~~~~~~~~~
-- None.
+- The MT-MH multi-state VMC implementation has been removed from ``neuralqx.experimental`` after promotion
+  to the public API. Use :class:`neuralqx.solver.MultiSolver`, :class:`neuralqx.driver.MultiStateVMC`,
+  and :class:`neuralqx.vqs.MultiMCState` instead of the old experimental imports.
 
 New features
 ~~~~~~~~~~~~~
-- None.
+- Promoted the standard MT-MH multi-state Monte Carlo solver to the public API as
+  :class:`neuralqx.solver.MultiSolver`, with public :class:`neuralqx.driver.MultiStateVMC` and
+  :class:`neuralqx.vqs.MultiMCState` building blocks.
 
 Changes
 ~~~~~~~~
@@ -23,6 +27,10 @@ Changes
 - The minimum supported JAX version is now 0.7.0 instead of 0.5.0.
 
 - The minimum supported Flax version is now 0.10.2 instead of 0.6.5.
+
+- Improved multi-state solver serialization, import/export, logging, and plotting. Multi-state checkpoints now
+  carry an explicit schema, validate their state count against the active template, and plotting reports per-state
+  constraint curves with the same production path as the standard solver.
 
 Bug fixes
 ~~~~~~~~~~
