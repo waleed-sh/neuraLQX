@@ -78,7 +78,7 @@ from neuralqx.vqs.mc import (
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
 from ....utils.parsing import strict_type
 from ....profile import section as prof_section
-from ....configs import cfg
+from neuralqx import cfg
 
 from neuralqx.vqs import expect
 from .expect import _expect_sequence

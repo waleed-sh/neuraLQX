@@ -63,7 +63,7 @@ from ....operators import PenaltyCost, InverseExpectationCost
 from ....utils.errors import ExpectationValueError
 from ....vqs.mc.mc_state.state import MCState as NQXMCState
 from ....profile import section as prof_section
-from ....configs import cfg
+from neuralqx import cfg
 
 from neuralqx.vqs import expect_and_forces
 from .expect_forces import forces_expect_hermitian_sequence

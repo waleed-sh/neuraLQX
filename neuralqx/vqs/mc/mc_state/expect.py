@@ -75,7 +75,7 @@ from ...mc import get_local_kernel_arguments, get_local_kernel
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
 from ....utils.parsing import strict_type
 from ....profile import section as prof_section
-from ....configs import cfg
+from neuralqx import cfg
 
 
 def _use_fused_kernels() -> bool:

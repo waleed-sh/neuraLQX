@@ -85,7 +85,7 @@ from netket.utils import is_probably_holomorphic
 from netket.utils.types import PyTree
 from netket.vqs.mc.mc_state.state import MCState
 
-from neuralqx.configs import cfg
+from neuralqx import cfg
 from neuralqx.profile import section as prof_section
 from neuralqx.vqs.mc.mc_state.state import MCState as NQXMCState
 from neuralqx.vqs import expect_and_forces
@@ -241,7 +241,7 @@ def expect_and_grad_biadjoint(
         For holomorphic models with all-complex parameter leaves, this function
         uses only ``F_A`` (Wirtinger branch) and skips the adjoint-force pass.
     """
-    if not cfg.EXPERIMENTAL_GRAD:
+    if not cfg.get("EXPERIMENTAL_GRAD"):
         warnings.warn(
             "Experimental bi-covariance gradient is disabled because "
             "`cfg.EXPERIMENTAL_GRAD` is False. Falling back to the generic "
@@ -371,7 +371,7 @@ def expect_and_grad_biadjoint_sequence(
         uses only forward sequence forces ``F_A`` (Wirtinger branch) and skips
         the adjoint-force sequence pass.
     """
-    if not cfg.EXPERIMENTAL_GRAD:
+    if not cfg.get("EXPERIMENTAL_GRAD"):
         warnings.warn(
             "Experimental bi-covariance sequence gradient is disabled because "
             "`cfg.EXPERIMENTAL_GRAD` is False. Falling back to the generic "

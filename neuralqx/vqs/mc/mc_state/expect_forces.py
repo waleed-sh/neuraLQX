@@ -59,7 +59,7 @@ from ....operators import PenaltyCost, InverseExpectationCost
 from ....utils.errors import ExpectationValueError
 from ....vqs.mc.mc_state.state import MCState as NQXMCState
 from ....profile import section as prof_section
-from ....configs import cfg
+from neuralqx import cfg
 
 
 _LOCAL_KERNEL_CACHE_WEAK = WeakKeyDictionary()

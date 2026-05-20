@@ -67,7 +67,7 @@ from ....utils.parsing import strict_type
 from ....profile import section as prof_section
 from ....vqs import expect_and_grad, expect_and_forces
 from ....vqs.mc.common import force_to_grad
-from ....configs import cfg
+from neuralqx import cfg
 
 
 _LOCAL_KERNEL_CACHE_WEAK = WeakKeyDictionary()
@@ -361,7 +361,7 @@ def expect_and_grad_default_formula(
                 sec.sync(result)
             if result is not None:
                 return result
-            # Adjoint unavailable, fall through to generic path.
+            # Adjoint unavailable — fall through to generic path.
 
         with prof_section(
             "expect_and_grad.nonhermitian",
