@@ -690,6 +690,8 @@ class ValidationError(StructError, TypeError):
 
 
 __all__ = [
+    "neuralqxError",
+    "neuralqxWarning",
     "GraphUnavailableWarning",
     "DeniedExperimentalFeatureError",
     "DeniedExperimentalModuleImportError",

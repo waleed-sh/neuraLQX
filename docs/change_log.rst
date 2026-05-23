@@ -20,6 +20,11 @@ New features
   :class:`neuralqx.solver.MultiSolver`, with public :class:`neuralqx.driver.MultiStateVMC` and
   :class:`neuralqx.vqs.MultiMCState` building blocks.
 
+- Added a complex valued autoregressive neural network model available under :class:`neuralqx.nn.models.ComplexARNNDense`
+  and compatible with autoregressive samplers.
+
+- Added support for autoregressive sampling in the solver and sampler subpackages.
+
 Changes
 ~~~~~~~~
 - The minimum supported NetKet version is now 3.20.0 instead of 3.19.0.
