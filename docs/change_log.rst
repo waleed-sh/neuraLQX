@@ -37,6 +37,9 @@ Changes
   carry an explicit schema, validate their state count against the active template, and plotting reports per-state
   constraint curves with the same production path as the standard solver.
 
+- Improved runtime for the experimental bi-covariance gradient path by removing redundant forces being evaluated for
+  operators wrapped by `Squared` wrappers.
+
 Bug fixes
 ~~~~~~~~~~
 - None.

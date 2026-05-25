@@ -62,7 +62,7 @@ The sections below provide direct links to the most commonly referenced guides.
       :link: solvers
       :link-type: doc
 
-      End-to-end optimisation pipeline: samplers, networks, schedules, checkpoints, MPI, and analysis.
+      Single-state and multi-state optimisation pipelines: samplers, networks, schedules, checkpoints, MPI, and analysis.
 
 
 

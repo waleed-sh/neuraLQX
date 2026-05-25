@@ -96,7 +96,7 @@ What lives here?
 
 The experimental namespace typically includes:
 
-* Prototype **drivers** (for example, multi-state VMC),
+* Prototype **drivers** (for example, single-trunk multi-head VMC),
 * Prototype **variational states** and estimators,
 * Prototype **neural network architectures**,
 * Early **operator backends** or kernel variations,
@@ -119,9 +119,9 @@ You can also import concrete objects directly:
 
 .. code-block:: python
 
-   from neuralqx.experimental.driver import MultiStateVMC
-   from neuralqx.experimental.vqs import MultiMCState
-   from neuralqx.experimental.solver import MultiSolver
+   from neuralqx.experimental.driver import SingleTrunkMultiHeadVMC
+   from neuralqx.experimental.vqs import STMultiMCState
+   from neuralqx.experimental.solver import STMultiSolver
 
 
 -----------------------
@@ -132,7 +132,7 @@ Experimental features in neuraLQX almost always extend *one* part of the stable 
 everything. The recommended order is:
 
 1. Read the stable **Solver** and **VQS / MCState** documentation first (so you understand the baseline flow).
-2. Read the experimental feature page you need (for example multi-state VMC).
+2. Read the experimental feature page you need (for example single-trunk multi-state VMC).
 3. Start from a minimal example, then integrate into your full model.
 
 This reduces debugging time because you always know which part of the pipeline is "standard" and which part is
@@ -152,7 +152,7 @@ Pages
    :maxdepth: 1
    :caption: Experimental API
 
-   mvmc
+   stmh_vmc
    api/nonhermitian_gradients
 
 
@@ -169,13 +169,6 @@ Quick links
 
       The reference for the complete experimental API in neuraLQX.
 
-
-   .. grid-item-card:: Multi-state VMC
-      :link: mvmc
-      :link-type: doc
-
-      Jointly optimise several variational states with an orthogonality (fidelity) penalty.
-      Includes ``MultiMCState``, ``MultiStateVMC``, and the ``MultiSolver`` wrapper.
 
    .. grid-item-card:: Single-Trunk Multi-state VMC
       :link: stmh_vmc

@@ -8,8 +8,8 @@ This page documents the **experimental single-trunk multi-head (ST-MH) variation
 machinery shipped with neuraLQX for joint optimisation of multiple states using a **shared**
 parameter set.
 
-Where :class:`~neuralqx.experimental.solver.MultiSolver` (Multi-Trunk style in this codebase) optimises **N independent networks**
-packaged in a :class:`~neuralqx.experimental.vqs.MultiMCState` with a coupling penalty, the Single-Trunk implementation optimises **one shared Flax model** with:
+Where :class:`~neuralqx.solver.MultiSolver` (Multi-Trunk style) optimises **N independent networks**
+packaged in a :class:`~neuralqx.vqs.MultiMCState` with a coupling penalty, the Single-Trunk implementation optimises **one shared Flax model** with:
 
 * a shared **trunk** (feature extractor),
 * :math:`K` lightweight **heads** (one per target state),
@@ -937,7 +937,7 @@ This is a useful diagnostic when comparing ST-MH and MT-MH runs at similar compu
 Migration notes: MT-MH to ST-MH
 ---------------------------------------------------
 
-If you already use :class:`~neuralqx.experimental.solver.MultiSolver`, the main conceptual migration
+If you already use :class:`~neuralqx.solver.MultiSolver`, the main conceptual migration
 steps are:
 
 1. Replace a list of independent networks with one shared ST-MH base model.

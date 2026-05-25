@@ -19,11 +19,16 @@ is delegated to NetKet machinery. The solver provides a guarded configuration pr
 compatible VMC objects, manages runtime bookkeeping, and offers uniform export/import
 and diagnostics across local runs and MPI runs.
 
-This page documents the solver as an API you can rely on in experiments, sweeps, and HPC jobs.
+This page documents the solver family as an API you can rely on in experiments, sweeps, and HPC jobs.
+Use :class:`neuralqx.solver.Solver` for one variational state, and
+:class:`neuralqx.solver.MultiSolver` for the public multi-state workflow.
 
+
+Single-state Solver
+-------------------
 
 Conceptual model
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 A solver instance is stateful. Conceptually it owns two categories of objects:
 
@@ -50,7 +55,7 @@ dependent objects).
 
 
 The guarded configuration protocol
--------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The solver follows a staged protocol:
 
@@ -66,7 +71,7 @@ predictable: loading a checkpoint is meaningful only if the same full system exi
 
 
 Constructing a Solver
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Minimal construction:
 
@@ -80,7 +85,7 @@ Minimal construction:
 At construction time, the solver also manages output paths, run identifiers, and seeding.
 
 Output directory layout
-^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, a solver creates a dedicated output directory under a default ``Output Data``
 folder (relative to your script). You can change this behaviour:
@@ -98,7 +103,7 @@ With this pattern, *all* artifacts for that solver instance go to
 large sweeps and keep the filesystem stable and predictable.
 
 Seeding rules
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 The solver accepts an optional integer seed. That seed is used for the variational state
 (initial network parameters), while a deterministic integer transformation is used for the
@@ -110,7 +115,7 @@ requiring you to seed everything manually).
    solver = nqx.solver.Solver(lqx, seed=42)
 
 Cleanup behaviour
-^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~
 
 An optional ``clean_up`` flag can remove empty directories under ``output_path``.
 This is mostly helpful in sweep scripts that create many runs but sometimes exit early.
@@ -126,7 +131,7 @@ This is mostly helpful in sweep scripts that create many runs but sometimes exit
 
 
 Step 1: Choosing and configuring a sampler
-----------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The sampler is responsible for producing configurations :math:`\sigma` distributed
 approximately as :math:`p_\theta(\sigma) \propto |\psi_\theta(\sigma)|^2`, where
@@ -173,14 +178,14 @@ interpretation of the main parameters:
    and only reduce them once you have validated stability.
 
 MPI behaviour
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 In MPI runs, all ranks participate in sampling and estimation. File I/O (exports, plots,
 HTML logs) is performed by the global master rank to prevent inconsistent artifacts and
 race conditions. This becomes relevant when you checkpoint frequently.
 
 Practical sampler tuning loop
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A robust workflow is:
 
@@ -195,7 +200,7 @@ Monte Carlo noise.
 
 
 Step 2: Choosing an optimiser
----------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Optimisation updates parameters :math:`\theta` of the variational state. neuraLQX uses
 optax optimisers, and optionally uses NetKet's stochastic reconfiguration (SR) as a
@@ -242,7 +247,7 @@ A practical SR heuristic:
 
 
 Scheduled learning rates
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In neuraLQX you do not need to construct Optax schedules manually. The solver exposes
 scheduled learning rates *directly* through the optimiser configuration step. Concretely,
@@ -270,7 +275,7 @@ previous optimiser configuration (including any schedule) so you can reconfigure
 between stages or after resuming from checkpoints.
 
 Schedule families and required parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""""""""""""""""""""""""""
 
 The schedule family is selected by ``scheduler_type``. The supported families are:
 
@@ -308,7 +313,7 @@ not MCMC sweeps inside a single iteration. This means that ``transition_steps`` 
 should be chosen on the scale of **how many iterations** you expect to run.
 
 Concrete usage
-~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""
 
 Fixed learning rate (no schedule):
 
@@ -368,7 +373,7 @@ Linear decay schedule:
    )
 
 Scheduling and SR (stochastic reconfiguration)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""""""""""""""""""""""""""
 
 Learning-rate schedules compose naturally with SR, because SR changes the *geometry* of
 the update direction while the schedule changes the *global scale* of each update. In other
@@ -379,7 +384,7 @@ to move along that direction at iteration ``t``".
 
 
 Step 3: Attaching an ansatz (and diff-invariance)
---------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You attach a network as a :mod:`flax.linen` module. Minimal pattern:
 
@@ -392,7 +397,7 @@ its internal VMC objects (variational state and driver). You normally do *not* c
 initialisation manually, it happens when you start the first run.
 
 Diffeomorphism invariance via symmetry projection
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Many workflows want diffeomorphism invariance in the sense of invariance under graph
 automorphisms / symmetry actions on configurations. The solver supports enabling this
@@ -418,7 +423,7 @@ automorphisms). In documentation and examples, treat this as an explicit input, 
 solver will not guess it for you.
 
 Two ways to use diff-invariant states
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Approach A: Train inside the invariant manifold.**
 
@@ -438,7 +443,7 @@ Both are valid. The solver's "diff-invariant network attachment" is geared towar
 Approach A, because it keeps your run pipeline simple and reproducible.
 
 Custom networks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Your network will be evaluated on batches of configurations produced by the sampler.
 In most cases, a configuration is a 1D integer array encoding local quantum numbers.
@@ -489,14 +494,14 @@ NetKet's variational state interface.
 
 
 Running simulations
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 Once configured, the main entry point is :meth:`~neuralqx.solver.Solver.run`. It performs
 a fixed number of VMC iterations, records time-series data into a runtime log, and exports
 diagnostics on completion.
 
 Signature and semantics
-^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -567,7 +572,7 @@ Run with monitoring, callbacks, and observables:
 
 
 Interrupt behaviour (single-rank vs MPI)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A run can be interrupted at any time:
 
@@ -581,7 +586,7 @@ For distributed runs, prefer callback-driven early stopping and explicit checkpo
 
 
 What gets exported after a run
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 At the end of a successful run (and after a graceful single-rank abort), the solver exports
 a compact set of artifacts into its output directory:
@@ -596,13 +601,13 @@ synchronise so the checkpoint is consistent.
 
 
 Continuing and resuming simulations
--------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Long runs are often executed in stages, as you may want to extend training, change monitoring,
 or resume from a checkpoint created on a different machine.
 
 In-memory continuation
-^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~
 
 If you are still in the same Python session:
 
@@ -614,7 +619,7 @@ If you are still in the same Python session:
 This extends training without reinitialising the solver.
 
 Resume from disk (checkpoint)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can resume from an exported checkpoint:
 
@@ -643,14 +648,14 @@ help practical workflows, not to make incompatible states magically compatible.
 
 
 Checkpointing utilities
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The solver exposes explicit checkpointing methods. A "state" here means a fully serialised
 variational state (``MCState``) which includes network parameters plus the sampling configuration required
 to continue a run.
 
 Exporting
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -661,7 +666,7 @@ If you omit the explicit ``state`` argument, the solver exports its current
 string, so you can keep multiple checkpoints per experiment without hand-writing paths.
 
 Importing
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -681,7 +686,7 @@ A common pattern is:
 
 
 Post-run analysis utilities
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 After a run, you generally want two things:
 
@@ -689,7 +694,7 @@ After a run, you generally want two things:
 2. inspect logged time-series of objective/observables.
 
 Expectation values via solver
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The solver exposes a convenience :meth:`~neuralqx.solver.Solver.expect` which uses the
 current variational state.
@@ -720,7 +725,7 @@ operator identities while still measuring their sum on shared samples.
 
 
 Runtime logs
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 The solver maintains a runtime log of the objective and observables across iterations. In
 scripts, you will typically interact with:
@@ -739,7 +744,7 @@ In automated sweeps you will generally keep ``silent_plot=True`` in ``run`` and 
 exported plots, but interactive runs often benefit from calling ``plot_results`` directly.
 
 Reading summary statistics
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For many workflows, the most convenient in-memory representation is the NetKet-like
 logging dictionary ``solver.log``. It is organised by observable name, and stores
@@ -762,10 +767,10 @@ without parsing exported files.
 
 
 End-to-end examples
---------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example 1: Basic solve with explicit exports
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -810,8 +815,8 @@ Example 1: Basic solve with explicit exports
    solver.export_state(marker="final_state")
    print("Final <C>:", solver.expect(lqx.constraint))
 
-Example 2 — Train a diff-invariant state
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 2 - Train a diff-invariant state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -839,8 +844,8 @@ Example 2 — Train a diff-invariant state
    stats = solver.expect(lqx.constraint)
    print("Final constraint residual:", stats)
 
-Example 3 — Resume a simulation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 3 - Resume a simulation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -859,3 +864,168 @@ Example 3 — Resume a simulation
        force_load_mpi=True,
    )
 
+
+.. _multistate_solver:
+
+Multi-state Solver
+------------------
+
+:class:`neuralqx.solver.MultiSolver` is the public multi state solver for training several
+independent variational states in one optimisation run. It follows the same staged workflow
+as :class:`neuralqx.solver.Solver`, but replaces the single
+:class:`neuralqx.vqs.MCState` / :class:`neuralqx.driver.VMC` pair with:
+
+* :class:`neuralqx.vqs.MultiMCState`, a container of per-state
+  :class:`neuralqx.vqs.MCState` objects, and
+* :class:`neuralqx.driver.MultiStateVMC`, a VMC driver that optimises each state against the
+  same objective and optionally adds a pairwise orthogonality penalty.
+
+The MT-MH implementation is part of the stable public API. Import it from
+``neuralqx.solver``, ``neuralqx.vqs``, and ``neuralqx.driver``. The old
+``neuralqx.experimental`` MT-MH imports are no longer part of the API.
+
+When to use it
+^^^^^^^^^^^^^^
+
+Use :class:`~neuralqx.solver.MultiSolver` when the result you care about is a set of states,
+not one state:
+
+* degenerate or near-degenerate solutions,
+* a low-energy or low-constraint residual manifold, not just one state,
+* multiple ansätze that should minimise the same operator while remaining distinguishable.
+
+The objective has the form
+
+.. math::
+
+   \mathcal{L}(\theta_1,\dots,\theta_n)
+   =
+   \sum_i \langle \hat{C} \rangle_{\psi_{\theta_i}}
+   +
+   \lambda_{\mathrm{ortho}}
+   \sum_{i<j} F_{ij},
+
+where :math:`F_{ij}` is the squared fidelity-like overlap estimate between states
+:math:`i` and :math:`j`. Set ``lambda_ortho=0.0`` to disable the coupling and train the
+states independently inside one driver.
+
+Configuration protocol
+^^^^^^^^^^^^^^^^^^^^^^
+
+The setup order is intentionally the same as for the single-state solver:
+
+1. :meth:`~neuralqx.solver.Solver.set_sampler`
+2. :meth:`~neuralqx.solver.Solver.set_optimizer`
+3. :meth:`~neuralqx.solver.MultiSolver.set_network`
+4. :meth:`~neuralqx.solver.Solver.run`
+
+The important difference is :meth:`~neuralqx.solver.MultiSolver.set_network`. It accepts
+either one Flax module or a sequence of Flax modules:
+
+.. code-block:: python
+
+   import neuralqx as nqx
+
+   solver = nqx.solver.MultiSolver(lqx, output_path="results", seed=0)
+   solver.set_sampler("Metropolis Local", number_of_chains=64, number_of_samples=4096)
+   solver.set_optimizer("Adam", learning_rate=1e-3, diagonal_shift=1e-2)
+
+   solver.set_network(
+       [Ansatz(), Ansatz(), Ansatz()],
+       lambda_ortho=1.0,
+   )
+
+   solver.run(1000)
+
+Internally, ``MultiSolver`` builds one :class:`neuralqx.vqs.MCState` per network, wraps
+them in a :class:`neuralqx.vqs.MultiMCState`, and constructs a
+:class:`neuralqx.driver.MultiStateVMC` driver. Each state receives deterministic but distinct
+parameter and sampler seeds derived from the solver seed, so identical model classes do not
+start from the same random stream.
+
+Diff-invariant multi-state runs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``diff_invariant`` and ``symmetries`` arguments have the same meaning as in
+:meth:`neuralqx.solver.Solver.set_network`, but they are applied to every state network:
+
+.. code-block:: python
+
+   solver.set_network(
+       [Ansatz(), Ansatz()],
+       diff_invariant=True,
+       symmetries=symmetry_list,
+       lambda_ortho=0.5,
+   )
+
+In this mode the orthogonality penalty is computed between the projected states. That is the
+right object when the physical state space is defined modulo graph symmetries.
+
+Expectations
+^^^^^^^^^^^^
+
+:meth:`neuralqx.solver.MultiSolver.expect` is explicit about which state is measured:
+
+.. code-block:: python
+
+   all_stats = solver.expect(lqx.constraint)              # list[Stats], one per state
+   state_0 = solver.expect(lqx.constraint, state_idx=0)   # one Stats object
+
+Passing ``n_samples=...`` temporarily changes the sample count for the selected state or
+states and regenerates samples, matching the warning semantics of the single-state solver.
+Passing ``n_chains`` is not supported by the multi-state expectation helper.
+
+Logging, checkpoints, and plots
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Multi-state runs preserve the single-state solver's export discipline, with per-state
+metadata added where needed:
+
+* network type and parameter counts are logged per state,
+* objective curves are logged under per-state keys such as ``Constraint (state 0)``,
+* :meth:`neuralqx.solver.MultiSolver.export_state` writes one multi-state checkpoint payload,
+* :meth:`neuralqx.solver.MultiSolver.import_state` requires an already initialised
+  ``MultiMCState`` template, so rebuild the same sampler/optimiser/network structure before
+  loading from disk.
+
+The underlying :class:`neuralqx.vqs.MultiMCState` also exposes overlap diagnostics:
+
+.. code-block:: python
+
+   mstate = solver.variational_state
+   F = mstate.fidelity_matrix(resample=True)
+   mstate.print_overlap_matrix(kind="orthogonality", resample=False)
+
+The fidelity matrix is a diagnostic. It is useful for checking whether the learned states
+are separating, especially when tuning ``lambda_ortho``.
+
+A minimal example
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   import flax.linen as nn
+   import jax.numpy as jnp
+   import neuralqx as nqx
+
+   class Ansatz(nn.Module):
+       @nn.compact
+       def __call__(self, sigma):
+           x = sigma.astype(jnp.float32)
+           x = nn.Dense(64)(x)
+           x = nn.tanh(x)
+           x = nn.Dense(64)(x)
+           x = nn.tanh(x)
+           out = nn.Dense(1)(x)
+           return jnp.sum(out, axis=-1)
+
+   solver = nqx.solver.MultiSolver(lqx, output_path="results", auxiliary_path="mtmh", seed=123)
+   solver.set_sampler("Metropolis Local", number_of_chains=64, number_of_samples=4096)
+   solver.set_optimizer("Adam", learning_rate=1e-3, diagonal_shift=1e-2)
+   solver.set_network([Ansatz(), Ansatz()], lambda_ortho=1.0)
+
+   solver.run(1000, silent_plot=True)
+
+   stats = solver.expect(lqx.constraint)
+   print("state 0:", stats[0])
+   print("state 1:", stats[1])
