@@ -140,7 +140,9 @@ def test_experimental_grad_sequence_respects_fused_forces_path(
 
     assert grad_fused is not None
     assert grad_unfused is not None
-    assert fused_calls >= 2
+    # These toy operators report themselves as adjoints, so the self-adjoint
+    # fast path should avoid the redundant adjoint force sequence.
+    assert fused_calls >= 1
     assert called["fused"] == fused_calls
 
 

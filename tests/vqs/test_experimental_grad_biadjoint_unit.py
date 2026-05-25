@@ -1,4 +1,16 @@
-# Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
+#  Copyright (c) 2026. The neuraLQX Authors - All Rights Reserved
+#
+#  Licensed under the Apache License 2.0, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -159,6 +171,37 @@ def test_expect_and_grad_biadjoint_single_success(monkeypatch):
     assert calls == [("A", True, 16), ("A_dag", False, 16)]
 
 
+def test_expect_and_grad_biadjoint_single_self_adjoint_uses_one_force_call(monkeypatch):
+    class FakeSquared:
+        def __init__(self, parent_operator):
+            self.parent = parent_operator
+
+    monkeypatch.setattr(mod, "Squared", FakeSquared)
+
+    parent = _Op("P")
+    op = FakeSquared(parent)
+    stats = _StatsBox(Mean=2.0)
+    F_A = {"p": jnp.array([2.0 + 3.0j], dtype=jnp.complex64)}
+    calls = []
+
+    def fake_expect_and_forces(vstate, operator, chunk_size, mutable=False):
+        calls.append((operator, bool(mutable), chunk_size))
+        return stats, F_A
+
+    monkeypatch.setattr(mod, "expect_and_forces", fake_expect_and_forces)
+
+    vstate = SimpleNamespace(parameters={"p": jnp.array([0.0], dtype=jnp.float32)})
+
+    out = mod.expect_and_grad_biadjoint(vstate, op, chunk_size=5, mutable=True)
+
+    assert out is not None
+    out_stats, out_grad = out
+    assert out_stats is stats
+    expected = {"p": jnp.array([4.0], dtype=jnp.float32)}
+    assert _tree_max_abs_diff(out_grad, expected) == 0.0
+    assert calls == [(op, True, 5)]
+
+
 def test_expect_and_grad_biadjoint_single_missing_adjoint_warns_and_falls_back():
     op = _Op("bad", adjoint=NotImplementedError("no adjoint"))
     vstate = SimpleNamespace(parameters={"p": jnp.array([0.0], dtype=jnp.float32)})
@@ -304,6 +347,46 @@ def test_expect_and_grad_biadjoint_sequence_success_with_squared_branch(monkeypa
     assert len(calls) == 2
     assert calls[0] == (operators, True, 8)
     assert calls[1][1:] == (False, 8)
+
+
+def test_expect_and_grad_biadjoint_sequence_all_self_adjoint_uses_one_force_call(
+    monkeypatch,
+):
+    class FakeSquared:
+        def __init__(self, parent_operator):
+            self.parent = parent_operator
+
+    monkeypatch.setattr(mod, "Squared", FakeSquared)
+
+    sq1 = FakeSquared(_Op("P1"))
+    sq2 = FakeSquared(_Op("P2"))
+    operators = [sq1, sq2]
+
+    stats = _StatsBox(Mean=1.5)
+    F_A = {"p": jnp.array([1.25 - 0.5j], dtype=jnp.complex64)}
+    calls = []
+
+    def fake_expect_and_forces(vstate, operator, chunk_size, mutable=False):
+        calls.append((operator, bool(mutable), chunk_size))
+        return stats, F_A
+
+    monkeypatch.setattr(mod, "expect_and_forces", fake_expect_and_forces)
+
+    vstate = SimpleNamespace(parameters={"p": jnp.array([0.0], dtype=jnp.float32)})
+
+    out = mod.expect_and_grad_biadjoint_sequence(
+        vstate,
+        operators,
+        chunk_size=11,
+        mutable=True,
+    )
+
+    assert out is not None
+    out_stats, out_grad = out
+    assert out_stats is stats
+    expected = {"p": jnp.array([2.5], dtype=jnp.float32)}
+    assert _tree_max_abs_diff(out_grad, expected) == 0.0
+    assert calls == [(operators, True, 11)]
 
 
 def test_expect_and_grad_biadjoint_sequence_missing_adjoint_warns_and_falls_back(

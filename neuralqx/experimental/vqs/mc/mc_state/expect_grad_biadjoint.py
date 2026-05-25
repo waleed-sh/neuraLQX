@@ -320,6 +320,24 @@ def expect_and_grad_biadjoint(
             sec.sync(grad)
         return Ō_stats, grad
 
+    # Hermitian/self-adjoint objectives need only one force pass. This is the
+    # hot path for Squared(A), _resolve_adjoint_operator returns the same
+    # object because Squared(A) represents A†A.
+    if Ô_adj is Ô:
+        with prof_section(
+            "expect_and_grad.biadjoint.assemble_self_adjoint",
+            cat="vqs.grad",
+            args={"operator_type": type(Ô).__name__},
+        ) as sec:
+            grad = _forces_to_biadjoint_grad(
+                F_A,
+                F_A,
+                vstate.parameters,
+                project_real_for_real_params=True,
+            )
+            sec.sync(grad)
+        return Ō_stats, grad
+
     with prof_section(
         "expect_and_grad.biadjoint.forces_adjoint",
         cat="vqs.grad",
@@ -453,6 +471,23 @@ def expect_and_grad_biadjoint_sequence(
             args={"n_operators": int(len(operators))},
         ) as sec:
             grad = _forces_to_holomorphic_complex_grad(F_A, vstate.parameters)
+            sec.sync(grad)
+        return stats, grad
+
+    # If every term resolves to itself under adjoint, the second sequence force
+    # evaluation is bit-for-bit redundant. This covers lists of Squared terms for example.
+    if all(adj is op for op, adj in zip(operators, adjoints)):
+        with prof_section(
+            "expect_and_grad.sequence.biadjoint.assemble_self_adjoint",
+            cat="vqs.grad",
+            args={"n_operators": int(len(operators))},
+        ) as sec:
+            grad = _forces_to_biadjoint_grad(
+                F_A,
+                F_A,
+                vstate.parameters,
+                project_real_for_real_params=True,
+            )
             sec.sync(grad)
         return stats, grad
 
