@@ -28,6 +28,7 @@ from . import driver
 from . import nn
 from . import utils
 from . import operators
+from . import hilbert
 
 __all__ = [
     "vqs",
@@ -36,4 +37,5 @@ __all__ = [
     "nn",
     "utils",
     "operators",
+    "hilbert",
 ]
