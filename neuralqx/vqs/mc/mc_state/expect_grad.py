@@ -60,10 +60,14 @@ from netket.vqs.mc.mc_state.state import MCState
 from ..common import get_local_kernel_arguments, get_local_kernel
 from ..kernels import resolve_factored_local_kernel
 from .state import MCState as NQXMCState
-from ....operators import InverseExpectationCost, PenaltyCost
+from ....operators import (
+    PenaltyCost,
+    penalty_expectation_gradient,
+    penalty_is_linear,
+    penalty_linear_scale,
+)
 from ....operators.types.computational_operator import ComputationalOperator
 from ....utils.errors import ExpectationValueError, InvalidOperatorsSequenceError
-from ....utils.parsing import strict_type
 from ....profile import section as prof_section
 from ....vqs import expect_and_grad, expect_and_forces
 from ....vqs.mc.common import force_to_grad
@@ -85,6 +89,16 @@ def _use_experimental_grad() -> bool:
     enabled and the dedicated gradient flag is enabled.
     """
     return bool(cfg.get("EXPERIMENTAL")) and bool(cfg.get("EXPERIMENTAL_GRAD"))
+
+
+def _is_nonlinear_penalty(operator) -> bool:
+    return isinstance(operator, PenaltyCost) and not penalty_is_linear(operator)
+
+
+def _penalty_scale(operator) -> float:
+    if isinstance(operator, PenaltyCost) and penalty_is_linear(operator):
+        return float(penalty_linear_scale(operator))
+    return 1.0
 
 
 def _try_biadjoint_single(vstate, Ô, chunk_size, *, mutable):
@@ -489,7 +503,7 @@ def expect_and_grad_nonhermitian(
         local_estimator_fun = _get_local_kernel_cached(vstate, Ô)
 
     # remain general here for all costs
-    scale_factor = Ô.factor if isinstance(Ô, PenaltyCost) else 1.0
+    scale_factor = _penalty_scale(Ô)
 
     with prof_section(
         "expect_and_grad.nonhermitian.kernel",
@@ -579,14 +593,15 @@ def expect_and_grad_nonhermitian(
                 _, args_op = get_local_kernel_arguments(vstate, ô)
                 local_estimator_fun = _get_local_kernel_cached(vstate, ô)
 
-                if strict_type(ô) is InverseExpectationCost:
-                    # branch out for the IEC
-                    # forward locals, but grad via forces on E only so we avoid backprop through expect()
+                if _is_nonlinear_penalty(ô):
+                    # Forward locals, but compute gradients through the
+                    # wrapped operator forces so we avoid backpropagating
+                    # through the expectation-level transform.
                     with prof_section(
-                        "expect_and_grad.nonhermitian.sequence.iec_forward",
+                        "expect_and_grad.nonhermitian.sequence.penalty_forward",
                         cat="vqs.grad",
                     ):
-                        # forward locals for IEC (no VJP)
+                        # forward locals for the nonlinear penalty (no VJP)
                         L_op = _locals_only(
                             local_estimator_fun,
                             vstate._apply_fun,
@@ -597,22 +612,19 @@ def expect_and_grad_nonhermitian(
                         )
 
                     # gradient via forces on E
-                    # dev: we are essentially computing the gradient via covariance, which is fine
-                    #      as long as our operator is Hermitian. A safety net has been added in the
-                    #      IEC wrapper to ensure this and it is assumed that the wrapped operator is
-                    #      Hermitian at this point
+                    # This covariance route is valid when the wrapped operator
+                    # is Hermitian. Penalty subclasses that rely on it should
+                    # keep the parent operator's hermiticity contract accurate.
                     with prof_section(
-                        "expect_and_grad.nonhermitian.sequence.iec_forces",
+                        "expect_and_grad.nonhermitian.sequence.penalty_forces",
                         cat="vqs.grad",
                     ):
                         V_stats, V_forces = expect_and_forces(
                             vstate, ô.cost_operator, None, mutable=False
                         )
 
-                    # get the mean and assemble the derivative
-                    meanV = jnp.real(V_stats.mean).astype(jnp.result_type(float))
-                    denom = ô.alpha + meanV + ô.eps
-                    fprime = (-2.0 * ô.factor) / (denom ** 3)
+                    # get the mean and assemble the objective derivative
+                    fprime = penalty_expectation_gradient(ô, V_stats.mean)
 
                     # construct the gradient, first forces
                     Ō_forces_i = jax.tree_util.tree_map(lambda g: fprime * g, V_forces)
@@ -627,12 +639,10 @@ def expect_and_grad_nonhermitian(
                     fused_factored_kernels.append(factored_kernel)
                     use_factored_kernels.append(factored_kernel is not None)
                     fused_args.append(args_op)
-                    fused_scales.append(
-                        float(ô.factor) if strict_type(ô) is PenaltyCost else 1.0
-                    )
+                    fused_scales.append(_penalty_scale(ô))
 
-                # aggregate local estimators and partial gradients from IEC branch immediately
-                if strict_type(ô) is InverseExpectationCost:
+                # Aggregate nonlinear-penalty locals and partial gradients immediately.
+                if _is_nonlinear_penalty(ô):
                     L_σ_sum = L_σ_sum + L_op
                     grad_sum = (
                         Ō_grad_i
@@ -927,61 +937,3 @@ def _grad_expect_nonherm_kernel(
 
 def _nkjax_expect_kernel(expected_fun, pars, σ, *expected_fun_args):
     return expected_fun(pars, σ, *expected_fun_args)
-
-
-@expect_and_grad.dispatch
-def expect_and_grad_iec_single(
-    vstate: Union[MCState, NQXMCState],
-    Ô: InverseExpectationCost,
-    chunk_size: Optional[int],
-    *args,
-    mutable: CollectionFilter = False,
-    use_covariance: Optional[bool] = None,
-) -> tuple[Stats, PyTree]:
-    """
-    IEC-specific, computes gradient via forces on E only:
-        d/dθ <IEC> = f'(<E>) * d/dθ <E>
-    while keeping the forward stats of IEC via the (already implemented) local estimator
-
-    Note: the assumption here is that the wrapped operator E is Hermitian. This will produce
-    incorrect results if it is not, as we use the covariance method to compute the gradient
-    """
-
-    # forward stats for IEC
-    with prof_section("expect_and_grad.iec.resolve", cat="vqs.grad"):
-        σ_iec, packed_iec = get_local_kernel_arguments(vstate, Ô)
-        local_iec = get_local_kernel(vstate, Ô)
-
-    # get the number of chains
-    n_chains = vstate.samples.shape[0]
-
-    # collapse the samples if needed
-    if σ_iec.ndim >= 3:
-        σ_iec = jax.lax.collapse(σ_iec, 0, 2)
-
-    def logpsi(w, σ_):
-        return vstate._apply_fun({"params": w, **vstate.model_state}, σ_)
-
-    # compute the local estimator and stats
-    with prof_section("expect_and_grad.iec.forward_stats", cat="vqs.grad"):
-        L_σ = local_iec(logpsi, vstate.parameters, σ_iec, packed_iec)
-        Ō_iec = statistics(L_σ.reshape((n_chains, -1)))
-
-    # compute the forces for V
-    with prof_section("expect_and_grad.iec.forces", cat="vqs.grad"):
-        V_stats, V_forces = expect_and_forces(
-            vstate, Ô.cost_operator, chunk_size, mutable=mutable
-        )
-
-    # chain rule at mean(V)
-    meanV = jnp.real(V_stats.mean).astype(jnp.result_type(float))
-    denom = Ô.alpha + meanV + Ô.eps
-    fprime = (-2.0 * Ô.factor) / (denom ** 3)
-
-    # still in forces
-    IEC_forces = jax.tree_util.tree_map(lambda g: fprime * g, V_forces)
-
-    # now convert forces to grad
-    IEC_grad = force_to_grad(IEC_forces, vstate.parameters)
-
-    return Ō_iec, IEC_grad

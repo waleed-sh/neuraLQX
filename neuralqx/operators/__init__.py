@@ -22,7 +22,15 @@ from .holonomies import holonomy
 from .number import get_quantum_number, shifted_get_quantum_number
 from .coloring import charge_coloring, coloring
 from .coloring import n_point_function
-from ._lazy import PenaltyCost, InverseExpectationCost
+from ._lazy import (
+    InverseExpectationCost,
+    PenaltyCost,
+    penalty_expectation_gradient,
+    penalty_expectation_value,
+    penalty_is_linear,
+    penalty_linear_scale,
+    penalty_local_value_coefficients,
+)
 from . import computational
 
 __all__ = [
@@ -35,5 +43,10 @@ __all__ = [
     "n_point_function",
     "PenaltyCost",
     "InverseExpectationCost",
+    "penalty_expectation_gradient",
+    "penalty_expectation_value",
+    "penalty_is_linear",
+    "penalty_linear_scale",
+    "penalty_local_value_coefficients",
     "computational",
 ]

@@ -63,9 +63,14 @@ from netket.experimental.observable import VarianceObservable
 from netket.vqs.mc import check_hilbert
 from netket.vqs.mc.mc_state.state import MCState
 
-from ..kernels import volume_cost_kernel
+from ..kernels import affine_penalty_cost_kernel
 from ....debug import trace
-from ....operators import InverseExpectationCost, PenaltyCost
+from ....operators import (
+    PenaltyCost,
+    penalty_is_linear,
+    penalty_linear_scale,
+    penalty_local_value_coefficients,
+)
 from ....operators.types._discrete_operator import DiscreteOperator as DiscreteOperatorNQX
 from .. import kernels
 from ....utils.errors import ExpectationValueError
@@ -73,7 +78,6 @@ from .state import MCState as NQXMCState
 from ...mc import get_local_kernel_arguments, get_local_kernel
 
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
-from ....utils.parsing import strict_type
 from ....profile import section as prof_section
 from neuralqx import cfg
 
@@ -82,11 +86,72 @@ def _use_fused_kernels() -> bool:
     return bool(cfg.get("FUSED_KERNELS"))
 
 
+def _is_linear_penalty(operator) -> bool:
+    return isinstance(operator, PenaltyCost) and penalty_is_linear(operator)
+
+
+def _penalty_external_scale(operator, *, default=1.0):
+    if _is_linear_penalty(operator):
+        return float(penalty_linear_scale(operator))
+    return default
+
+
+def _penalty_affine_kernel_arguments(
+    vstate: Union[MCState, NQXMCState],
+    operator: PenaltyCost,
+):
+    """
+    Build local-kernel arguments for nonlinear expectation-level penalties.
+
+    The wrapped operator is evaluated on the current sample batch to obtain
+    ``<O>``. The penalty dispatch protocol then converts that mean into affine
+    local-estimator coefficients ``scale`` and ``shift``.
+    """
+    σ = vstate.samples
+    n_chains = int(σ.shape[0])
+    σ_collapsed = jax.lax.collapse(σ, 0, 2) if σ.ndim >= 3 else σ
+
+    inner_kernel = get_local_kernel(vstate, operator.cost_operator)
+    _, inner_args = get_local_kernel_arguments(vstate, operator.cost_operator)
+
+    model_state = vstate.model_state or {}
+    variables = {"params": vstate.parameters, **model_state}
+    parent_loc = inner_kernel(vstate._apply_fun, variables, σ_collapsed, inner_args)
+    parent_mean = statistics(parent_loc.reshape((n_chains, -1))).mean
+    scale, shift = penalty_local_value_coefficients(operator, parent_mean)
+
+    return σ_collapsed, (inner_args, scale, shift)
+
+
+def _penalty_affine_kernel(
+    vstate: Union[MCState, NQXMCState],
+    operator: PenaltyCost,
+):
+    inner_kernel = get_local_kernel(vstate, operator.cost_operator)
+
+    def _wrapped(logpsi, pars, σ, packed):
+        inner_args, scale, shift = packed
+        return affine_penalty_cost_kernel(
+            logpsi,
+            inner_kernel,
+            pars,
+            σ,
+            inner_args,
+            scale,
+            shift,
+        )
+
+    return _wrapped
+
+
 @dispatch
 def get_local_kernel_arguments(
         vstate: Union[MCState, NQXMCState],
         Ô: PenaltyCost,
 ):
+    if not penalty_is_linear(Ô):
+        return _penalty_affine_kernel_arguments(vstate, Ô)
+
     σ = vstate.samples
     σp, mel = Ô.parent.get_conn_padded(σ)
     return σ, (σp, mel)
@@ -97,6 +162,9 @@ def get_local_kernel(
         vstate: Union[MCState, NQXMCState],
         Ô: PenaltyCost,
 ):
+    if not penalty_is_linear(Ô):
+        return _penalty_affine_kernel(vstate, Ô)
+
     # if the wrapped operator is ket-action, we must use the ket-action estimator
     if isinstance(Ô.parent, (ComputationalOperator, ComputationalJaxOperator)) and Ô.parent.is_ket_action:
         if isinstance(Ô.parent, ComputationalOperator):
@@ -279,75 +347,6 @@ def get_local_kernel(vstate: Union[MCState, NQXMCState], Ô: ComputationalJaxOp
 
 
 
-#
-#
-#   InverseExpectationCost kernels
-
-
-@dispatch
-def get_local_kernel_arguments(
-        vstate: Union[MCState, NQXMCState],
-        Ô: InverseExpectationCost,
-):
-    """
-    Build the args for the InverseExpectationCost with batch-consistent (σ, inner_args)
-
-    We will:
-        - collapse σ like _expect() does
-        - build inner_args from that collapsed σ
-        - compute <V> from the same pair
-        - pack dynamic scalars (fprime, g)
-        - return the σ_collapsed so later kernels see the same layout and avoid recompilation
-    """
-
-    # gather the σ states
-    σ = vstate.samples
-
-    # collapse σ if needed
-
-    σ_collapsed = jax.lax.collapse(σ, 0, 2) if σ.ndim >= 3 else σ
-
-    # get the kernel for E, not the IEC, and args built from the collapsed σ
-    inner_kernel = get_local_kernel(vstate, Ô.cost_operator)
-    _, inner_args = get_local_kernel_arguments(vstate, Ô.cost_operator)
-
-    # compute <V> from the same (σ_collapsed, inner_args)
-    W = {"params": vstate.parameters, **vstate.model_state}
-    V_loc = inner_kernel(vstate._apply_fun, W, σ_collapsed, inner_args)
-    V_mean = jnp.mean(jnp.real(V_loc))
-
-    # scalars for the affine correction
-    denom = Ô.alpha + V_mean + Ô.eps
-    fprime = (-2.0 * Ô.factor) / (denom ** 3)
-    g = (Ô.factor / (denom ** 2)) - fprime * V_mean
-
-    # return σ that matches inner_args, and the packed dynamic args
-    return σ_collapsed, (inner_args, fprime, g)
-
-
-@dispatch
-def get_local_kernel(
-        vstate: Union[MCState, NQXMCState],
-        Ô: InverseExpectationCost,
-):
-
-    inner_kernel = get_local_kernel(vstate, Ô.cost_operator)
-
-    def _wrapped(logpsi, pars, σ, packed):
-        inner_args, fprime, g = packed
-        return volume_cost_kernel(
-            logpsi,
-            inner_kernel,
-            pars,
-            σ,
-            inner_args,
-            fprime,
-            g,
-        )
-
-    return _wrapped
-
-
 # Standard implementation of expect for an MCState (pure) and a generic operator
 # The dispatch rule is not strictly needed, as everything currently implemented
 # in NetKet only defines a custom get_local_kernel_arguments and get_local_kernel
@@ -373,10 +372,7 @@ def expect(
     ):
         local_estimator_fun = get_local_kernel(vstate, Ô)
 
-    if strict_type(Ô) is PenaltyCost:
-        penalty_factor = Ô.factor
-    else:
-        penalty_factor = None
+    penalty_factor = _penalty_external_scale(Ô, default=None)
 
     with prof_section(
         "expect.kernel",
@@ -447,9 +443,7 @@ def expect(
                 local_factored_kernels.append(factored_kernel)
                 use_factored_kernels.append(factored_kernel is not None)
                 local_args.append(args)
-                local_scales.append(
-                    float(ô.factor) if strict_type(ô) is PenaltyCost else 1.0
-                )
+                local_scales.append(_penalty_external_scale(ô))
 
     with prof_section(
         "expect.sequence.kernel",

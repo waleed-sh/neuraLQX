@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -156,6 +157,103 @@ def test_inverse_expectation_cost_single_chain_rule(vstate, nk, nqx, fused_kerne
         # IEC single uses a dedicated gradient route, so this check uses a looser tolerance.
         grad_from_forces = force_to_grad(forces, vstate.parameters)
         _tree_allclose(grad_from_forces, grad, atol=2e-3, rtol=2e-3)
+
+
+@pytest.mark.parametrize("fused_kernels", [False, True], ids=["unfused", "fused"])
+def test_penalty_subclass_method_protocol_chain_rule(vstate, nk, nqx, fused_kernels):
+    """
+    A PenaltyCost subclass can define a nonlinear objective by overriding the
+    expectation-level methods only. MCState should provide expectation, forces
+    and gradients through the shared affine local-estimator protocol.
+    """
+
+    class QuadraticExpectationCost(nqx.operators.PenaltyCost):
+        def __init__(self, op, *, factor: float, shift: float):
+            super().__init__(op, factor=factor)
+            self.shift = shift
+
+        def expectation_value(self, parent_expectation):
+            x = jnp.real(parent_expectation) + self.shift
+            return self.factor * x**2
+
+        def expectation_gradient(self, parent_expectation):
+            x = jnp.real(parent_expectation) + self.shift
+            return 2.0 * self.factor * x
+
+    hilb = vstate.hilbert
+    base = nk.operator.spin.sigmax(hilb, 0) + 0.37 * nk.operator.spin.sigmaz(hilb, 1)
+    penalty = QuadraticExpectationCost(base, factor=0.6, shift=0.4)
+
+    with nqx.cfg.patch("FUSED_KERNELS", fused_kernels):
+        samples = _set_fixed_samples(vstate)
+
+        _reuse_samples(vstate, samples)
+        base_stats, base_forces = vstate.expect_and_forces(base, mutable=False)
+        base_mean = _stats_mean_real(base_stats)
+        expected_mean = 0.6 * (base_mean + 0.4) ** 2
+        expected_fprime = 2.0 * 0.6 * (base_mean + 0.4)
+        expected_forces = _tree_scale(base_forces, expected_fprime)
+        expected_grad = force_to_grad(expected_forces, vstate.parameters)
+
+        _reuse_samples(vstate, samples)
+        stats = vstate.expect(penalty)
+        assert np.allclose(_stats_mean_real(stats), expected_mean, atol=2e-6, rtol=2e-5)
+
+        _reuse_samples(vstate, samples)
+        stats_forces, forces = vstate.expect_and_forces(penalty, mutable=False)
+        assert np.allclose(
+            _stats_mean_real(stats_forces), expected_mean, atol=2e-6, rtol=2e-5
+        )
+        _tree_allclose(forces, expected_forces, atol=2e-4, rtol=7e-4)
+
+        _reuse_samples(vstate, samples)
+        stats_grad, grad = vstate.expect_and_grad(penalty, mutable=False)
+        assert np.allclose(
+            _stats_mean_real(stats_grad), expected_mean, atol=2e-6, rtol=2e-5
+        )
+        _tree_allclose(grad, expected_grad, atol=3e-4, rtol=1e-3)
+
+
+def test_penalty_subclass_plum_dispatch_protocol(vstate, nk, nqx):
+    """
+    The same customization is available through the public Plum-dispatched
+    functions, so users do not have to patch MCState internals for new wrappers.
+    """
+
+    class CubicExpectationCost(nqx.operators.PenaltyCost):
+        def __init__(self, op, *, factor: float, shift: float):
+            super().__init__(op, factor=factor)
+            self.shift = shift
+
+    @nqx.operators.penalty_expectation_value.dispatch
+    def _(operator: CubicExpectationCost, parent_expectation):
+        x = jnp.real(parent_expectation) + operator.shift
+        return operator.factor * x**3
+
+    @nqx.operators.penalty_expectation_gradient.dispatch
+    def _(operator: CubicExpectationCost, parent_expectation):
+        x = jnp.real(parent_expectation) + operator.shift
+        return 3.0 * operator.factor * x**2
+
+    hilb = vstate.hilbert
+    base = nk.operator.spin.sigmaz(hilb, 0) + 0.25 * nk.operator.spin.sigmaz(hilb, 1)
+    penalty = CubicExpectationCost(base, factor=0.3, shift=0.7)
+
+    samples = _set_fixed_samples(vstate)
+
+    _reuse_samples(vstate, samples)
+    base_stats, base_forces = vstate.expect_and_forces(base, mutable=False)
+    base_mean = _stats_mean_real(base_stats)
+    expected_mean = 0.3 * (base_mean + 0.7) ** 3
+    expected_fprime = 3.0 * 0.3 * (base_mean + 0.7) ** 2
+    expected_forces = _tree_scale(base_forces, expected_fprime)
+    expected_grad = force_to_grad(expected_forces, vstate.parameters)
+
+    _reuse_samples(vstate, samples)
+    stats, grad = vstate.expect_and_grad(penalty, mutable=False)
+
+    assert np.allclose(_stats_mean_real(stats), expected_mean, atol=2e-6, rtol=2e-5)
+    _tree_allclose(grad, expected_grad, atol=3e-4, rtol=1e-3)
 
 
 @pytest.mark.parametrize("fused_kernels", [False, True], ids=["unfused", "fused"])

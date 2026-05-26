@@ -16,6 +16,12 @@ Breaking changes
 
 New features
 ~~~~~~~~~~~~~
+- Added a Plum-dispatched extension protocol for custom penalty wrappers. Subclasses of
+  :class:`neuralqx.operators.PenaltyCost` can now define expectation-level objectives by overriding
+  value/derivative methods or by registering ``penalty_expectation_value`` and
+  ``penalty_expectation_gradient`` dispatch rules, while preserving existing ``PenaltyCost`` and
+  ``InverseExpectationCost`` behavior.
+
 - Promoted the standard MT-MH multi-state Monte Carlo solver to the public API as
   :class:`neuralqx.solver.MultiSolver`, with public :class:`neuralqx.driver.MultiStateVMC` and
   :class:`neuralqx.vqs.MultiMCState` building blocks.

@@ -538,6 +538,34 @@ def local_value_kernel_variance(
 
 
 @partial(jax.jit, static_argnames=("logpsi", "inner_kernel"))
+def affine_penalty_cost_kernel(
+    logpsi: callable,
+    inner_kernel: callable,
+    pars: PyTree,
+    σ: jnp.ndarray,
+    inner_args: PyTree,
+    scale: jnp.ndarray,
+    shift: jnp.ndarray,
+) -> jnp.ndarray:
+    """
+    Jitted per-sample local estimator for expectation-level penalty costs.
+
+        C_loc(σ) = scale * O_loc(σ) + shift
+
+    Here ``logpsi`` and ``inner_kernel`` are static functions and
+    ``inner_args``, ``scale`` and ``shift`` are non-static runtime values.
+    This preserves one stable compiled executable while allowing the affine
+    coefficients to change from batch to batch.
+
+    ``InverseExpectationCost`` is one specialization of this more general
+    protocol.
+    """
+
+    O_loc = inner_kernel(logpsi, pars, σ, inner_args)
+    return scale * O_loc + shift
+
+
+@partial(jax.jit, static_argnames=("logpsi", "inner_kernel"))
 def volume_cost_kernel(
     logpsi: callable,
     inner_kernel: callable,
@@ -548,23 +576,21 @@ def volume_cost_kernel(
     g: jnp.ndarray,
 ) -> jnp.ndarray:
     """
-    Jitted per-sample local estimator for the InverseExpectationCost type
+    Backward-compatible name for the affine penalty local estimator.
+
+    Historically this helper was specific to ``InverseExpectationCost``:
 
         C_loc(σ) = f'(<V>) * V_loc(σ) + g
 
-    here `logpsi` and `inner_kernel` are static (functions) and `inner_args`, `fprime`, `g` are
+    Here `logpsi` and `inner_kernel` are static (functions) and `inner_args`, `fprime`, `g` are
     non-static runtime values (device arrays).
 
     This ensures a single stable compiled executable regardless of how often
     you re-enter training, while still allowing <V> to change batch-to-batch
     """
-
-    # per-sample local estimator of the underlying operator
-    V_loc = inner_kernel(logpsi, pars, σ, inner_args)
-
-    # `fprime` and `g` are scalars/broadcast-able arrays computed outside
-    # and synchronized across ranks, just form the affine combination
-    return fprime * V_loc + g
+    return affine_penalty_cost_kernel(
+        logpsi, inner_kernel, pars, σ, inner_args, fprime, g
+    )
 
 
 

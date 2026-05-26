@@ -65,7 +65,7 @@ from netket.experimental.observable import VarianceObservable
 from netket.vqs.mc.mc_state.state import MCState
 
 from ....debug import trace
-from ....operators import InverseExpectationCost, PenaltyCost
+from ....operators import PenaltyCost, penalty_is_linear, penalty_linear_scale
 from ....operators.types._discrete_operator import DiscreteOperator as DiscreteOperatorNQX
 from ....utils.errors import ExpectationValueError
 from .state import MCState as NQXMCState
@@ -76,7 +76,6 @@ from neuralqx.vqs.mc import (
     get_local_kernel_arguments,
 )
 from ....operators.types.computational_operator import ComputationalOperator, ComputationalJaxOperator
-from ....utils.parsing import strict_type
 from ....profile import section as prof_section
 from neuralqx import cfg
 
@@ -86,6 +85,16 @@ from .expect import _expect_sequence
 
 def _use_fused_kernels() -> bool:
     return bool(cfg.get("FUSED_KERNELS"))
+
+
+def _is_linear_penalty(operator) -> bool:
+    return isinstance(operator, PenaltyCost) and penalty_is_linear(operator)
+
+
+def _penalty_external_scale(operator, *, default=1.0):
+    if _is_linear_penalty(operator):
+        return float(penalty_linear_scale(operator))
+    return default
 
 #
 #
@@ -199,6 +208,9 @@ def get_local_kernel(
         Ô: PenaltyCost,
         chunk_size: int,
 ):
+    if not penalty_is_linear(Ô):
+        return NO_CHUNKING
+
     # if the wrapped operator is ket-action, we must use the ket-action estimator
     if isinstance(Ô.parent, (ComputationalOperator, ComputationalJaxOperator)) and Ô.parent.is_ket_action:
         if isinstance(Ô.parent, ComputationalOperator):
@@ -208,19 +220,6 @@ def get_local_kernel(
             return kernels.local_value_kernel_jax_ket_action_chunked
 
     return kernels.local_value_kernel_penalty_cost_chunked
-
-#
-#
-#   IECs are not supported for now
-
-@dispatch
-def get_local_kernel(
-        vstate: Union[MCState, NQXMCState],
-        Ô: InverseExpectationCost,
-        chunk_size: int,
-):
-    return NO_CHUNKING
-
 
 #
 #
@@ -309,10 +308,7 @@ def expect_mcstate_operator_chunked(
     ):
         σ, args = get_local_kernel_arguments(vstate, Ô)
 
-    if strict_type(Ô) is PenaltyCost:
-        penalty_factor = Ô.factor
-    else:
-        penalty_factor = None
+    penalty_factor = _penalty_external_scale(Ô, default=None)
 
     with prof_section(
         "expect.chunked.kernel",
@@ -435,9 +431,7 @@ def expect_mcstate_operator_chunked_sequence(
                 local_factored_kernels.append(factored_kernel)
                 use_factored_kernels.append(factored_kernel is not None)
                 local_args.append(args)
-                local_scales.append(
-                    float(ô.factor) if strict_type(ô) is PenaltyCost else 1.0
-                )
+                local_scales.append(_penalty_external_scale(ô))
 
     with prof_section(
         "expect.chunked.sequence.kernel",

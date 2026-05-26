@@ -55,7 +55,7 @@ from netket.vqs.mc.mc_state.state import MCState
 
 from ...mc import get_local_kernel, get_local_kernel_arguments
 from ..kernels import resolve_factored_local_kernel
-from ....operators import PenaltyCost, InverseExpectationCost
+from ....operators import PenaltyCost, penalty_is_linear, penalty_linear_scale
 from ....utils.errors import ExpectationValueError
 from ....vqs.mc.mc_state.state import MCState as NQXMCState
 from ....profile import section as prof_section
@@ -72,14 +72,14 @@ def _use_fused_kernels() -> bool:
 
 def _penalty_scale(operator: AbstractOperator) -> float:
     """
-    PenaltyCost contributes its factor outside the local kernel, except IEC.
+    Linear PenaltyCost contributes its factor outside the local kernel.
 
-    InverseExpectationCost already folds `factor` into its dynamic local-kernel
-    arguments (`fprime`, `g`), so applying an extra external scale would
-    double-count the factor.
+    Nonlinear penalty subclasses, including InverseExpectationCost, fold their
+    objective derivative into dynamic affine local-kernel arguments. Applying an
+    additional external scale would double-count them.
     """
-    if isinstance(operator, PenaltyCost) and not isinstance(operator, InverseExpectationCost):
-        return float(operator.factor)
+    if isinstance(operator, PenaltyCost) and penalty_is_linear(operator):
+        return float(penalty_linear_scale(operator))
     return 1.0
 
 

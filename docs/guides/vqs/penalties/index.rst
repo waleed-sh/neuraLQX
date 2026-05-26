@@ -31,6 +31,9 @@ This page documents the two penalty wrappers exposed through ``neuralqx.operator
 * :class:`neuralqx.operators.InverseExpectationCost` for a common **nonlinear** penalty that
   suppresses small expectation values of a positive operator.
 
+It also explains how to define your own expectation-level penalty by subclassing
+``PenaltyCost`` or by registering Plum-dispatched penalty rules.
+
 Throughout, we assume you are optimizing with a Monte-Carlo state such as
 :class:`neuralqx.vqs.MCState`. The penalty objects are evaluated using the same estimator machinery as ordinary
 operators.
@@ -317,6 +320,123 @@ plus the penalty parameters. A typical pattern looks like:
 
 The key behavioral guarantee is that both terms are evaluated on the same sample batch,
 so the optimization "sees" a coherent objective rather than independent noisy measurements.
+
+
+Defining custom penalty costs
+--------------------------------
+
+Custom nonlinear penalties usually have the form
+
+.. math::
+
+   L_{\mathrm{pen}}(\theta) = F(\langle \hat{O}\rangle_\theta),
+
+where :math:`\hat{O}` is the wrapped operator and :math:`F` is a scalar objective function.
+neuraLQX only needs two pieces of information:
+
+* the value :math:`F(\langle \hat{O}\rangle)`, and
+* the derivative :math:`F'(\langle \hat{O}\rangle)`.
+
+The expectation, forces, gradient, sequence, and chunked fallback paths then construct the
+appropriate affine local estimator automatically:
+
+.. math::
+
+   L_{\mathrm{pen}}(\sigma)
+   =
+   F'(\langle \hat{O}\rangle)\, O_{\mathrm{loc}}(\sigma)
+   +
+   F(\langle \hat{O}\rangle)
+   -
+   F'(\langle \hat{O}\rangle)\, \langle \hat{O}\rangle.
+
+There are two supported ways to define the rule.
+
+
+Option 1: subclass and override methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For most users, the most direct approach is to subclass
+:class:`neuralqx.operators.PenaltyCost` and override
+``expectation_value`` and ``expectation_gradient``.
+
+For example, this penalty implements
+:math:`F(x)=\lambda\,(\mathrm{Re}\,x + s)^2`:
+
+.. code-block:: python
+
+   import jax.numpy as jnp
+   import neuralqx as nqx
+
+
+   class QuadraticExpectationCost(nqx.operators.PenaltyCost):
+       def __init__(self, op, *, factor: float, shift: float = 0.0):
+           super().__init__(op, factor=factor)
+           self.shift = shift
+
+       def expectation_value(self, parent_expectation):
+           x = jnp.real(parent_expectation) + self.shift
+           return self.factor * x**2
+
+       def expectation_gradient(self, parent_expectation):
+           x = jnp.real(parent_expectation) + self.shift
+           return 2.0 * self.factor * x
+
+
+   penalty = QuadraticExpectationCost(volume_operator, factor=0.5, shift=0.1)
+
+   stats = vstate.expect(penalty)
+   stats, grad = vstate.expect_and_grad([constraint_operator, penalty])
+
+This is the recommended pattern when the mathematical definition belongs naturally to the
+wrapper class.
+
+
+Option 2: register Plum-dispatched rules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you prefer to keep the objective rule outside the class, register methods on the public
+Plum-dispatched functions instead. This is useful for extension packages or for families of
+wrappers whose behavior is selected by dispatch.
+
+For example, this penalty implements
+:math:`F(x)=\lambda\,(\mathrm{Re}\,x + s)^3`:
+
+.. code-block:: python
+
+   import jax.numpy as jnp
+   import neuralqx as nqx
+
+
+   class CubicExpectationCost(nqx.operators.PenaltyCost):
+       def __init__(self, op, *, factor: float, shift: float = 0.0):
+           super().__init__(op, factor=factor)
+           self.shift = shift
+
+
+   @nqx.operators.penalty_expectation_value.dispatch
+   def cubic_expectation_value(operator: CubicExpectationCost, parent_expectation):
+       x = jnp.real(parent_expectation) + operator.shift
+       return operator.factor * x**3
+
+
+   @nqx.operators.penalty_expectation_gradient.dispatch
+   def cubic_expectation_gradient(operator: CubicExpectationCost, parent_expectation):
+       x = jnp.real(parent_expectation) + operator.shift
+       return 3.0 * operator.factor * x**2
+
+
+   penalty = CubicExpectationCost(volume_operator, factor=0.25, shift=0.2)
+   stats, grad = vstate.expect_and_grad([constraint_operator, penalty])
+
+.. important::
+   Nonlinear expectation-level penalties compute gradients through the wrapped operator's
+   expectation. For the covariance/forces route to be mathematically valid, the wrapped operator
+   should be Hermitian and should report ``is_hermitian`` accurately.
+
+If your custom wrapper is still exactly linear in the wrapped expectation and you want to keep
+the constant-scale fast path, override ``is_linear_penalty`` and ``linear_scale`` (or register
+``penalty_is_linear`` and ``penalty_linear_scale``) accordingly.
 
 
 Reading results and logging components
