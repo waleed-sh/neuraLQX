@@ -22,7 +22,7 @@ New features
   ``penalty_expectation_gradient`` dispatch rules, while preserving existing ``PenaltyCost`` and
   ``InverseExpectationCost`` behavior.
 
-- Promoted the standard MT-MH multi-state Monte Carlo solver to the public API as
+- Promoted the standard multi-state Monte Carlo solver to the public API as
   :class:`neuralqx.solver.MultiSolver`, with public :class:`neuralqx.driver.MultiStateVMC` and
   :class:`neuralqx.vqs.MultiMCState` building blocks.
 
