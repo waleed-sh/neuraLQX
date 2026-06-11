@@ -12,11 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""
-Experimental operator types in neuraLQX.
-"""
+from __future__ import annotations
 
-from . import types
-from .types import MarkedLocalOperator
+from dataclasses import dataclass
 
-__all__ = ["types", "MarkedLocalOperator"]
+import jax
+
+
+@dataclass(frozen=True)
+class SpinNetworkView:
+    edge_spins: jax.Array
+    vertex_channels: jax.Array
+
+
+__all__ = ["SpinNetworkView"]
