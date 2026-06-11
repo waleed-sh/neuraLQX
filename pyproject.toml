@@ -49,7 +49,7 @@ dependencies = [
     "tabulate",
     "humanize",
     "psutil",
-    "NetKet>=3.20.0",
+    "NetKet>=3.20.0,<3.22.0",
     "jax<0.10.0",
     "jaxlib<0.10.0",
     "bs4",
