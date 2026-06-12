@@ -61,12 +61,16 @@ class AbstractGraph(abc.ABC):
 
     _edges: GraphEdges
     """Canonical keyed edges after optional random embedding."""
+
     _vertices: list[Vertex]
     """Unique canonical vertices in first-seen edge order."""
+
     _is_planar: bool
     """Whether planar orientation and plotting conventions apply."""
+
     _original_edges: GraphEdges
     """Canonical keyed edges before optional random embedding."""
+
     _embedding_map: dict[Vertex, Vertex]
     """Mapping from original vertices to embedded vertices."""
 
