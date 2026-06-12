@@ -15,11 +15,17 @@
 
 from . import config as _config
 from . import module as _module
+from . import struct as _struct
+from . import jax as _jax
 
 from .module import *
 from .config import *
+from .struct import *
+from .jax import *
 
 __all__ = [
     *_config.__all__,
     *_module.__all__,
+    *_struct.__all__,
+    *_jax.__all__,
 ]

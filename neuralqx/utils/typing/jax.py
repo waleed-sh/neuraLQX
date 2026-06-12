@@ -13,14 +13,13 @@
 # limitations under the License.
 
 
-from . import typing
-from . import struct
-from . import errors
-from . import module
+from typing import TypeAlias
+
+import jax
+
+Array: TypeAlias = jax.Array
+"""Runtime JAX array class used for array annotations and ``isinstance`` checks."""
 
 __all__ = [
-    "typing",
-    "struct",
-    "errors",
-    "module",
+    "Array",
 ]
