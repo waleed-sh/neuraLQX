@@ -1,27 +1,21 @@
-#
-#
-#   Build backend
 
 [build-system]
-requires = ["hatchling>=1.24", "hatch-vcs>=0.4"]
+requires = ["hatchling>=1.26", "hatch-vcs>=0.5"]
 build-backend = "hatchling.build"
 
-#
-#
-#   Project information
 
 [project]
 name = "neuraLQX"
 dynamic = ["version"]
-description = "A high-performance simulations toolkit for loop quantum gravity."
-# TODO: support 3.14 on next NetKet release
-requires-python = ">=3.11,<3.14"
+description = "High performance simulations toolkit for variational loop quantum gravity."
 readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-authors = [{name = "Waleed Sherif"}]
+authors = [
+    { name = "Waleed Sherif" },
+]
 keywords = [
-    "Netket",
     "Jax",
     "Machine learning",
     "Neural networks",
@@ -32,126 +26,94 @@ keywords = [
 ]
 
 classifiers = [
-    "Programming Language :: Python :: 3",
     "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: POSIX :: Linux",
-    "Operating System :: Unix",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Physics",
-    "Development Status :: 4 - Beta",
+    "Typing :: Typed",
+    "Development Status :: 5 - Production/Stable",
 ]
-
-#
-#
-#   Core dependencies
-
 dependencies = [
-    "tabulate",
-    "humanize",
-    "psutil",
-    "NetKet>=3.20.0,<3.22.0",
-    "jax<0.10.0",
-    "jaxlib<0.10.0",
-    "bs4",
+    "jax>=0.9.0",
+    "packaging>=24.0",
+    "flax>=0.9.0",
     "plum-dispatch",
-    "cryptography",
-    "networkx",
     "matplotlib",
-    "dash>=2.18.2",
-    "plotly>=5.24.1,<=6.0.0",
-    "optax>=0.2.4",
-    "simplejson<4.0.0",
+    "optax",
 ]
-
-[tool.uv]
-constraint-dependencies = [
-  "grpcio-tools>=1.70.0",
-]
-
-#
-#
-#   Optional dependencies
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8",
-    "pytest-cov>=5",
-    "pytest-xdist[psutil]>=3",
-    "pytest-json-report>=1.5",
+    "build>=1.2.2",
     "coverage[toml]>=7.6",
-    "pre-commit>=3.6",
-    "black>=26.3.1",
-    "ruff>=0.4",
-    "mypy>=1.11",
-    "build>=1.2",
-    "wheel>=0.43",
-]
-cuda = ["NetKet[cuda]>=3.19.0; sys_platform == 'linux'"]
-docs = [
-    "Sphinx>=8.2.3,<9.1.0",
-    "sphinx-rtd-theme~=3.0.0",
-    "sphinx-copybutton==0.5.2",
-    "myst-parser>=2.0.0,<4.1.0",
-    "shibuya==2025.12.19",
-    "sphinx-autobuild==2025.8.25",
-    "sphinx-design>=0.4.0",
-    "sphinx-autodoc-typehints>=1.22,<4.0",
-    "myst-nb>=1.2,<1.4",
-]
-profile = [
-    "nvidia-ml-py>=12.560.30",
-    "py-cpuinfo>=9.0.0",
-    "nvtx>=0.2.5",
-    "tensorflow",
-    "tensorboard-plugin-profile",
-    "cupy",
-]
-
-[dependency-groups]
-dev = [
-    "neuralqx[dev,docs]",
+    "hatch>=1.14",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.6",
+    "ruff>=0.8",
+    "twine>=6.0",
 ]
 docs = [
-    "neuralqx[docs]"
+    "myst-nb>=1.4",
+    "myst-parser>=4.0",
+    "shibuya>=2026.5.19",
+    "sphinx>=8.1",
+    "sphinx-autodoc-typehints>=3.0",
+    "sphinx-copybutton>=0.5",
+    "sphinx-design>=0.6",
+    "sphinx-rtd-theme>=3.0",
 ]
-profile = [
-    "neuralqx[profile]"
+cuda = [
+    "jax[cuda12]>=0.9.0; platform_system == 'Linux'",
 ]
-
-#
-#
-#   URLs
+tpu = [
+    "jax[tpu]>=0.9.0; platform_system == 'Linux'",
+]
 
 [project.urls]
 Homepage = "https://neuralqx.readthedocs.io"
+Documentation = "https://neuralqx.readthedocs.io"
 Repository = "https://github.com/waleed-sh/neuralqx"
 Issues = "https://github.com/waleed-sh/neuralqx/issues"
-Documentation = "https://neuralqx.readthedocs.io/en/latest/documentation/api/index.html"
 Changelog = "https://neuralqx.readthedocs.io/en/latest/change_log.html"
 
-
-#
-#
-#   Scripts
-
-[project.scripts]
-djaxrun = "neuralqx.utils.jax.djaxrun:main"
-
-#
-#
-#   Build instructions
-
-[tool.hatch.build]
-include = ["neuralqx*"]
-
-[tool.hatch.build.targets.wheel.force-include]
-# Install the .pth file at the site-packages root so Python auto-imports
-# neuralqx._boot at interpreter startup before any user import runs.
-"neuralqx_boot.pth" = "neuralqx_boot.pth"
+[dependency-groups]
+dev = [
+    "build>=1.2.2",
+    "coverage[toml]>=7.6",
+    "hatch>=1.14",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.6",
+    "ruff>=0.8",
+    "twine>=6.0",
+]
+docs = [
+    "myst-nb>=1.4",
+    "myst-parser>=4.0",
+    "shibuya>=2026.5.19",
+    "sphinx>=8.1",
+    "sphinx-autodoc-typehints>=3.0",
+    "sphinx-copybutton>=0.5",
+    "sphinx-design>=0.6",
+    "sphinx-rtd-theme>=3.0",
+]
 
 [tool.hatch.version]
 source = "vcs"
 raw-options = { local_scheme = "no-local-version" }
+fallback-version = "2.0.0.dev0"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "neuralqx/_version.py"
@@ -199,113 +161,98 @@ __version__ = version = "{version}"
 __version_tuple__ = version_tuple = {version_tuple}
 '''
 
-#
-#
-#   pytest setup
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/neuralqx",
+    "/pyproject.toml",
+    "/tests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["neuralqx"]
+only-packages = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-norecursedirs = [
-  ".git", "dist", "build", "docs", ".*", "venv", ".venv", "__pycache__"
-]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 addopts = [
     "-ra",
     "--strict-config",
     "--strict-markers",
-    "--cov=neuralqx",
-    "--cov-report=term-missing",
     "--tb=short",
-    "--durations=20",
 ]
 markers = [
-    "slow: long-running tests",
-    "gpu: requires GPU",
-    "integration: cross-module tests",
-    "requires_jax: needs JAX",
-    "requires_netket: needs NetKet",
-    "flaky: known to be flaky",
-    "large_memory: uses lots of RAM",
-    "mpi: requires MPI runtime (gated by env vars)",
-    "jaxjit: tests that require JAX JIT enabled (others run with jit disabled)",
+    "gpu: requires an accelerator backend",
+    "integration: exercises multiple subsystems together",
+    "jaxjit: requires JAX JIT compilation",
+    "slow: long-running test",
 ]
 filterwarnings = [
-    "ignore:\\s*Module `neuralqx.experimental.operators.symbolic` is deprecated.*:FutureWarning",
     "error::DeprecationWarning:neuralqx\\.",
     "error::FutureWarning:neuralqx\\.",
     "default::ResourceWarning",
-    "ignore:numpy.ufunc size changed:RuntimeWarning",
-    "ignore:jaxlib.* will be removed.*:FutureWarning",
-    "ignore:distutils package is deprecated:DeprecationWarning",
-    "ignore:jax.core.ConcretizationTypeError is deprecated:DeprecationWarning",
-    "ignore::neuralqx.utils.errors.IncompatibleModdedOperatorWarning",
-    "ignore:.*Module `neuralqx.utils.mpi` is deprecated.*:FutureWarning",
-    "ignore:Implicit conversion of an array to a dtype is deprecated.*:DeprecationWarning",
-    "ignore:Setting `jax_pmap_shmap_merge` is deprecated.*:DeprecationWarning",
 ]
-
-
-#
-#
-#   Coverage setup
 
 [tool.coverage.run]
 branch = true
 source = ["neuralqx"]
 parallel = true
-concurrency = ["multiprocessing"]
-command_line = "-m pytest --verbose tests"
-
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-
-omit = [
-    "neuralqx/experimental/*",
-    "neuralqx/**/__init__.py",
-    "neuralqx/callbacks/*",
-    "neuralqx/nn/*",
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
 ]
 
-
-#
-#
-#   Black and linters
-
-[tool.black]
-line-length = 88
-target-version = ['py313']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.venv
-  | _build
-  | build
-  | dist
-)/
-'''
-
 [tool.ruff]
-target-version = "py313"
-line-length = 88
-exclude = ["docs/", "*.ipynb"]
+target-version = "py311"
+line-length = 100
+src = ["neuralqx", "tests"]
+extend-exclude = [
+    ".venv",
+    "build",
+    "dist",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "UP"]
-ignore = ["E501"]
+select = [
+    "B",
+    "E",
+    "F",
+    "I",
+    "NPY",
+    "RUF",
+    "UP",
+    "W",
+]
+ignore = [
+    "E501",
+]
 
-#
-#
-#   MyPy
+[tool.ruff.lint.isort]
+known-first-party = ["neuralqx"]
+force-single-line = true
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+quote-style = "double"
 
 [tool.mypy]
+python_version = "3.11"
+packages = ["neuralqx"]
 show_error_codes = true
-no_implicit_optional = true
+pretty = true
+strict_equality = true
 warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
 disable_error_code = ["import-untyped"]

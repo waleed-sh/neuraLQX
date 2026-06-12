@@ -1,7 +1,0 @@
-/* Kill Shibuya underline for button-style links */
-a.no-underline,
-a.no-underline:hover,
-a.no-underline:focus {
-  border-bottom: none !important;
-  text-decoration: none !important;
-}
