@@ -28,9 +28,29 @@ graph used by the spherical Bojowald-Swiderski model.
 """
 
 from .abstract_graph import AbstractGraph
+from .circular_ladder import CircularLadderGraph
+from .dodecahedral import DodecahedralGraph
 from .graph import Graph
+from .grid_2d import Grid2D
+from .half_ladder_graph import HalfLadderGraph
+from .hexagonal_lattice import HexagonalLatticeGraph
+from .hypercube import HypercubeGraph
+from .k5_graph import K5Graph
+from .ladder_graph import LadderGraph
+from .single_vertex import SingleVertexGraph
+from .triangular_lattice import TriangularLatticeGraph
 
 __all__ = [
     "AbstractGraph",
+    "CircularLadderGraph",
+    "DodecahedralGraph",
     "Graph",
+    "Grid2D",
+    "HalfLadderGraph",
+    "HexagonalLatticeGraph",
+    "HypercubeGraph",
+    "K5Graph",
+    "LadderGraph",
+    "SingleVertexGraph",
+    "TriangularLatticeGraph",
 ]
