@@ -13,22 +13,27 @@
 # limitations under the License.
 
 
-from . import config as _config
-from . import module as _module
-from . import struct as _struct
-from . import jax as _jax
-from . import graph as _graph
+from __future__ import annotations
 
-from .module import *
-from .config import *
-from .struct import *
-from .jax import *
-from .graph import *
+from . import aliases as _aliases
+from . import dressing as _dressing
+from . import edge as _edge
+from . import loop as _loop
+from . import protocols as _protocols
+from . import vertex as _vertex
+
+from .aliases import *
+from .dressing import *
+from .edge import *
+from .loop import *
+from .protocols import *
+from .vertex import *
 
 __all__ = [
-    *_config.__all__,
-    *_module.__all__,
-    *_struct.__all__,
-    *_jax.__all__,
-    *_graph.__all__,
+    *_aliases.__all__,
+    *_dressing.__all__,
+    *_edge.__all__,
+    *_loop.__all__,
+    *_protocols.__all__,
+    *_vertex.__all__,
 ]

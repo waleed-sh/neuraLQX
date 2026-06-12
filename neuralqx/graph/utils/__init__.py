@@ -13,22 +13,20 @@
 # limitations under the License.
 
 
-from . import config as _config
-from . import module as _module
-from . import struct as _struct
-from . import jax as _jax
-from . import graph as _graph
+from ._validate import validate_vertices
+from ._validate import ensure_edge_keys
 
-from .module import *
-from .config import *
-from .struct import *
-from .jax import *
-from .graph import *
+from ._embedding import dual_positions
+from ._embedding import graph_positions
+from ._embedding import randomize_vertices
+
+from ._parsing import find_unique_vertices
 
 __all__ = [
-    *_config.__all__,
-    *_module.__all__,
-    *_struct.__all__,
-    *_jax.__all__,
-    *_graph.__all__,
+    "validate_vertices",
+    "ensure_edge_keys",
+    "dual_positions",
+    "graph_positions",
+    "randomize_vertices",
+    "find_unique_vertices",
 ]
