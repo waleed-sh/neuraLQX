@@ -29,6 +29,7 @@ from .config import get_static
 #   Imports
 
 from . import graph
+from . import hilbert
 
 # Keep top-level version str-compatible for ecosystem tooling while exposing
 # strict semantic comparison behaviour through the new version subsystem.
@@ -53,4 +54,5 @@ __all__ = [
     "version",
     "version_info",
     "graph",
+    "hilbert",
 ]
