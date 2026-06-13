@@ -13,20 +13,27 @@
 # limitations under the License.
 
 
-from .dtype import canonical_dtype
-from .integers import INDEX_LIMIT
-from .integers import product
-from .labels import normalize_labels
-from .shape import batch_shape
-from .shape import ensure_2d_trailing
-from .shape import restore_trailing
+from __future__ import annotations
 
-__all__ = [
-    "INDEX_LIMIT",
-    "batch_shape",
-    "canonical_dtype",
-    "ensure_2d_trailing",
-    "normalize_labels",
-    "product",
-    "restore_trailing",
-]
+import numpy as np
+
+INDEX_LIMIT = int(np.iinfo(np.int32).max)
+
+
+def product(values: tuple[int, ...]) -> int:
+    """Multiplies integer factors into an arbitrary-size Python integer.
+
+    Args:
+        values: Integer factors to multiply.
+
+    Returns:
+        Exact Python integer product. The calculation intentionally avoids
+        fixed-width NumPy integer overflow for very large Hilbert dimensions.
+    """
+    out = 1
+    for value in values:
+        out *= int(value)
+    return out
+
+
+__all__ = ["INDEX_LIMIT", "product"]
