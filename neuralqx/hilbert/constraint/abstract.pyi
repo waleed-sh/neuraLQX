@@ -12,25 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-from .abstract import AbstractConstraint
-from .abstract import AbstractDiscreteConstraint
-from .callable import CallableDiscreteConstraint
-from .combinators import AndConstraint
-from .combinators import NotConstraint
-from .combinators import OrConstraint
-from .identity import IdentityConstraint
-from .identity import NoConstraint
-from .linear import LinearConstraint
+from typing import Any
 
-__all__ = [
-    "AbstractConstraint",
-    "AbstractDiscreteConstraint",
-    "AndConstraint",
-    "CallableDiscreteConstraint",
-    "IdentityConstraint",
-    "LinearConstraint",
-    "NoConstraint",
-    "NotConstraint",
-    "OrConstraint",
-]
+import jax.numpy as jnp
+
+from neuralqx.utils.struct import Struct
+
+class AbstractConstraint(Struct):
+    def __call__(self, states: Any) -> jnp.ndarray: ...
+    def dimension(self, hilbert: Any) -> int | None: ...
+    def __and__(self, other: AbstractConstraint) -> AbstractConstraint: ...
+    def __or__(self, other: AbstractConstraint) -> AbstractConstraint: ...
+    def __invert__(self) -> AbstractConstraint: ...
+
+class AbstractDiscreteConstraint(AbstractConstraint):
+    def validate_hilbert(self, hilbert: Any) -> None: ...

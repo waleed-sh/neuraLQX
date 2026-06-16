@@ -12,25 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-from .abstract import AbstractConstraint
+from typing import Any
+
+import jax.numpy as jnp
+
 from .abstract import AbstractDiscreteConstraint
-from .callable import CallableDiscreteConstraint
-from .combinators import AndConstraint
-from .combinators import NotConstraint
-from .combinators import OrConstraint
-from .identity import IdentityConstraint
-from .identity import NoConstraint
-from .linear import LinearConstraint
 
-__all__ = [
-    "AbstractConstraint",
-    "AbstractDiscreteConstraint",
-    "AndConstraint",
-    "CallableDiscreteConstraint",
-    "IdentityConstraint",
-    "LinearConstraint",
-    "NoConstraint",
-    "NotConstraint",
-    "OrConstraint",
-]
+class IdentityConstraint(AbstractDiscreteConstraint):
+    def __init__(self) -> None: ...
+    def __call__(self, states: Any) -> jnp.ndarray: ...
+    def dimension(self, hilbert: Any) -> int | None: ...
+
+NoConstraint = IdentityConstraint
