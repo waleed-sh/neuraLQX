@@ -13,18 +13,23 @@
 # limitations under the License.
 
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+"""Hilbert-space type aliases."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import TypeAlias
+
+if TYPE_CHECKING:
+    from neuralqx.hilbert.local import AbstractLocalSpace
+    from neuralqx.hilbert.local import VectorRange
+
+EntitySpaces: TypeAlias = Mapping[Any, Any] | Sequence[tuple[Any, Any]] | None
+"""Per-edge or per-vertex local-space mapping accepted by heterogeneous spaces."""
 
 __all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
+    "EntitySpaces",
 ]

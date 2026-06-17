@@ -13,18 +13,28 @@
 # limitations under the License.
 
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any
+
 from .abstract import AbstractLocalSpace
 from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+
+def as_local_space(value: AbstractLocalSpace | Sequence[Any]) -> AbstractLocalSpace:
+    """Coerces user input to a local-space object.
+
+    Args:
+        value: Existing local-space instance or sequence of explicit values.
+
+    Returns:
+        ``value`` unchanged when it already implements ``AbstractLocalSpace``.
+        Otherwise an ``ExplicitLocalSpace`` wrapping the supplied values.
+    """
+    if isinstance(value, AbstractLocalSpace):
+        return value
+    return ExplicitLocalSpace(tuple(value))
+
+
+__all__ = ["as_local_space"]

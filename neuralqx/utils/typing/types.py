@@ -18,12 +18,14 @@ from . import module as _module
 from . import struct as _struct
 from . import jax as _jax
 from . import graph as _graph
+from . import hilbert as _hilbert
 
 from .module import *
 from .config import *
 from .struct import *
 from .jax import *
 from .graph import *
+from .hilbert import *
 
 __all__ = [
     *_config.__all__,
@@ -31,4 +33,5 @@ __all__ = [
     *_struct.__all__,
     *_jax.__all__,
     *_graph.__all__,
+    *_hilbert.__all__,
 ]

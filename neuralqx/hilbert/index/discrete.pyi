@@ -12,19 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from typing import Any
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+import jax
+
+from neuralqx.hilbert.space import DiscreteHilbertSpace
+
+def states_to_numbers(
+    space: DiscreteHilbertSpace,
+    states: Any,
+    *,
+    validate: bool = False,
+) -> jax.Array: ...
+def numbers_to_states(space: DiscreteHilbertSpace, numbers: Any) -> jax.Array: ...
+def states_to_numbers_python(
+    space: DiscreteHilbertSpace,
+    states: Any,
+    *,
+    validate: bool = False,
+) -> Any: ...
+def numbers_to_states_python(
+    space: DiscreteHilbertSpace, numbers: Any
+) -> jax.Array: ...
