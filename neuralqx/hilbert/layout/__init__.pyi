@@ -12,19 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""Graph-aware Hilbert-state layouts."""
-
-from .dof import DofKind
-from .dof import SiteDof
-from .graph import GraphDofLayout
-from .graph import GraphHilbertLayout
-from .graph import HilbertStateView
-
-__all__ = [
-    "DofKind",
-    "GraphDofLayout",
-    "GraphHilbertLayout",
-    "HilbertStateView",
-    "SiteDof",
-]
+from .dof import DofKind as DofKind
+from .dof import SiteDof as SiteDof
+from .graph import GraphDofLayout as GraphDofLayout
+from .graph import GraphHilbertLayout as GraphHilbertLayout
+from .graph import HilbertStateView as HilbertStateView

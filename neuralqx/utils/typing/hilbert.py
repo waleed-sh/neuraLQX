@@ -21,15 +21,28 @@ from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from typing import TypeAlias
 
 if TYPE_CHECKING:
     from neuralqx.hilbert.local import AbstractLocalSpace
     from neuralqx.hilbert.local import VectorRange
 
+DofKind: TypeAlias = Literal["edge", "vertex"]
+"""Kind label for graph-attached Hilbert degrees of freedom."""
+
+DofSpace: TypeAlias = "AbstractLocalSpace | VectorRange"
+"""Scalar or vector local space declaration for one Hilbert graph entity."""
+
 EntitySpaces: TypeAlias = Mapping[Any, Any] | Sequence[tuple[Any, Any]] | None
 """Per-edge or per-vertex local-space mapping accepted by heterogeneous spaces."""
 
+GaugeFixingSpec: TypeAlias = Sequence[Sequence[Sequence[Any]]]
+"""Nested user-facing declaration for U(1) gauge-fixing relations."""
+
 __all__ = [
+    "DofKind",
+    "DofSpace",
     "EntitySpaces",
+    "GaugeFixingSpec",
 ]

@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Graph-aware Hilbert-state layouts."""
+from neuralqx.utils.struct import Struct
+from neuralqx.utils.typing import DofKind
 
-from .dof import DofKind
-from .dof import SiteDof
-from .graph import GraphDofLayout
-from .graph import GraphHilbertLayout
-from .graph import HilbertStateView
-
-__all__ = [
-    "DofKind",
-    "GraphDofLayout",
-    "GraphHilbertLayout",
-    "HilbertStateView",
-    "SiteDof",
-]
+class SiteDof(Struct):
+    site: int
+    kind: DofKind
+    entity_index: int
+    component: int
+    def __init__(
+        self,
+        site: int,
+        kind: DofKind,
+        entity_index: int,
+        component: int = 0,
+    ) -> None: ...
