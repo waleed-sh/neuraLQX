@@ -12,24 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""Hilbert-space abstractions and concrete discrete spaces."""
-
-from .abstract import AbstractHilbertSpace
-from .discrete import AbstractDiscreteHilbert
-from .discrete import DiscreteHilbertSpace
-from .heterogeneous import HeterogeneousDiscreteHilbert
-from .homogeneous import HomogeneousDiscreteHilbert
+from .abstract import AbstractHilbertSpace as AbstractHilbertSpace
+from .discrete import AbstractDiscreteHilbert as AbstractDiscreteHilbert
+from .discrete import DiscreteHilbertSpace as DiscreteHilbertSpace
+from .heterogeneous import HeterogeneousDiscreteHilbert as HeterogeneousDiscreteHilbert
+from .homogeneous import HomogeneousDiscreteHilbert as HomogeneousDiscreteHilbert
 
 HeterogeneousHilbert = HeterogeneousDiscreteHilbert
 HomogeneousHilbert = HomogeneousDiscreteHilbert
-
-__all__ = [
-    "AbstractDiscreteHilbert",
-    "AbstractHilbertSpace",
-    "DiscreteHilbertSpace",
-    "HeterogeneousDiscreteHilbert",
-    "HeterogeneousHilbert",
-    "HomogeneousDiscreteHilbert",
-    "HomogeneousHilbert",
-]

@@ -12,9 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""Random-state dispatch."""
-
-from .dispatch import random_state
-
-__all__ = ["random_state"]
+from .dispatch import random_state as random_state

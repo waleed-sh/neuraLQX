@@ -12,9 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Random-state dispatch."""
+from typing import Any
 
-from .dispatch import random_state
+import jax
 
-__all__ = ["random_state"]
+from neuralqx.hilbert.space import DiscreteHilbertSpace
+
+def random_state(
+    space: DiscreteHilbertSpace,
+    key: jax.Array,
+    size: int | tuple[int, ...] | None = None,
+    *,
+    dtype: Any | None = None,
+    max_trials: int = 1024,
+) -> jax.Array: ...

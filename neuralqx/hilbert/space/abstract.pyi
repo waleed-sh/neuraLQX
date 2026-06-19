@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Random-state dispatch."""
+from neuralqx.utils.struct import Struct
 
-from .dispatch import random_state
-
-__all__ = ["random_state"]
+class AbstractHilbertSpace(Struct):
+    @property
+    def size(self) -> int: ...
+    @property
+    def is_finite(self) -> bool: ...
+    @property
+    def dimension(self) -> int | None: ...
