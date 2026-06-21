@@ -87,12 +87,16 @@ class GraphHilbertLayout(Struct):
 
     graph: AbstractGraph = field(pytree=False)
     """Graph whose edges and vertices define the semantic entities."""
+
     edge_space: DofSpace | None = field(static=True, default=None)
     """Default degree-of-freedom declaration for every edge."""
+
     vertex_space: DofSpace | None = field(static=True, default=None)
     """Default degree-of-freedom declaration for every vertex."""
+
     edge_spaces: tuple[DofSpace | None, ...] | None = field(static=True, default=None)
     """Per-edge degree-of-freedom declarations after normalization."""
+
     vertex_spaces: tuple[DofSpace | None, ...] | None = field(static=True, default=None)
     """Per-vertex degree-of-freedom declarations after normalization."""
 

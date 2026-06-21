@@ -12,21 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+from .moves import AbstractU1Move
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
-
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+def free_edge_move(
+    number_of_edges: int, *, adjacency: bool, scope: str
+) -> AbstractU1Move: ...

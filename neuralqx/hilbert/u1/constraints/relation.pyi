@@ -12,21 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+from collections.abc import Sequence
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from neuralqx.utils.struct import Struct
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+class GaugeRelation(Struct):
+    lhs: int
+    rhs: tuple[tuple[int, int], ...]
+    def __init__(self, lhs: int, rhs: Sequence[tuple[int, int]]) -> None: ...

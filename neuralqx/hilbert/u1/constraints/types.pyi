@@ -12,21 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""Local quantum-number domains."""
-
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
-
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+from neuralqx.utils.typing import GaugeFixingSpec as GaugeFixingSpec

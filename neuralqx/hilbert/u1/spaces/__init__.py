@@ -13,20 +13,16 @@
 # limitations under the License.
 
 
-"""Local quantum-number domains."""
+"""Homogeneous U(1)^N Hilbert spaces."""
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from .gauge_invariant import ConstrainedU1Hilbert
+from .gauge_invariant import U1GaugeInvariantHilbert
+from .unconstrained import U1Hilbert
+from .unconstrained import UnconstrainedU1Hilbert
 
 __all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
+    "ConstrainedU1Hilbert",
+    "U1GaugeInvariantHilbert",
+    "U1Hilbert",
+    "UnconstrainedU1Hilbert",
 ]

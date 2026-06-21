@@ -12,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+from typing import Any
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from neuralqx.graph import AbstractGraph
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+from .relation import GaugeRelation
+from .types import GaugeFixingSpec
+
+def parse_gauge_fixing(
+    graph: AbstractGraph,
+    spec: GaugeFixingSpec,
+) -> tuple[GaugeRelation, ...]: ...
+def edge_to_index(graph: AbstractGraph, token: Any) -> int: ...

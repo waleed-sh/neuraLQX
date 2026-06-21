@@ -12,21 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+from typing import Any
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+import jax
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+class U1ProposalMixin:
+    def propose(self, move: Any, key: jax.Array, states: Any) -> jax.Array: ...
+    def flip_state(
+        self,
+        states: Any,
+        key: jax.Array,
+        number_of_edges: int = 1,
+        *,
+        adjacency: bool = False,
+        scope: str = "single",
+    ) -> jax.Array: ...
+    def plaquette_flip(
+        self,
+        states: Any,
+        key: jax.Array,
+        *,
+        all_gauge: bool = True,
+    ) -> jax.Array: ...

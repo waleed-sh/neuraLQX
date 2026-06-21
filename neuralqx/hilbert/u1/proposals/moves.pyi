@@ -12,21 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+from neuralqx.utils.struct import Struct
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+class AbstractU1Move(Struct): ...
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+class FreeEdgeFlipSingleGauge(AbstractU1Move):
+    n_edges: int
+    adjacency: bool
+    def __init__(self, n_edges: int = 1, adjacency: bool = False) -> None: ...
+
+class FreeEdgeFlipAllGauge(AbstractU1Move):
+    n_edges: int
+    adjacency: bool
+    def __init__(self, n_edges: int = 1, adjacency: bool = False) -> None: ...
+
+class PlaquetteFlipSingleGauge(AbstractU1Move):
+    def __init__(self) -> None: ...
+
+class PlaquetteFlipAllGauge(AbstractU1Move):
+    def __init__(self) -> None: ...

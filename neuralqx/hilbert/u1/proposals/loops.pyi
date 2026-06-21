@@ -12,21 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+import jax
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from neuralqx.graph import AbstractGraph
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+def graph_plaquettes(graph: AbstractGraph) -> tuple[tuple[int, ...], ...]: ...
+def build_plaquette_arrays(
+    plaquettes: tuple[tuple[int, ...], ...],
+    lmax: int,
+) -> tuple[jax.Array, jax.Array]: ...

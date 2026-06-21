@@ -12,21 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-"""Local quantum-number domains."""
+from typing import Literal
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from neuralqx.utils.struct import Struct
 
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+class AbstractProposalMove(Struct): ...
+
+class UniformSiteUpdate(AbstractProposalMove):
+    n_sites: int
+    avoid_current: bool
+    def __init__(self, n_sites: int = 1, avoid_current: bool = True) -> None: ...
+
+class AdjacentSiteUpdate(AbstractProposalMove):
+    n_sites: int
+    boundary: Literal["wrap", "clamp"]
+    def __init__(
+        self,
+        n_sites: int = 1,
+        boundary: Literal["wrap", "clamp"] = "wrap",
+    ) -> None: ...

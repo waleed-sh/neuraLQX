@@ -21,8 +21,6 @@ specialized U(1) and SU(2) spaces delegate to their own samplers, and generic
 constrained spaces fall back to bounded rejection sampling.
 """
 
-# TODO: add U(1) functions when hilbert.u1 is completed
-
 from __future__ import annotations
 
 from functools import partial
@@ -38,6 +36,9 @@ from neuralqx.hilbert.constraint import IdentityConstraint
 from neuralqx.hilbert.space import DiscreteHilbertSpace
 from neuralqx.hilbert.space import HeterogeneousDiscreteHilbert
 from neuralqx.hilbert.space import HomogeneousDiscreteHilbert
+from neuralqx.hilbert.su2.spaces import SU2GaugeInvariantHilbert
+from neuralqx.hilbert.u1.spaces import U1GaugeInvariantHilbert
+from neuralqx.hilbert.u1.spaces import U1Hilbert
 from neuralqx.hilbert.utils import batch_shape
 
 
@@ -94,6 +95,51 @@ def _nqx_random_state(
     """Samples an unconstrained heterogeneous space directly from local domains."""
     del constraint, max_trials
     return _random_unconstrained_jit(space, key, size, dtype)
+
+
+@dispatch
+def _nqx_random_state(
+    space: U1Hilbert,
+    constraint: IdentityConstraint,
+    key: jax.Array,
+    size: int | tuple[int, ...] | None = None,
+    *,
+    dtype: Any | None = None,
+    max_trials: int = 1024,
+) -> jax.Array:
+    """Delegates unconstrained U(1) sampling to the U(1) Hilbert implementation."""
+    del constraint, max_trials
+    return space.random_state(key, size=size, dtype=dtype)
+
+
+@dispatch
+def _nqx_random_state(
+    space: SU2GaugeInvariantHilbert,
+    constraint: AbstractDiscreteConstraint,
+    key: jax.Array,
+    size: int | tuple[int, ...] | None = None,
+    *,
+    dtype: Any | None = None,
+    max_trials: int = 1024,
+) -> jax.Array:
+    """Delegates SU(2) gauge-invariant sampling to the SU(2) implementation."""
+    del constraint
+    return space.random_state(key, size=size, dtype=dtype, max_trials=max_trials)
+
+
+@dispatch
+def _nqx_random_state(
+    space: U1GaugeInvariantHilbert,
+    constraint: AbstractDiscreteConstraint,
+    key: jax.Array,
+    size: int | tuple[int, ...] | None = None,
+    *,
+    dtype: Any | None = None,
+    max_trials: int = 1024,
+) -> jax.Array:
+    """Delegates U(1) gauge-invariant sampling to the U(1) implementation."""
+    del constraint, max_trials
+    return space.random_state(key, size=size, dtype=dtype)
 
 
 @dispatch

@@ -13,10 +13,16 @@
 # limitations under the License.
 
 
-from .moves import AbstractProposalMove
+"""Proposal moves and dispatch."""
+
 from .dispatch import propose
+from .moves import AbstractProposalMove
+from .moves import AdjacentSiteUpdate
+from .moves import UniformSiteUpdate
 
 __all__ = [
     "AbstractProposalMove",
+    "AdjacentSiteUpdate",
+    "UniformSiteUpdate",
     "propose",
 ]

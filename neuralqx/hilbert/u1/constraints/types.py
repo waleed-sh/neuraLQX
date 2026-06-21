@@ -13,20 +13,10 @@
 # limitations under the License.
 
 
-"""Local quantum-number domains."""
+"""Compatibility exports for U(1) gauge-fixing typing declarations."""
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from neuralqx.utils.typing import GaugeFixingSpec
 
 __all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
+    "GaugeFixingSpec",
 ]

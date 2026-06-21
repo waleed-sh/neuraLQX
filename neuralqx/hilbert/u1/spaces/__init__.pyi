@@ -12,21 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""Local quantum-number domains."""
-
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
-
-__all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
-]
+from .gauge_invariant import ConstrainedU1Hilbert as ConstrainedU1Hilbert
+from .gauge_invariant import U1GaugeInvariantHilbert as U1GaugeInvariantHilbert
+from .unconstrained import U1Hilbert as U1Hilbert
+from .unconstrained import UnconstrainedU1Hilbert as UnconstrainedU1Hilbert

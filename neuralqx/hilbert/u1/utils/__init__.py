@@ -13,20 +13,22 @@
 # limitations under the License.
 
 
-"""Local quantum-number domains."""
+"""Small U(1) utility functions."""
 
-from .abstract import AbstractLocalSpace
-from .explicit import ExplicitLocalSpace
-from .factory import as_local_space
-from .range import LocalRange
-from .vector import HeterogeneousLocalSpace
-from .vector import VectorRange
+from .arithmetic import modular_add
+from .arithmetic import signed_modular_sum
+from .arithmetic import wrap_values
+from .dimensions import scientific_int
+from .freeze import freeze_gauge_fixing
+from .local_range import u1_local_range
+from .local_range import validate_gauge_dimensions
 
 __all__ = [
-    "AbstractLocalSpace",
-    "ExplicitLocalSpace",
-    "HeterogeneousLocalSpace",
-    "LocalRange",
-    "VectorRange",
-    "as_local_space",
+    "freeze_gauge_fixing",
+    "modular_add",
+    "scientific_int",
+    "signed_modular_sum",
+    "u1_local_range",
+    "validate_gauge_dimensions",
+    "wrap_values",
 ]
