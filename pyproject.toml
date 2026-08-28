@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "neuraLQX"
 dynamic = ["version"]
-description = "High performance simulations toolkit for variational loop quantum gravity."
+description = "High performance simulations toolkit for variational canonical loop quantum gravity."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11"
 license = "Apache-2.0"

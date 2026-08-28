@@ -17,7 +17,6 @@
 #
 #   Version and environment/cfg variables init
 
-from . import utils
 from ._cite import cite
 from ._version import __version__ as _raw_version
 
@@ -30,6 +29,9 @@ from .config import get_static
 
 from . import graph
 from . import hilbert
+from . import operator
+from . import jax
+from . import utils
 
 # Keep top-level version str-compatible for ecosystem tooling while exposing
 # strict semantic comparison behaviour through the new version subsystem.
@@ -55,4 +57,6 @@ __all__ = [
     "version_info",
     "graph",
     "hilbert",
+    "operator",
+    "jax",
 ]

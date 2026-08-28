@@ -1964,6 +1964,20 @@ def _register_default_options(cfg: ConfigManager) -> None:
     )
 
     # JAX mesh and sharding policy.
+    # TODO: do we also allow this to be runtime mutable? There could be use cases for it,
+    #       and in principle there is no obstruction to switching the parallel execution
+    #       model in runtime, assuming upstream jaxPP is okay with that
+    #
+    # TODO: if the above is adopted, all *_enabled flags below should have hooks to update
+    #       themselves once the sharding policy is changed as neuralqx.jax depends frequently
+    #       on these flags and not directly querying the sharding_axes envvar.
+    #
+    # TODO: Have a more explicit docs maybe? Also verify if samples sharding is always on,
+    #       if not, then also include that in the docs. If not, also we need to understand
+    #       that behaviour, and if it is truly mirrored in the code or not, and if we
+    #       actually want that or not, not all users do not need complete freedom but others
+    #       should have the ability to do so if they want. Right now, samples are always
+    #       chosen by default.
     cfg.define_option(
         "sharding_axes",
         default=("samples",),

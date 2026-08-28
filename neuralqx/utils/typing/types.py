@@ -19,13 +19,15 @@ from . import struct as _struct
 from . import jax as _jax
 from . import graph as _graph
 from . import hilbert as _hilbert
+from . import distributed as _distributed
 
-from .module import *
-from .config import *
-from .struct import *
-from .jax import *
-from .graph import *
-from .hilbert import *
+from .module import *  # noqa: F403
+from .config import *  # noqa: F403
+from .struct import *  # noqa: F403
+from .jax import *  # noqa: F403
+from .graph import *  # noqa: F403
+from .hilbert import *  # noqa: F403
+from .distributed import *  # noqa: F403
 
 __all__ = [
     *_config.__all__,
@@ -34,4 +36,5 @@ __all__ = [
     *_jax.__all__,
     *_graph.__all__,
     *_hilbert.__all__,
+    *_distributed.__all__,
 ]
