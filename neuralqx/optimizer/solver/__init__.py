@@ -13,16 +13,24 @@
 # limitations under the License.
 
 
-from . import typing
-from . import struct
-from . import errors
-from . import module
-from . import frameworks
+"""Linear solvers used by SR and QGT operators."""
+
+from .auto import auto
+from .direct import cholesky
+from .direct import pinv
+from .direct import pinv_smooth
+from .direct import solve
+from .fallback import nan_fallback
+from .iterative import cg
+from .iterative import gmres
 
 __all__ = [
-    "typing",
-    "struct",
-    "errors",
-    "module",
-    "frameworks",
+    "auto",
+    "cg",
+    "cholesky",
+    "gmres",
+    "nan_fallback",
+    "pinv",
+    "pinv_smooth",
+    "solve",
 ]

@@ -13,16 +13,17 @@
 # limitations under the License.
 
 
-from . import typing
-from . import struct
-from . import errors
-from . import module
-from . import frameworks
+"""Optimizer type aliases."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
+from typing import TypeAlias
+
+Solver: TypeAlias = Callable[..., tuple[Any, Any] | Any]
+"""Callable accepted as a linear-system solver by optimizer utilities."""
 
 __all__ = [
-    "typing",
-    "struct",
-    "errors",
-    "module",
-    "frameworks",
+    "Solver",
 ]

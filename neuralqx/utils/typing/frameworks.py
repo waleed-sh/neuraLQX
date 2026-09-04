@@ -13,16 +13,16 @@
 # limitations under the License.
 
 
-from . import typing
-from . import struct
-from . import errors
-from . import module
-from . import frameworks
+"""Model-framework type aliases."""
+
+from __future__ import annotations
+
+from typing import Any
+from typing import TypeAlias
+
+Variables: TypeAlias = dict[str, Any] | Any
+"""Framework-owned variable tree passed to neural model apply functions."""
 
 __all__ = [
-    "typing",
-    "struct",
-    "errors",
-    "module",
-    "frameworks",
+    "Variables",
 ]

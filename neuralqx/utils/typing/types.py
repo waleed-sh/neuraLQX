@@ -20,6 +20,8 @@ from . import jax as _jax
 from . import graph as _graph
 from . import hilbert as _hilbert
 from . import distributed as _distributed
+from . import optimizer as _optimizer
+from . import frameworks as _frameworks
 
 from .module import *  # noqa: F403
 from .config import *  # noqa: F403
@@ -28,6 +30,8 @@ from .jax import *  # noqa: F403
 from .graph import *  # noqa: F403
 from .hilbert import *  # noqa: F403
 from .distributed import *  # noqa: F403
+from .optimizer import *  # noqa: F403
+from .frameworks import *  # noqa: F403
 
 __all__ = [
     *_config.__all__,
@@ -37,4 +41,6 @@ __all__ = [
     *_graph.__all__,
     *_hilbert.__all__,
     *_distributed.__all__,
+    *_optimizer.__all__,
+    *_frameworks.__all__,
 ]

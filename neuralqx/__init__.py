@@ -32,6 +32,8 @@ from . import hilbert
 from . import operator
 from . import jax
 from . import utils
+from . import optimizer
+from . import vqs
 
 # Keep top-level version str-compatible for ecosystem tooling while exposing
 # strict semantic comparison behaviour through the new version subsystem.
@@ -59,4 +61,6 @@ __all__ = [
     "hilbert",
     "operator",
     "jax",
+    "optimizer",
+    "vqs",
 ]
