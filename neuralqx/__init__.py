@@ -15,16 +15,6 @@
 
 #
 #
-#   Version and environment/cfg variables init
-
-from ._cite import cite
-from ._version import __version__ as _raw_version
-
-from .config import config
-from .config import get_static
-
-#
-#
 #   Imports
 
 from . import graph
@@ -34,6 +24,17 @@ from . import jax
 from . import utils
 from . import optimizer
 from . import vqs
+from . import sampler
+
+#
+#
+#   Version and environment/cfg variables init
+
+from ._cite import cite
+from ._version import __version__ as _raw_version
+
+from .config import config
+from .config import get_static
 
 # Keep top-level version str-compatible for ecosystem tooling while exposing
 # strict semantic comparison behaviour through the new version subsystem.
@@ -63,4 +64,5 @@ __all__ = [
     "jax",
     "optimizer",
     "vqs",
+    "sampler",
 ]
