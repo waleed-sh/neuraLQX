@@ -23,6 +23,7 @@ from . import distributed as _distributed
 from . import optimizer as _optimizer
 from . import frameworks as _frameworks
 from . import sampler as _sampler
+from . import vqs as _vqs
 
 from .module import *  # noqa: F403
 from .config import *  # noqa: F403
@@ -34,6 +35,7 @@ from .distributed import *  # noqa: F403
 from .optimizer import *  # noqa: F403
 from .frameworks import *  # noqa: F403
 from .sampler import *  # noqa: F403
+from .vqs import *  # noqa: F403
 
 __all__ = [
     *_config.__all__,
@@ -46,4 +48,5 @@ __all__ = [
     *_optimizer.__all__,
     *_frameworks.__all__,
     *_sampler.__all__,
+    *_vqs.__all__,
 ]

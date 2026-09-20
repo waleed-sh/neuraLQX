@@ -13,18 +13,11 @@
 # limitations under the License.
 
 
-from . import typing
-from . import struct
-from . import errors
-from . import module
-from . import frameworks
-from . import stats
+"""Chain-aware Monte Carlo statistics."""
 
-__all__ = [
-    "typing",
-    "struct",
-    "errors",
-    "module",
-    "frameworks",
-    "stats",
-]
+from .core import Stats
+from .online import OnlineStats
+from .online import online_statistics
+from .statistics import statistics
+
+__all__ = ["OnlineStats", "Stats", "online_statistics", "statistics"]

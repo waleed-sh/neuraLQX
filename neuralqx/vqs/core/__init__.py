@@ -13,18 +13,9 @@
 # limitations under the License.
 
 
-from . import typing
-from . import struct
-from . import errors
-from . import module
-from . import frameworks
-from . import stats
+"""Core variational-state abstractions."""
 
-__all__ = [
-    "typing",
-    "struct",
-    "errors",
-    "module",
-    "frameworks",
-    "stats",
-]
+from .base import AbstractVariationalState
+from .state import VariationalState
+
+__all__ = ["AbstractVariationalState", "VariationalState"]
