@@ -222,8 +222,8 @@ class EuclideanConstraint(ComputationalOperator):
                 ).reshape(BN)
 
                 # matrix element:
-                #   -(1/4) * sign * lapse * F_left(σ') * F_right(σ), masked for validity
-                w = (-(0.25 * sign) * lapse * F_left * F_right).astype(self.dtype)
+                #   (1/4) * sign * lapse * F_left(σ') * F_right(σ), masked for validity
+                w = ((0.25 * sign) * lapse * F_left * F_right).astype(self.dtype)
 
                 w = jnp.where(mask, w, jnp.asarray(0.0, dtype=self.dtype))
 
