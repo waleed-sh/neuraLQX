@@ -231,6 +231,7 @@ markers = [
     "large_memory: uses lots of RAM",
     "mpi: requires MPI runtime (gated by env vars)",
     "jaxjit: tests that require JAX JIT enabled (others run with jit disabled)",
+    "regression: numerical regression tests",
 ]
 filterwarnings = [
     "ignore:\\s*Module `neuralqx.experimental.operators.symbolic` is deprecated.*:FutureWarning",
