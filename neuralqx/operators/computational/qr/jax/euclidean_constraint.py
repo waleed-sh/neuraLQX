@@ -120,8 +120,8 @@ def _euclidean_constraint_kernel(
                 * _flux_eval_step(vz, p, inverse=True)
             ).reshape(BN)
 
-            # weight: -(1/4) * sign * lapse * F_left * F_right
-            w = -(0.25 * sign) * lapse_f * F_left * F_right
+            # weight: (1/4) * sign * lapse * F_left * F_right
+            w = (0.25 * sign) * lapse_f * F_left * F_right
             w = jnp.where(
                 mask,
                 w.astype(jnp.float64),
