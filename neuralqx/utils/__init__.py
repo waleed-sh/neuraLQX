@@ -19,6 +19,7 @@ from . import errors
 from . import module
 from . import frameworks
 from . import stats
+from . import io
 
 __all__ = [
     "typing",
@@ -27,4 +28,5 @@ __all__ = [
     "module",
     "frameworks",
     "stats",
+    "io",
 ]

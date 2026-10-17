@@ -52,7 +52,7 @@ def resolve_n_chains(
     if resolved != int(n_chains):
         warnings.warn(
             f"Using n_chains={resolved} so chains divide evenly across "
-            f"{n_devices} sample device(s); requested n_chains={n_chains}.",
+            f"{n_devices} sample device(s), requested n_chains={n_chains}.",
             UserWarning,
             stacklevel=3,
         )
@@ -119,7 +119,7 @@ def chain_length_from_samples(
     adjusted, chain_length = adjusted_sample_count(n_samples, n_chains)
     if warn and adjusted != int(n_samples):
         warnings.warn(
-            f"n_samples={n_samples} is not divisible by n_chains={n_chains}; "
+            f"n_samples={n_samples} is not divisible by n_chains={n_chains}, "
             f"using n_samples={adjusted} and chain_length={chain_length}.",
             UserWarning,
             stacklevel=3,

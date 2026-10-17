@@ -25,6 +25,8 @@ from . import utils
 from . import optimizer
 from . import vqs
 from . import sampler
+from . import callbacks
+from . import driver
 
 #
 #
@@ -65,4 +67,6 @@ __all__ = [
     "optimizer",
     "vqs",
     "sampler",
+    "callbacks",
+    "driver",
 ]

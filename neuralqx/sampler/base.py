@@ -49,7 +49,7 @@ class AbstractSampler(Struct, metaclass=StructABCMeta):
     def __post_init__(self) -> None:
         if not isinstance(self.hilbert, DiscreteHilbertSpace):
             raise TypeError(
-                "Samplers currently require a DiscreteHilbertSpace; "
+                "Samplers currently require a DiscreteHilbertSpace, "
                 f"got {type(self.hilbert).__name__}."
             )
         machine_pow = jnp.asarray(self.machine_pow)
