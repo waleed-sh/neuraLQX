@@ -44,7 +44,14 @@ from .space import HeterogeneousDiscreteHilbert as HeterogeneousDiscreteHilbert
 from .space import HeterogeneousHilbert as HeterogeneousHilbert
 from .space import HomogeneousDiscreteHilbert as HomogeneousDiscreteHilbert
 from .space import HomogeneousHilbert as HomogeneousHilbert
-
+from .su2 import EdgeSpinHeatbathMove as EdgeSpinHeatbathMove
+from .su2 import GaugeInvariantSU2Hilbert as GaugeInvariantSU2Hilbert
+from .su2 import LoopFundamentalMove as LoopFundamentalMove
+from .su2 import MixedSU2Move as MixedSU2Move
+from .su2 import SU2GaugeInvariantHilbert as SU2GaugeInvariantHilbert
+from .su2 import SU2Hilbert as SU2Hilbert
+from .su2 import SpinNetworkHilbert as SpinNetworkHilbert
+from .su2 import VertexRecouplingMove as VertexRecouplingMove
 from .u1 import ConstrainedU1Hilbert as ConstrainedU1Hilbert
 from .u1 import FreeEdgeFlipAllGauge as FreeEdgeFlipAllGauge
 from .u1 import FreeEdgeFlipSingleGauge as FreeEdgeFlipSingleGauge
