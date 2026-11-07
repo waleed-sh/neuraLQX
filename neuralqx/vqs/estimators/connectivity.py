@@ -25,6 +25,7 @@ from functools import partial
 import jax.numpy as jnp
 
 import jax
+from neuralqx.config import config
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
@@ -196,15 +197,18 @@ def prepare_estimator(
     operator_sharding=None,
     operator_streaming=None,
     operator_streaming_chunk_size=None,
-    enabled=True,
+    enabled=None,
 ):
     """Prepare supported eager estimators, or return None for the existing path.
 
-    Explicit sharding, multiple devices and enclosing JIT keep their existing
-    execution policy. Nonlinear/custom wrappers are dispatched as before.
+    Requires the experimental_connection_deduplication config opt-in, even
+    when enabled=True. Explicit sharding, multiple devices and enclosing JIT
+    keep their existing execution policy. Nonlinear/custom wrappers are
+    dispatched as before.
     """
     if (
-        not enabled
+        not config.get("experimental_connection_deduplication")
+        or enabled is False
         or operator_sharding
         or jax.device_count() != 1
         or isinstance(samples, jax.core.Tracer)

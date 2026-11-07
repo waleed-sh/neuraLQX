@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from neuralqx.config import config
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 
@@ -28,20 +29,21 @@ class LocalEstimatorOptions(Struct):
 
     The object is intentionally small and static so it can be passed through
     Plum-dispatched estimator kernels without growing a long positional
-    signature. ``None`` means "use the subsystem default"; for model chunking
+    signature. ``None`` means "use the subsystem default", for model chunking
     this is resolved from the variational state before dispatch.
 
-    ``connection_deduplication`` enables exact eager single-device reduction
-    and shared target evaluation for large discrete workloads. Set it to
-    False to retain the previous padded/compact estimator path. This option
-    does not change the operator's ``get_conn_padded`` shape contract.
+    ``connection_deduplication=None`` follows the opt-in config flag
+    ``experimental_connection_deduplication``, which defaults to False.
+    Set this option to False to disable reduction for an individual call.
+    True cannot bypass the global experimental opt-in. This option does not
+    change the operator's ``get_conn_padded`` shape contract.
     """
 
     chunk_size: int | None = field(static=True, default=None)
     operator_sharding: bool | None = field(static=True, default=None)
     operator_streaming: bool | None = field(static=True, default=None)
     operator_streaming_chunk_size: int | None = field(static=True, default=None)
-    connection_deduplication: bool = field(static=True, default=True)
+    connection_deduplication: bool | None = field(static=True, default=None)
 
     def __post_init__(self) -> None:
         if self.chunk_size is not None and int(self.chunk_size) <= 0:
@@ -94,7 +96,11 @@ class LocalEstimatorOptions(Struct):
                     vstate.chunk_size
                     if options.chunk_size is None
                     else options.chunk_size
+                ),
+                connection_deduplication=bool(
+                    config.get("experimental_connection_deduplication")
                 )
+                and options.connection_deduplication is not False,
             )
 
         return cls(
@@ -102,9 +108,10 @@ class LocalEstimatorOptions(Struct):
             operator_sharding=operator_sharding,
             operator_streaming=operator_streaming,
             operator_streaming_chunk_size=operator_streaming_chunk_size,
-            connection_deduplication=(
-                True if connection_deduplication is None else connection_deduplication
-            ),
+            connection_deduplication=bool(
+                config.get("experimental_connection_deduplication")
+            )
+            and connection_deduplication is not False,
         )
 
 

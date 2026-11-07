@@ -91,7 +91,7 @@ def _vertex_channels(edges, *, channels=None, key=None):
     max(sum mod 2, 2*max - sum) through sum, in steps of two. Intersecting
     this with the next triangle interval gives exactly the prefixes that
     can finish in a singlet. Sequential uniform choices need not yield a
-    uniform distribution on whole intertwiners; log_p records the product.
+    uniform distribution on whole intertwiners, log_p records the product.
     """
     batch, degree = edges.shape
     valid = jnp.all(edges >= 0, axis=-1) & (jnp.sum(edges, axis=-1) % 2 == 0)

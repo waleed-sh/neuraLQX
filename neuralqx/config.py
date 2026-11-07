@@ -2144,6 +2144,17 @@ def _register_default_options(cfg: ConfigManager) -> None:
         mutability=ConfigMutability.RUNTIME,
     )
     cfg.define_bool(
+        "experimental_connection_deduplication",
+        default=False,
+        doc=(
+            "Opt in to experimental VQS connection deduplication and shared "
+            "target evaluation. Preparation overhead may cause slowdowns."
+        ),
+        env_default="NEURALQX_EXPERIMENTAL_CONNECTION_DEDUPLICATION",
+        role="experimental",
+        mutability=ConfigMutability.RUNTIME,
+    )
+    cfg.define_bool(
         "allow_ffi_kernels",
         default=False,
         doc="Permits loading optional native FFI kernel extensions.",
@@ -2227,6 +2238,15 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
                 "Experimental mode enabled. APIs and behaviors may change without notice."
             )
 
+    def _connection_deduplication_hook(event: ConfigMutation) -> None:
+        if bool(event.new_value):
+            _LOGGER.warning(
+                "neuraLQX: connection deduplication is experimental and may cause "
+                "slowdowns. Sorting, synchronization, and compilation overhead can "
+                "outweigh the saved network evaluations. Benchmark your workload; "
+                "set experimental_connection_deduplication=False to disable it."
+            )
+
     def _jax_x64_hook(event: ConfigMutation) -> None:
         import jax
 
@@ -2283,6 +2303,11 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
 
     cfg.add_hook("log_level", _log_level_hook, run_immediately=True)
     cfg.add_hook("experimental", _experimental_hook, run_immediately=False)
+    cfg.add_hook(
+        "experimental_connection_deduplication",
+        _connection_deduplication_hook,
+        run_immediately=True,
+    )
     cfg.add_hook("enable_x64", _jax_x64_hook, run_immediately=True)
     cfg.add_hook("distributed", _jax_distributed_hook, run_immediately=True)
     cfg.add_hook(
