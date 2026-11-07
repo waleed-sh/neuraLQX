@@ -23,6 +23,7 @@ from neuralqx.sampler.metropolis.sampler import MetropolisSampler
 from neuralqx.sampler.rules import ExchangeRule
 from neuralqx.sampler.rules import LocalRule
 from neuralqx.sampler.rules import NeighborRule
+from neuralqx.sampler.rules import SU2MetropolisRule
 
 
 def MetropolisLocal(hilbert, **kwargs: Any) -> MetropolisSampler:
@@ -49,4 +50,40 @@ def MetropolisExchange(hilbert, **kwargs: Any) -> MetropolisSampler:
     )
 
 
-__all__ = ["MetropolisExchange", "MetropolisLocal", "MetropolisNeighbor"]
+def MetropolisSU2(
+    hilbert,
+    *,
+    weights=(0.45, 0.2, 0.25, 0.1),
+    stay_probability=0.05,
+    coherent_loop_probability=0.0,
+    **kwargs: Any,
+) -> MetropolisSampler:
+    """SU(2) sampler with corrected channel proposals and full-support refreshes.
+
+    Weights select loop, same-parity edge, vertex-channel, and global moves.
+    The global weight and stay probability must be positive. ``sweep_size``
+    counts attempted proposals per stored sample, not accepted state changes.
+    ``coherent_loop_probability`` mixes common-sign loop shifts into the
+    independent-sign proposal. Positive values help long cycles leave vacuum.
+    """
+    from neuralqx.hilbert.su2 import SU2GaugeInvariantHilbert
+
+    if not isinstance(hilbert, SU2GaugeInvariantHilbert):
+        raise TypeError("MetropolisSU2 requires SU2GaugeInvariantHilbert.")
+    return MetropolisSampler(
+        hilbert=hilbert,
+        rule=SU2MetropolisRule(
+            weights=weights,
+            stay_probability=stay_probability,
+            coherent_loop_probability=coherent_loop_probability,
+        ),
+        **kwargs,
+    )
+
+
+__all__ = [
+    "MetropolisExchange",
+    "MetropolisLocal",
+    "MetropolisNeighbor",
+    "MetropolisSU2",
+]

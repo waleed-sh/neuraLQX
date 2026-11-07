@@ -13,8 +13,7 @@
 # limitations under the License.
 
 
-"""Shared SU(2) proposals for Metropolis sampling and random initialization.
-"""
+"""Shared SU(2) proposals for Metropolis sampling and random initialization."""
 
 from __future__ import annotations
 

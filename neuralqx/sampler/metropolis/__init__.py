@@ -18,11 +18,13 @@
 from .factories import MetropolisExchange
 from .factories import MetropolisLocal
 from .factories import MetropolisNeighbor
+from .factories import MetropolisSU2
 from .sampler import MetropolisSampler
 
 __all__ = [
     "MetropolisExchange",
     "MetropolisLocal",
     "MetropolisNeighbor",
+    "MetropolisSU2",
     "MetropolisSampler",
 ]

@@ -18,11 +18,13 @@ from .metropolis import MetropolisExchange
 from .metropolis import MetropolisLocal
 from .metropolis import MetropolisNeighbor
 from .metropolis import MetropolisSampler
+from .metropolis import MetropolisSU2
 from .rules import AbstractTransitionRule
 from .rules import ExchangeRule
 from .rules import FunctionalRule
 from .rules import LocalRule
 from .rules import NeighborRule
+from .rules import SU2MetropolisRule
 from .rules import TransitionOutput
 from .state import AbstractSamplerState
 from .state import MetropolisSamplerState
@@ -37,8 +39,10 @@ __all__ = [
     "MetropolisExchange",
     "MetropolisLocal",
     "MetropolisNeighbor",
+    "MetropolisSU2",
     "MetropolisSampler",
     "MetropolisSamplerState",
     "NeighborRule",
+    "SU2MetropolisRule",
     "TransitionOutput",
 ]

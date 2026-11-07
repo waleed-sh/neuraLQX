@@ -22,6 +22,7 @@ from .exchange import ExchangeRule
 from .functional import FunctionalRule
 from .local import LocalRule
 from .neighbor import NeighborRule
+from .su2 import SU2MetropolisRule
 
 __all__ = [
     "AbstractTransitionRule",
@@ -29,6 +30,7 @@ __all__ = [
     "FunctionalRule",
     "LocalRule",
     "NeighborRule",
+    "SU2MetropolisRule",
     "TransitionOutput",
     "normalize_transition_output",
 ]
