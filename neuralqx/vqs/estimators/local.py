@@ -28,6 +28,7 @@ from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
 from neuralqx.utils.typing import EstimatorRule
 
+from .connectivity import prepare_estimator
 from .kernels import discrete_operator_local_values
 from .kernels import discrete_operator_terms_local_values
 from .kernels import squared_operator_local_values
@@ -49,6 +50,7 @@ def local_estimators(
     operator_streaming: bool | None = None,
     operator_streaming_chunk_size: int | None = None,
     operator_chunk_size: int | None = None,
+    connection_deduplication: bool | None = None,
 ) -> LocalEstimators:
     """Compute per-sample local estimators for ``operator`` on ``vstate``."""
     if samples is None:
@@ -61,9 +63,14 @@ def local_estimators(
         operator_streaming=operator_streaming,
         operator_streaming_chunk_size=operator_streaming_chunk_size,
         operator_chunk_size=operator_chunk_size,
+        connection_deduplication=connection_deduplication,
     )
     validate_operator_hilbert(vstate, operator)
     terms = discrete_linear_terms(operator)
+    if is_operator_sequence(operator) or (terms is not None and len(terms) > 1):
+        prepared = _prepared_local_values(vstate, operator, samples, options)
+        if prepared is not None:
+            return prepared
     if terms is not None and (is_operator_sequence(operator) or len(terms) > 1):
         values = discrete_operator_terms_local_values(
             vstate.apply_variables_kernel,
@@ -100,6 +107,9 @@ def local_estimator_kernel(
     samples: Any,
     options: LocalEstimatorOptions,
 ) -> LocalEstimators:
+    prepared = _prepared_local_values(vstate, operator, samples, options)
+    if prepared is not None:
+        return prepared
     values = discrete_operator_local_values(
         vstate.apply_variables_kernel,
         vstate.variables,
@@ -119,6 +129,9 @@ def _squared_local_estimator_kernel(
     samples: Any,
     options: LocalEstimatorOptions,
 ) -> LocalEstimators:
+    prepared = _prepared_local_values(vstate, operator, samples, options)
+    if prepared is not None:
+        return prepared
     values = squared_operator_local_values(
         vstate.apply_variables_kernel,
         vstate.variables,
@@ -129,6 +142,27 @@ def _squared_local_estimator_kernel(
         operator_streaming_chunk_size=options.operator_streaming_chunk_size,
     )
     return LocalEstimators(values)
+
+
+def _prepared_local_values(vstate, operator, samples, options):
+    plan = prepare_estimator(
+        operator,
+        samples,
+        operator_sharding=options.operator_sharding,
+        operator_streaming=options.operator_streaming,
+        operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+        enabled=options.connection_deduplication,
+    )
+    if plan is None:
+        return None
+    flat = jnp.asarray(samples).reshape((-1, vstate.hilbert.size))
+    values = plan.evaluate(
+        vstate.apply_variables_kernel,
+        vstate.variables,
+        flat,
+        chunk_size=options.chunk_size,
+    )
+    return LocalEstimators(values.reshape(jnp.shape(samples)[:-1]))
 
 
 @local_estimator_kernel.dispatch
@@ -159,8 +193,7 @@ def local_estimator_kernel_fallback(
 ) -> LocalEstimators:
     del vstate, samples, options
     raise NotImplementedError(
-        "local_estimators is not implemented for operator type "
-        f"{type(operator).__name__}."
+        f"local_estimators is not implemented for operator type {type(operator).__name__}."
     )
 
 

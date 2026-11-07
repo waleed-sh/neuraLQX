@@ -31,12 +31,15 @@ from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.vqs.estimators import Stats
 from neuralqx.vqs.estimators import local_estimators
 from neuralqx.vqs.estimators import statistics
+from neuralqx.vqs.estimators.connectivity import prepare_estimator
 from neuralqx.vqs.estimators.kernels import discrete_operator_local_values
 from neuralqx.vqs.estimators.kernels import discrete_operator_terms_local_values
 from neuralqx.vqs.estimators.kernels import squared_operator_local_values
 from neuralqx.vqs.estimators.operators import discrete_linear_terms
 from neuralqx.vqs.estimators.operators import is_operator_sequence
+from neuralqx.vqs.estimators.options import LocalEstimatorOptions
 from neuralqx.vqs.estimators.utils import flatten_samples
+from neuralqx.vqs.estimators.utils import validate_operator_hilbert
 
 from .forces import can_use_covariance
 from .forces import expect_and_forces
@@ -96,22 +99,49 @@ def _expect_and_grad_noncovariance(
         samples = vstate.samples
     flat_samples, sample_shape = flatten_samples(samples, vstate.hilbert.size)
     n_samples = jnp.asarray(flat_samples.shape[0], dtype=jnp.float32)
-    model_chunk_size = kwargs.pop("chunk_size", vstate.chunk_size)
-    operator_streaming_chunk_size = kwargs.get(
-        "operator_streaming_chunk_size",
-        kwargs.get("operator_chunk_size"),
+    options = LocalEstimatorOptions.resolve(
+        vstate,
+        options=kwargs.pop("options", None),
+        chunk_size=kwargs.pop("chunk_size", None),
+        operator_sharding=kwargs.pop("operator_sharding", None),
+        operator_streaming=kwargs.pop("operator_streaming", None),
+        operator_streaming_chunk_size=kwargs.pop("operator_streaming_chunk_size", None),
+        operator_chunk_size=kwargs.pop("operator_chunk_size", None),
+        connection_deduplication=kwargs.pop("connection_deduplication", None),
+    )
+    if kwargs:
+        raise TypeError(
+            f"Unexpected expect_and_grad keyword argument(s): {', '.join(sorted(kwargs))}."
+        )
+    validate_operator_hilbert(vstate, operator)
+    model_chunk_size = options.chunk_size
+    plan = prepare_estimator(
+        operator,
+        samples,
+        operator_sharding=options.operator_sharding,
+        operator_streaming=options.operator_streaming,
+        operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+        enabled=options.connection_deduplication,
     )
 
     def values_for_params(parameters):
+        if plan is not None:
+            variables = vstate.merge_variables_kernel(parameters, vstate.model_state)
+            return plan.evaluate(
+                vstate.apply_variables_kernel,
+                variables,
+                flat_samples,
+                chunk_size=model_chunk_size,
+            )
         return _local_values_for_params(
             vstate,
             operator,
             samples,
             parameters,
             chunk_size=model_chunk_size,
-            operator_sharding=kwargs.get("operator_sharding"),
-            operator_streaming=kwargs.get("operator_streaming"),
-            operator_streaming_chunk_size=operator_streaming_chunk_size,
+            operator_sharding=options.operator_sharding,
+            operator_streaming=options.operator_streaming,
+            operator_streaming_chunk_size=options.operator_streaming_chunk_size,
         ).reshape((-1,))
 
     def log_pdf_for_params(parameters):
@@ -132,7 +162,12 @@ def _expect_and_grad_noncovariance(
     stats = statistics(values.reshape(sample_shape))
     direct_grad = values_pullback(jnp.ones_like(values) / values.size)[0]
 
-    log_pdf, score_pullback = neuralqx_vjp(log_pdf_for_params, vstate.parameters)
+    # Match the optimizer convention used by direct_grad also for complex
+    # parameters: dE/dRe(theta) + i*dE/dIm(theta). JAX's real-output VJP
+    # has the opposite imaginary sign unless explicitly conjugated.
+    log_pdf, score_pullback = neuralqx_vjp(
+        log_pdf_for_params, vstate.parameters, conjugate=True
+    )
     centered = values - stats.mean
     if jnp.iscomplexobj(centered):
         score_real = score_pullback(
@@ -157,7 +192,7 @@ def _expect_and_grad_biadjoint(
     kwargs: dict[str, Any],
 ) -> tuple[Stats, Any] | None:
     """Try the adjoint-assisted covariance gradient for non-Hermitian operators."""
-    if isinstance(operator, Squared):
+    if _contains_squared_estimator(operator):
         return None
     if bool(getattr(operator, "is_hermitian", False)):
         return None
@@ -183,6 +218,7 @@ def _expect_and_grad_biadjoint(
             "operator_streaming_chunk_size", None
         ),
         "operator_chunk_size": kwargs.pop("operator_chunk_size", None),
+        "connection_deduplication": kwargs.pop("connection_deduplication", None),
     }
     options_kwargs = {
         key: value for key, value in options_kwargs.items() if value is not None
@@ -220,6 +256,15 @@ def _expect_and_grad_biadjoint(
 
     grad = _combined_biadjoint_force_to_grad(forces, vstate.parameters)
     return stats, grad
+
+
+def _contains_squared_estimator(operator: Any) -> bool:
+    """Squared local values need their direct parameter derivative, also in sums."""
+    if isinstance(operator, Squared):
+        return True
+    if is_operator_sequence(operator):
+        return any(_contains_squared_estimator(item) for item in operator)
+    return False
 
 
 @jax.jit
@@ -319,8 +364,7 @@ def _local_values_for_params(
             operator_streaming_chunk_size=operator_streaming_chunk_size,
         )
     raise NotImplementedError(
-        "Non-covariance gradients are not implemented for operator type "
-        f"{type(operator).__name__}."
+        f"Non-covariance gradients are not implemented for operator type {type(operator).__name__}."
     )
 
 

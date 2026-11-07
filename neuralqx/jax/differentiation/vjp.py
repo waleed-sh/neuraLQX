@@ -40,11 +40,16 @@ def vjp(
     imaginary output channels separately and recombines the pullback so callers
     can pass a complex cotangent directly.
     """
+    primals_are_complex = tree_any_complex(primals)
+    # Complex primals always use JAX's standard pullback. An eval_shape pass
+    # would trace the entire estimator (including its operator) a second time
+    # without influencing this dispatch decision.
+    if primals_are_complex:
+        return _vjp_standard(fun, *primals, conjugate=conjugate, has_aux=has_aux)
     if has_aux:
         output_shape, _ = jax.eval_shape(fun, *primals)
     else:
         output_shape = jax.eval_shape(fun, *primals)
-    primals_are_complex = tree_any_complex(primals)
     output_is_complex = bool(jnp.iscomplexobj(output_shape))
     if primals_are_complex or not output_is_complex:
         return _vjp_standard(
@@ -107,8 +112,13 @@ def _vjp_real_to_complex(
         real_output, real_pullback, aux = jax.vjp(real_fun, *primals, has_aux=True)
         imag_output, imag_pullback, _ = jax.vjp(imag_fun, *primals, has_aux=True)
     else:
-        real_fun = lambda *args: jnp.real(fun(*args))
-        imag_fun = lambda *args: jnp.imag(fun(*args))
+
+        def real_fun(*args):
+            return jnp.real(fun(*args))
+
+        def imag_fun(*args):
+            return jnp.imag(fun(*args))
+
         real_output, real_pullback = jax.vjp(real_fun, *primals)
         imag_output, imag_pullback = jax.vjp(imag_fun, *primals)
         aux = None

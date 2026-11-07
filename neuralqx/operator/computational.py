@@ -159,7 +159,7 @@ class ComputationalOperator(DiscreteOperator):
                 chunk_size=resolved_chunk_size,
             )
         else:
-            x_primes, mels = direct_connected_components(self, flat)
+            x_primes, mels = self._get_conn_padded_direct(flat)
 
         _validate_connected_shapes(
             self,
@@ -175,6 +175,17 @@ class ComputationalOperator(DiscreteOperator):
             batch_shape=batch_shape,
         )
         return place_connected_outputs(jnp.asarray(states), *restored)
+
+    def _get_conn_padded_direct(
+        self, states_2d: jax.Array
+    ) -> tuple[jax.Array, jax.Array]:
+        """Direct dispatch, subclasses may share independently jitted stages.
+
+        The default fuses the complete operator. A staged implementation must
+        remain JAX-transformable and obey the same padded batch contract.
+        Streaming continues to use the complete connected-component kernel.
+        """
+        return direct_connected_components(self, states_2d)
 
     def _get_conn_padded_batch_kernel(
         self,

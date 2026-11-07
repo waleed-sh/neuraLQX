@@ -25,7 +25,9 @@ import jax.numpy as jnp
 
 from neuralqx.operator import AbstractOperator
 from neuralqx.operator import DiscreteOperator
+from neuralqx.operator import ScaledOperator
 from neuralqx.operator import SumOperator
+from neuralqx.operator._algebra import is_known_real_scalar
 from neuralqx.operator.wrappers import PenaltyCost
 
 
@@ -75,6 +77,7 @@ def sequence_is_hermitian(operator: Any) -> bool:
     """Return whether all terms in an operator sequence are Hermitian."""
     return all(
         bool(getattr(term.operator, "is_hermitian", False))
+        and is_known_real_scalar(term.coefficient)
         for term in linear_operator_terms(operator)
     )
 
@@ -82,6 +85,16 @@ def sequence_is_hermitian(operator: Any) -> bool:
 def _linear_operator_terms(
     operator: Any, *, coefficient: Any
 ) -> tuple[OperatorTerm, ...]:
+    if is_operator_sequence(operator):
+        return tuple(
+            term
+            for item in as_operator_sequence(operator)
+            for term in _linear_operator_terms(item, coefficient=coefficient)
+        )
+    if isinstance(operator, ScaledOperator):
+        return _linear_operator_terms(
+            operator.operator, coefficient=coefficient * operator.coefficient
+        )
     if isinstance(operator, SumOperator):
         coefficients = jnp.asarray(operator.coefficients)
         terms: list[OperatorTerm] = []

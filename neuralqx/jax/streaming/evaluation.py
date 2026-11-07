@@ -58,7 +58,12 @@ def _apply_batched_chunked(
         states = jnp.concatenate((states, fill), axis=0)
 
     chunks = states.reshape((n_chunks, chunk_size, states.shape[1]))
-    values = jax.lax.map(lambda chunk: apply_fn(parameters, chunk), chunks)
+    # Chunking the forward call alone does not bound reverse-mode memory:
+    # without rematerialization, map's VJP retains every chunk's activations.
+    # Recompute one chunk during its pullback instead of retaining the network
+    # activations for all padded operator connections.
+    evaluate_chunk = jax.checkpoint(lambda chunk: apply_fn(parameters, chunk))
+    values = jax.lax.map(evaluate_chunk, chunks)
     return values.reshape((padded_size, *values.shape[2:]))[:n_states]
 
 

@@ -30,12 +30,18 @@ class LocalEstimatorOptions(Struct):
     Plum-dispatched estimator kernels without growing a long positional
     signature. ``None`` means "use the subsystem default"; for model chunking
     this is resolved from the variational state before dispatch.
+
+    ``connection_deduplication`` enables exact eager single-device reduction
+    and shared target evaluation for large discrete workloads. Set it to
+    False to retain the previous padded/compact estimator path. This option
+    does not change the operator's ``get_conn_padded`` shape contract.
     """
 
     chunk_size: int | None = field(static=True, default=None)
     operator_sharding: bool | None = field(static=True, default=None)
     operator_streaming: bool | None = field(static=True, default=None)
     operator_streaming_chunk_size: int | None = field(static=True, default=None)
+    connection_deduplication: bool = field(static=True, default=True)
 
     def __post_init__(self) -> None:
         if self.chunk_size is not None and int(self.chunk_size) <= 0:
@@ -59,6 +65,7 @@ class LocalEstimatorOptions(Struct):
         operator_streaming: bool | None = None,
         operator_streaming_chunk_size: int | None = None,
         operator_chunk_size: int | None = None,
+        connection_deduplication: bool | None = None,
     ) -> LocalEstimatorOptions:
         """Resolve call-time options against a variational state."""
         if (
@@ -77,6 +84,7 @@ class LocalEstimatorOptions(Struct):
                 or operator_sharding is not None
                 or operator_streaming is not None
                 or operator_streaming_chunk_size is not None
+                or connection_deduplication is not None
             ):
                 raise ValueError(
                     "Pass either options or individual local-estimator options, not both."
@@ -94,6 +102,9 @@ class LocalEstimatorOptions(Struct):
             operator_sharding=operator_sharding,
             operator_streaming=operator_streaming,
             operator_streaming_chunk_size=operator_streaming_chunk_size,
+            connection_deduplication=(
+                True if connection_deduplication is None else connection_deduplication
+            ),
         )
 
 

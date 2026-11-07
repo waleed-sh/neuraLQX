@@ -74,6 +74,56 @@ def local_values_from_connections(
     return jnp.sum(contrib, axis=-1)
 
 
+def compact_connections(
+    x_primes: Any, mels: Any
+) -> tuple[jax.Array, jax.Array, jax.Array] | None:
+    """Pack exact nonzero entries for eager VQS dispatch, retaining NaNs.
+
+    Only a scalar count is transferred to the host. Power-of-two capacities
+    reuse model executables as sparsity changes between sampling batches.
+    Inside an enclosing JIT the connection count is traced, so keep the
+    existing static padded representation. Operator kernels remain pure JAX.
+    """
+    mel = jnp.asarray(mels)
+    if isinstance(mel, jax.core.Tracer) or mel.size < 512:
+        return None
+    count = int(jnp.count_nonzero(mel))
+    capacity = 1 << (max(count, 1) - 1).bit_length()
+    if capacity >= mel.size:
+        return None
+    indices = jnp.nonzero(mel.reshape(-1) != 0, size=capacity, fill_value=0)[0]
+    xp = jnp.asarray(x_primes).reshape((-1, x_primes.shape[-1]))[indices]
+    values = jnp.where(jnp.arange(capacity) < count, mel.reshape(-1)[indices], 0)
+    return xp, values, indices // mel.shape[-1]
+
+
+@partial(jax.jit, static_argnames=("apply_variables", "chunk_size"))
+def local_values_from_compact_connections(
+    apply_variables: Any,
+    variables: Any,
+    samples_2d: jax.Array,
+    connected: jax.Array,
+    mels: jax.Array,
+    owners: jax.Array,
+    *,
+    chunk_size: int | None,
+) -> jax.Array:
+    """Apply the model only to packed connections, then sum by source row."""
+    logpsi = apply_batched(
+        apply_variables, variables, samples_2d, chunk_size=chunk_size
+    )
+    connected_logpsi = apply_batched(
+        apply_variables, variables, connected, chunk_size=chunk_size
+    )
+    delta = jnp.where(mels != 0, connected_logpsi - logpsi[owners], 0)
+    contributions = mels * jnp.exp(delta)
+    return (
+        jnp.zeros((len(samples_2d),), dtype=contributions.dtype)
+        .at[owners]
+        .add(contributions)
+    )
+
+
 @partial(jax.jit, static_argnames=("apply_variables", "chunk_size"))
 def local_values_from_operator_terms(
     apply_variables: Any,
@@ -231,11 +281,30 @@ def discrete_operator_local_values(
 ) -> jax.Array:
     """Local values for a neuraLQX discrete algorithmic operator."""
     flat, sample_shape = flatten_samples(samples, operator.hilbert.size)
+    compact = getattr(operator, "get_conn_compact", None)
+    packed = (
+        compact(flat)
+        if compact is not None
+        and not operator_streaming
+        and operator_streaming_chunk_size is None
+        else None
+    )
+    if packed is not None:
+        values = local_values_from_compact_connections(
+            apply_variables, variables, flat, *packed, chunk_size=chunk_size
+        )
+        return restore_sample_values(values, sample_shape)
     x_primes, mels = operator.get_conn_padded(
         flat,
         use_streaming=operator_streaming,
         chunk_size=operator_streaming_chunk_size,
     )
+    packed = compact_connections(x_primes, mels)
+    if packed is not None:
+        values = local_values_from_compact_connections(
+            apply_variables, variables, flat, *packed, chunk_size=chunk_size
+        )
+        return restore_sample_values(values, sample_shape)
     values = local_values_from_connections(
         apply_variables,
         variables,

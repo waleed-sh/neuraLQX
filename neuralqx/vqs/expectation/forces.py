@@ -62,6 +62,11 @@ def _expect_and_forces_sequence(
 ) -> tuple[Stats, Any]:
     if not sequence_is_hermitian(operator):
         raise ValueError("Forces are only defined for Hermitian operators.")
+    if not can_use_covariance(operator):
+        raise ValueError(
+            "Covariance forces are not valid for Squared operators in a sequence. "
+            "Use expect_and_grad to include the estimator's parameter derivative."
+        )
     samples = kwargs.pop("samples", None)
     if samples is None:
         samples = vstate.samples
@@ -98,29 +103,26 @@ def _expect_and_forces_discrete(
         operator_streaming=kwargs.pop("operator_streaming", None),
         operator_streaming_chunk_size=operator_streaming_chunk_size,
         operator_chunk_size=operator_chunk_size,
+        connection_deduplication=kwargs.pop("connection_deduplication", None),
     )
     if kwargs:
         unknown = ", ".join(sorted(kwargs))
         raise TypeError(f"Unexpected expect_and_forces keyword argument(s): {unknown}.")
     validate_operator_hilbert(vstate, operator)
-    flat_samples, sample_shape = flatten_samples(samples, operator.hilbert.size)
-    x_primes, mels = operator.get_conn_padded(
-        flat_samples,
-        use_streaming=options.operator_streaming,
-        chunk_size=options.operator_streaming_chunk_size,
-    )
-    return _expect_and_forces_from_connections_kernel(
+    flat_samples, _sample_shape = flatten_samples(samples, operator.hilbert.size)
+    estimators = local_estimators(vstate, operator, samples=samples, options=options)
+    stats = estimators.to_stats()
+    forces = _forces_from_local_values_kernel(
         vstate.apply_variables_kernel,
         vstate.merge_variables_kernel,
-        vstate.variables,
         vstate.parameters,
         vstate.model_state,
         flat_samples,
-        x_primes,
-        mels,
-        sample_shape,
+        estimators.data.reshape((-1,)),
+        stats.mean,
         options.chunk_size,
     )
+    return stats, forces
 
 
 @dispatch
@@ -297,7 +299,7 @@ def force_to_grad(forces: Any, parameters: Any, *, machine_pow: Any = 2.0) -> An
         scale = jnp.asarray(machine_pow, dtype=force_arr.dtype)
         if jnp.iscomplexobj(param_arr):
             return (scale * force_arr).astype(param_arr.dtype)
-        return (scale * jnp.real(force_arr)).astype(param_arr.dtype)
+        return jnp.real(scale * force_arr).astype(param_arr.dtype)
 
     return jax.tree_util.tree_map(convert, forces, parameters)
 
@@ -305,7 +307,7 @@ def force_to_grad(forces: Any, parameters: Any, *, machine_pow: Any = 2.0) -> An
 def can_use_covariance(operator: Any) -> bool:
     """Return whether the fast covariance force path is valid."""
     if is_operator_sequence(operator):
-        return sequence_is_hermitian(operator)
+        return all(can_use_covariance(item) for item in operator)
     if isinstance(operator, Squared):
         return False
     if isinstance(operator, PenaltyCost):

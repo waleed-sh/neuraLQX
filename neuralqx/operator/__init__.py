@@ -15,6 +15,7 @@
 
 from .abstract import AbstractOperator
 from .computational import ComputationalOperator
+from .connectivity import coalesce_connections
 from .discrete import DiscreteOperator
 from .wrappers import ComputationalWrappedOperator
 from .wrappers import InverseExpectationCost
@@ -42,6 +43,7 @@ __all__ = [
     "Squared",
     "SumOperator",
     "WrappedOperator",
+    "coalesce_connections",
     "penalty_expectation_gradient",
     "penalty_expectation_value",
     "penalty_is_linear",

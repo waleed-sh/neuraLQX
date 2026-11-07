@@ -38,7 +38,7 @@ class DiscreteOperator(AbstractOperator):
     def __post_init__(self) -> None:
         if not isinstance(self.hilbert, DiscreteHilbertSpace):
             raise TypeError(
-                "Discrete operators must act on a DiscreteHilbertSpace; "
+                "Discrete operators must act on a DiscreteHilbertSpace, "
                 f"got {type(self.hilbert).__name__}."
             )
 
@@ -58,6 +58,21 @@ class DiscreteOperator(AbstractOperator):
     ) -> tuple[jax.Array, jax.Array]:
         """Return padded connected states and matrix elements."""
 
+    def get_conn_coalesced(
+        self, states: Any, **kwargs: Any
+    ) -> tuple[jax.Array, jax.Array]:
+        """Return unique nonzero targets followed by zero padding, JIT-compatible.
+
+        Duplicate amplitudes are summed before testing for exact cancellation.
+        The padded capacity stays ``max_conn_size``, use ``get_conn`` to obtain
+        a variable-length row outside JIT.
+        """
+        from .connectivity import coalesce_connections
+
+        xp, mels = coalesce_connections(*self.get_conn_padded(states, **kwargs))
+        source = jnp.asarray(states)[..., None, :]
+        return jnp.where((mels != 0)[..., None], xp, source), mels
+
     def get_conn_flattened(
         self,
         states: Any,
@@ -68,7 +83,11 @@ class DiscreteOperator(AbstractOperator):
     ) -> tuple[jax.Array, jax.Array]:
         """Return connected states flattened over the batch and connection axes."""
         flat, _single, _batch_shape = flatten_states(states, self.hilbert.size)
-        x_primes, mels = self.get_conn_padded(flat, **kwargs)
+        x_primes, mels = (
+            self.get_conn_padded(flat, **kwargs)
+            if pad
+            else self.get_conn_coalesced(flat, **kwargs)
+        )
         xp_flat = x_primes.reshape((-1, self.hilbert.size))
         mel_flat = mels.reshape((-1,))
 
@@ -90,17 +109,17 @@ class DiscreteOperator(AbstractOperator):
         flat, single, _batch_shape = flatten_states(state, self.hilbert.size)
         if not single:
             raise ValueError(
-                "get_conn expects one state; use get_conn_padded for batches."
+                "get_conn expects one state, use get_conn_padded for batches."
             )
-        x_primes, mels = self.get_conn_padded(flat, **kwargs)
+        x_primes, mels = self.get_conn_coalesced(flat, **kwargs)
         x_primes = x_primes[0]
         mels = mels[0]
         mask = mels != 0
         return x_primes[mask], mels[mask]
 
     def n_conn(self, states: Any, **kwargs: Any) -> jax.Array:
-        """Return the number of nonzero padded connections per input state."""
-        _x_primes, mels = self.get_conn_padded(states, **kwargs)
+        """Return the number of distinct nonzero targets per input state."""
+        _x_primes, mels = self.get_conn_coalesced(states, **kwargs)
         return jnp.sum(mels != 0, axis=-1).astype(jnp.int32)
 
     def to_sparse(self, *, max_states: int = 1_000_000) -> BCOO:
