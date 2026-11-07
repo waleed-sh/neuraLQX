@@ -31,6 +31,7 @@ from datetime import datetime
 from typing import Any
 from typing import Generic
 from typing import Iterator
+from typing import Literal
 from typing import Mapping
 from typing import MutableMapping
 from typing import Sequence
@@ -546,6 +547,11 @@ class ConfigManager:
         if name in self._options:
             return self.get(name)
         raise AttributeError(f"{self.__class__.__name__} has no option '{name}'.")
+
+    def __dir__(self) -> list[str]:
+        """Includes registered options in interactive attribute completion."""
+        with self._lock:
+            return sorted(set(super().__dir__()) | self._options.keys())
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Sets an option as an attribute.
@@ -1789,6 +1795,65 @@ class ConfigManager:
             hook(event)
 
 
+class NeuralqxConfig(ConfigManager):
+    """Default configuration with statically discoverable option attributes.
+
+    These annotations expose built-in keys and their value types to IDEs.
+    They deliberately have no class-level defaults: reads and writes still
+    use ConfigManager's validation, precedence rules, and mutation hooks.
+    Keep the declarations aligned with _register_default_options when adding
+    built-in options. Custom keys also appear in interactive dir() completion.
+    """
+
+    # DType and precision policy.
+    dtype_real: Literal["float16", "bfloat16", "float32", "float64"]
+    dtype_complex: Literal["complex64", "complex128"]
+    dtype_index: Literal["int32", "int64"]
+    enable_x64: bool
+
+    # Runtime and compilation behavior.
+    backend_target: Literal["auto", "cpu", "gpu", "tpu"]
+    jit_enabled: bool
+    profile_level: Literal["off", "basic", "trace", "full"]
+    log_level: Literal["critical", "error", "warning", "info", "debug"]
+    compile_cache_enabled: bool
+    compile_cache_dir: str | None
+
+    # JAX distributed runtime startup.
+    distributed: bool
+    distributed_auto_initialize: bool
+    distributed_coordinator_address: str | None
+    distributed_num_processes: int | None
+    distributed_process_id: int | None
+    distributed_local_device_ids: tuple[int, ...] | None
+    distributed_initialization_timeout: int
+
+    # JAX mesh and sharding policy.
+    sharding_axes: tuple[str, ...]
+    sample_sharding_enabled: bool
+    parameter_sharding_enabled: bool
+    operator_sharding_enabled: bool
+    operator_streaming_enabled: bool
+    operator_streaming_chunk_size: int
+    mesh_sample_axis_name: str
+    mesh_parameter_axis_name: str
+    mesh_operator_axis_name: str
+    mesh_sample_axis_size: int | None
+    mesh_parameter_axis_size: int | None
+    mesh_operator_axis_size: int | None
+
+    # Experimental and feature gating.
+    experimental: bool
+    experimental_features: tuple[str, ...]
+    experimental_connection_deduplication: bool
+    allow_ffi_kernels: bool
+
+    def __init__(self) -> None:
+        super().__init__()
+        _register_default_options(self)
+        _register_default_hooks(self)
+
+
 def _register_default_options(cfg: ConfigManager) -> None:
     """Registers neuraLQX's default option set.
 
@@ -2317,19 +2382,16 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
     )
 
 
-def create_default_config() -> ConfigManager:
+def create_default_config() -> NeuralqxConfig:
     """Builds a fully initialized configuration manager.
 
     Returns:
         Config manager pre-loaded with standard neuraLQX options and hooks.
     """
-    manager = ConfigManager()
-    _register_default_options(manager)
-    _register_default_hooks(manager)
-    return manager
+    return NeuralqxConfig()
 
 
-config = create_default_config()
+config: NeuralqxConfig = create_default_config()
 
 
 def get_static(name: str) -> Any:
@@ -2345,6 +2407,7 @@ __all__ = [
     "ConfigOption",
     "ConfigSource",
     "ConfigValidationError",
+    "NeuralqxConfig",
     "ReadOnlyDict",
     "UnknownOptionError",
     "config",
