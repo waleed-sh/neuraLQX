@@ -24,6 +24,8 @@ from neuralqx.callbacks import CallbackPipeline
 from neuralqx.callbacks import FunctionCallback
 from neuralqx.callbacks import LegacyCallback
 from neuralqx.callbacks import LegacyCallbackWrapper
+from neuralqx.callbacks import LiveMonitor
+from neuralqx.callbacks import LiveMonitoringCallback
 from neuralqx.callbacks import ProgressBar
 from neuralqx.callbacks import ProgressBarCallback
 from neuralqx.callbacks import StopRun
@@ -38,6 +40,8 @@ __all__ = [
     "FunctionCallback",
     "LegacyCallback",
     "LegacyCallbackWrapper",
+    "LiveMonitor",
+    "LiveMonitoringCallback",
     "ProgressBar",
     "ProgressBarCallback",
     "StopRun",

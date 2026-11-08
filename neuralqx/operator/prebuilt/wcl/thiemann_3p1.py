@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 import jax.numpy as jnp
@@ -29,10 +30,102 @@ from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_nonplanar_graph
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
 from neuralqx.operator.prebuilt.utils import shift_sites
+from neuralqx.operator.prebuilt.utils.u1 import wrap_add_value
 from neuralqx.utils.struct import field
 
 from .volume_3p1 import volume_terms_3p1
 from .volume_3p1 import volume_value_3p1
+
+
+def _connectivity_tables(terms, volume_terms, n_sites):
+    """Pack the geometry into arrays without expanding arithmetic in the JAX trace."""
+    loops, segments, segment_ids, coefficients = [], [], [], []
+    segment_lookup = {}
+    for term in terms:
+        for copy in range(3):
+            loop = [0] * n_sites
+            for site, direction in zip(
+                term.loop_sites_by_copy[copy], term.loop_directions, strict=True
+            ):
+                # Repeated traversal accumulates the winding before cyclic wrapping.
+                loop[site] += direction
+            loops.append(loop)
+            coefficients.append(term.coefficient)
+            key = (term.segment_sites[copy], term.segment_shift)
+            if key not in segment_lookup:
+                segment_lookup[key] = len(segments)
+                segment = [0] * n_sites
+                segment[key[0]] = key[1]
+                segments.append(segment)
+            segment_ids.append(segment_lookup[key])
+    volume_weights = {}
+    for *sites, sign in volume_terms:
+        # A determinant changes by the permutation parity. Combine equivalent
+        # orderings while retaining their full weight in the volume sum.
+        inversions = sum(sites[i] > sites[j] for i in range(3) for j in range(i + 1, 3))
+        key = tuple(sorted(sites))
+        volume_weights[key] = volume_weights.get(key, 0) + sign * (-1) ** inversions
+    volume_weights = {
+        sites: weight for sites, weight in volume_weights.items() if weight
+    }
+    return (
+        jnp.asarray(loops, dtype=jnp.int32).reshape((-1, n_sites)),
+        jnp.asarray(segments, dtype=jnp.int32).reshape((-1, n_sites)),
+        jnp.asarray(segment_ids, dtype=jnp.int32),
+        jnp.asarray(coefficients, dtype=jnp.float64),
+        jnp.asarray(tuple(volume_weights), dtype=jnp.int32).reshape((-1, 3, 3)),
+        jnp.asarray(tuple(volume_weights.values()), dtype=jnp.float64),
+    )
+
+
+def _volume_from_tables(states, sites, signs):
+    """Evaluate the ordered triple sum for any leading configuration axes."""
+    charges = jnp.asarray(states[..., sites], dtype=jnp.float64)
+    triples = jnp.sum(
+        charges[..., 0, :] * jnp.cross(charges[..., 1, :], charges[..., 2, :]), axis=-1
+    )
+    return jnp.sqrt(jnp.abs(jnp.sum(signs * triples, axis=-1)))
+
+
+@partial(jax.jit, static_argnames=("adjoint",))
+def _vertex_connections(states, tables, q_min, q_step, local_size, lapse, *, adjoint):
+    """Share one executable across vertices with matching table shapes."""
+    loops, segments, segment_ids, coefficients, volume_sites, volume_signs = tables
+
+    def shifted(configurations, winding):
+        values = wrap_add_value(
+            configurations,
+            winding * jnp.asarray(q_step, dtype=configurations.dtype),
+            q_min=q_min,
+            q_step=q_step,
+            local_size=local_size,
+        )
+        return jnp.where(winding != 0, values, configurations)
+
+    def volume(configurations):
+        return _volume_from_tables(configurations, volume_sites, volume_signs)
+
+    # Keep the public connection order: term, gauge copy, then + and - branches.
+    branch_signs = jnp.asarray([1, -1], dtype=jnp.int32)
+    branches = shifted(
+        states[:, None, None, :],
+        loops[None, :, None, :] * branch_signs[None, None, :, None],
+    )
+    if adjoint:
+        # The adjoint's volume difference depends only on the source row and
+        # segment, so each distinct segment is evaluated once, not per loop.
+        delta = volume(states)[:, None] - volume(shifted(states[:, None, :], segments))
+        values = delta[:, segment_ids, None] * branch_signs[None, None, :]
+    else:
+        # Forward rows evaluate the diagonal difference at the loop target.
+        delta = volume(branches) - volume(
+            shifted(branches, segments[segment_ids][None, :, None, :])
+        )
+        values = -delta * branch_signs[None, None, :]
+    values = values * (lapse * coefficients)[None, :, None]
+    return branches.reshape((states.shape[0], -1, states.shape[-1])), values.reshape(
+        (states.shape[0], -1)
+    )
 
 
 class Thiemann3p1VertexConstraintOperator(ComputationalOperator):
@@ -89,6 +182,9 @@ class Thiemann3p1VertexConstraintOperator(ComputationalOperator):
     _volume_terms: tuple = field(static=True, init=False, default=(), repr=False)
     """Signed incident-edge data defining the local volume."""
 
+    _kernel_tables: tuple = field(init=False, default=(), repr=False)
+    """Geometry arrays passed as data to the shared connectivity executable."""
+
     _q_min: int | float = field(static=True, init=False, default=0, repr=False)
     """Smallest allowed value on the local charge lattice."""
 
@@ -113,6 +209,11 @@ class Thiemann3p1VertexConstraintOperator(ComputationalOperator):
         object.__setattr__(self, "_q_min", q_min)
         object.__setattr__(self, "_q_step", q_step)
         object.__setattr__(self, "_local_size", local_size)
+        object.__setattr__(
+            self,
+            "_kernel_tables",
+            _connectivity_tables(self._terms, self._volume_terms, hilbert.size),
+        )
         super().__post_init__()
 
     @property
@@ -193,42 +294,28 @@ class Thiemann3p1VertexConstraintOperator(ComputationalOperator):
             result (tuple[jax.Array, jax.Array]): Targets of shape `(max_conn_size, hilbert.size)` and their row matrix
                 elements of shape `(max_conn_size,)`. Zero amplitudes mark padding.
         """
-        if not self._terms:
-            return state[None, :], jnp.zeros((1,), dtype=self.dtype)
+        targets, values = self._get_conn_padded_batch_kernel(state[None, :])
+        return targets[0], values[0]
 
-        x_primes = []
-        mels = []
-        base_volume = self._volume(state)
-        scale = jnp.asarray(self.lapse, dtype=self.dtype)
-        for term in self._terms:
-            coeff = jnp.asarray(term.coefficient, dtype=self.dtype)
-            for copy in range(3):
-                segment_site = term.segment_sites[copy]
-                loop_sites = term.loop_sites_by_copy[copy]
-                for branch_sign, mel_sign in ((+1, +1.0), (-1, -1.0)):
-                    branch = self._loop_branch(
-                        state, loop_sites, term.loop_directions, branch_sign
-                    )
-                    if not self.adjoint_flag:
-                        # A row reverses the ket loop shift and uses its source coefficient.
-                        segment_base = branch
-                        delta_v = self._volume(segment_base) - self._volume(
-                            self._shift_segment_inverse(
-                                segment_base, segment_site, term.segment_shift
-                            )
-                        )
-                        mel = -mel_sign * coeff * delta_v
-                    else:
-                        # Transposition puts the same diagonal difference on the row state.
-                        delta_v = base_volume - self._volume(
-                            self._shift_segment_inverse(
-                                state, segment_site, term.segment_shift
-                            )
-                        )
-                        mel = mel_sign * coeff * delta_v
-                    x_primes.append(branch)
-                    mels.append(scale * mel)
-        return jnp.stack(x_primes, axis=0), jnp.stack(mels, axis=0)
+    def _get_conn_padded_batch_kernel(self, states_2d):
+        """Evaluate all rows using the same geometry tables."""
+        if not self._terms:
+            return states_2d[:, None, :], jnp.zeros(
+                (states_2d.shape[0], 1), dtype=self.dtype
+            )
+        return _vertex_connections(
+            states_2d,
+            self._kernel_tables,
+            self._q_min,
+            self._q_step,
+            self._local_size,
+            self.lapse,
+            adjoint=self.adjoint_flag,
+        )
+
+    def _get_conn_padded_direct(self, states_2d):
+        """Keep vertex identity outside the shared kernel's compilation cache key."""
+        return self._get_conn_padded_batch_kernel(states_2d)
 
 
 __all__ = ["Thiemann3p1VertexConstraintOperator"]

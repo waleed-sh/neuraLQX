@@ -24,6 +24,8 @@ from .context import CallbackContext
 from .control import CallbackControl
 from .control import ControlLike
 from .exceptions import StopRun
+from .live_monitoring import LiveMonitor
+from .live_monitoring import LiveMonitoringCallback
 from .pipeline import CallbackList
 from .pipeline import CallbackPipeline
 from .progress import ProgressBar
@@ -40,6 +42,8 @@ __all__ = [
     "FunctionCallback",
     "LegacyCallback",
     "LegacyCallbackWrapper",
+    "LiveMonitor",
+    "LiveMonitoringCallback",
     "ProgressBar",
     "ProgressBarCallback",
     "StopRun",

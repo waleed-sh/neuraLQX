@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neuraLQX · Live monitor</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/monitor.css">
+  <script src="/monitor.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div class="identity"><span class="brand">neuraLQX<span class="brand-dot">.</span></span><span class="divider"></span><span class="page-title">Live monitor</span></div>
+      <div id="status" class="status" role="status"><span class="status-dot"></span><span id="status-text">Connecting</span></div>
+    </header>
+    <section class="dashboard" aria-label="Optimization monitor">
+      <div class="overview">
+        <div class="objective-summary"><div id="objective-label" class="eyebrow">Objective</div><div class="objective-line"><span id="objective-value">—</span><span id="objective-error"></span></div><span class="summary-caption">Latest estimate ± standard error</span></div>
+        <div class="run-summary"><div><span class="eyebrow">Iteration</span><strong id="step">—</strong></div><div><span class="eyebrow">Elapsed</span><strong id="elapsed">00:00</strong></div><div><span class="eyebrow">Acceptance</span><strong id="acceptance">—</strong></div></div>
+      </div>
+      <div class="workspace">
+        <section class="plot-panel" aria-label="Metric history">
+          <div class="plot-toolbar">
+            <div class="plot-title">Convergence <span id="view-badge" hidden>Zoomed</span></div>
+            <div class="plot-controls">
+              <button id="errors" aria-pressed="true" title="Show standard error bars">Error bars</button>
+              <select id="scale" aria-label="Vertical scale"><option value="linear">Linear</option><option value="log">Log scale</option></select>
+              <button id="pause" aria-pressed="false">Pause view</button>
+              <button id="reset" title="Reset chart zoom">Reset</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-wrap">
+            <canvas id="chart" tabindex="0" role="img" aria-label="Live metric history. Click a point to inspect its values, use arrow keys to browse points, scroll to zoom, or drag to pan."></canvas>
+            <div id="empty"><span class="empty-mark">∿</span><strong>Waiting for the first step</strong><span>The chart will update as the run progresses.</span></div>
+            <section id="tooltip" aria-label="Point details" hidden>
+              <div class="tip-heading"><div><strong id="tip-step"></strong><span id="tip-count"></span></div><button id="tip-pin" aria-label="Unpin point details">Unpin</button><button id="tip-close" aria-label="Close point details">×</button></div>
+              <div class="tip-columns"><span>Metric</span><span>Estimate ± SE</span></div>
+              <div id="tip-values" role="group" aria-label="Values at this point" tabindex="0"></div>
+              <div class="tip-help"><strong id="tip-help-title">Click the chart to pin this card</strong><span id="tip-help-detail">Then move here to scroll through the values.</span></div>
+            </section>
+          </div>
+          <div class="plot-footer"><span>Click to inspect · Scroll to zoom · Drag to pan</span><div><button id="save-image">Save image</button><a href="/history.csv" download="neuralqx-monitor.csv">Export CSV <span aria-hidden="true">↗</span></a></div></div>
+          <div class="diagnostics"><span>Variance <strong id="variance">—</strong></span><span>R̂ <strong id="rhat">—</strong></span><span id="point-count">0 recorded points</span></div>
+        </section>
+        <aside aria-label="Metric selection">
+          <div class="aside-heading"><h2>Metrics</h2><button id="select-all" disabled>Select all</button></div>
+          <p class="aside-help">Choose which estimates to compare.</p>
+          <div id="metrics" role="group" aria-label="Metrics to plot" tabindex="0"></div>
+          <p id="metrics-empty" class="aside-help">Additional metrics appear here when they are logged.</p>
+          <div class="run-actions"><span id="stop-help">Stops after the current step.</span><button id="stop" disabled>Stop simulation</button></div>
+        </aside>
+      </div>
+    </section>
+    <footer class="page-footer"><span id="connection-note">Connecting to your local run…</span><span>neuraLQX</span></footer>
+  </main>
+</body>
+</html>

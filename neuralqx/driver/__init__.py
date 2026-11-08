@@ -15,7 +15,6 @@
 
 """Variational optimization drivers."""
 
-from .base import AbstractVariationalDriver
 from neuralqx.callbacks import AbstractCallback
 from neuralqx.callbacks import Callback
 from neuralqx.callbacks import CallbackContext
@@ -25,15 +24,20 @@ from neuralqx.callbacks import CallbackPipeline
 from neuralqx.callbacks import FunctionCallback
 from neuralqx.callbacks import LegacyCallback
 from neuralqx.callbacks import LegacyCallbackWrapper
+from neuralqx.callbacks import LiveMonitor
+from neuralqx.callbacks import LiveMonitoringCallback
 from neuralqx.callbacks import ProgressBar
 from neuralqx.callbacks import ProgressBarCallback
 from neuralqx.callbacks import StopRun
+
+from .base import AbstractVariationalDriver
 from .multi_vmc import MultiStateVMC
 from .multi_vmc import MultiVMCDriver
 from .multi_vmc import fidelity_expect_and_grad_joint
 from .vmc import VMC
 
 __all__ = [
+    "VMC",
     "AbstractCallback",
     "AbstractVariationalDriver",
     "Callback",
@@ -44,11 +48,12 @@ __all__ = [
     "FunctionCallback",
     "LegacyCallback",
     "LegacyCallbackWrapper",
+    "LiveMonitor",
+    "LiveMonitoringCallback",
     "MultiStateVMC",
     "MultiVMCDriver",
     "ProgressBar",
     "ProgressBarCallback",
     "StopRun",
-    "VMC",
     "fidelity_expect_and_grad_joint",
 ]
