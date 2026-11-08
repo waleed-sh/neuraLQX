@@ -13,13 +13,17 @@
 # limitations under the License.
 
 
-"""Physical operators for the QR, weak-coupling, and spherical models.
+"""Physical model operators and U(1) charge-label projectors.
 
 The public kernels return matrix rows: an input configuration is the bra
 index and each connected configuration is the ket index. QR shifts stop at
 the spin cutoff. WCL and spherical shifts use cyclic charge arithmetic.
 All geometric expressions use the dimensionless normalizations described
 on the individual classes.
+
+`ChargeColoringOperator` selects a charge at one flat component, while
+`ColoringOperator` selects a complete edge charge vector. Both are diagonal
+projectors whose expectations give probabilities in the variational state.
 
 The non-SU(2) implementations were compared with upstream neuraLQX commit
 `f62ed1ba9a56be9887c7bb547489f40c7c2d95bd`. The mathematical regression tests
@@ -28,12 +32,20 @@ upstream, including the corrected planar Thiemann adjoint.
 """
 
 from . import bojowald_swiderski
+from . import coloring
 from . import qr
 from . import su2
 from . import wcl
+from .coloring import ChargeColoringOperator
+from .coloring import ColoringOperator
+from .coloring import n_point_function
 
 __all__ = [
+    "ChargeColoringOperator",
+    "ColoringOperator",
     "bojowald_swiderski",
+    "coloring",
+    "n_point_function",
     "qr",
     "su2",
     "wcl",
