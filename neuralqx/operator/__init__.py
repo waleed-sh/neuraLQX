@@ -13,6 +13,13 @@
 #  limitations under the License.
 
 
+"""Operator interfaces, algebra wrappers, and prebuilt model operators.
+
+Computational operators expose matrix rows for local Monte Carlo estimators.
+The wrappers compose these operators or mark expectations, such as the lazy
+positive product represented by `Squared`.
+"""
+
 from .abstract import AbstractOperator
 from .computational import ComputationalOperator
 from .connectivity import coalesce_connections
@@ -23,7 +30,9 @@ from .wrappers import PenaltyCost
 from .wrappers import ProductOperator
 from .wrappers import ScaledOperator
 from .wrappers import Squared
+from .wrappers import SumOfSquares
 from .wrappers import SumOperator
+from .wrappers import VertexSum
 from .wrappers import WrappedOperator
 from .wrappers import penalty_expectation_gradient
 from .wrappers import penalty_expectation_value
@@ -44,7 +53,9 @@ __all__ = [
     "ProductOperator",
     "ScaledOperator",
     "Squared",
+    "SumOfSquares",
     "SumOperator",
+    "VertexSum",
     "WrappedOperator",
     "coalesce_connections",
     "penalty_expectation_gradient",

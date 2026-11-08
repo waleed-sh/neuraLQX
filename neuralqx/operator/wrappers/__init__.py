@@ -30,6 +30,8 @@ from .product import ProductOperator
 from .scaled import ScaledOperator
 from .squared import Squared
 from .sum import SumOperator
+from .sum_of_squares import SumOfSquares
+from .vertex_sum import VertexSum
 
 __all__ = [
     "ComputationalWrappedOperator",
@@ -38,7 +40,9 @@ __all__ = [
     "ProductOperator",
     "ScaledOperator",
     "Squared",
+    "SumOfSquares",
     "SumOperator",
+    "VertexSum",
     "WrappedOperator",
     "penalty_expectation_gradient",
     "penalty_expectation_value",

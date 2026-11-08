@@ -26,6 +26,7 @@ import jax.numpy as jnp
 from neuralqx.operator import AbstractOperator
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import ScaledOperator
+from neuralqx.operator import SumOfSquares
 from neuralqx.operator import SumOperator
 from neuralqx.operator._algebra import is_known_real_scalar
 from neuralqx.operator.wrappers import PenaltyCost
@@ -40,10 +41,10 @@ class OperatorTerm:
 
 
 def is_operator_sequence(operator: Any) -> bool:
-    """Return whether ``operator`` is a user-facing sequence of operators."""
-    return isinstance(operator, Sequence) and not isinstance(
-        operator,
-        (str, bytes, AbstractOperator),
+    """Recognize explicit sequences and sums evaluated as independent squares."""
+    return isinstance(operator, SumOfSquares) or (
+        isinstance(operator, Sequence)
+        and not isinstance(operator, (str, bytes, AbstractOperator))
     )
 
 
