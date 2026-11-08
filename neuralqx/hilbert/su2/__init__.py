@@ -33,11 +33,6 @@ from .layout import channel_max_label
 from .metadata import SU2GraphMetadata
 from .metadata import compile_su2_graph_metadata
 from .peter_weyl import SU2PeterWeylHilbert
-from .proposals import AbstractSU2Move
-from .proposals import EdgeSpinHeatbathMove
-from .proposals import LoopFundamentalMove
-from .proposals import MixedSU2Move
-from .proposals import VertexRecouplingMove
 from .recoupling import all_left_comb_channels
 from .recoupling import allowed_couplings
 from .recoupling import count_left_comb_channels
@@ -52,14 +47,10 @@ from .spaces import SU2GaugeInvariantHilbert
 from .spaces import SU2Hilbert
 
 __all__ = [
-    "AbstractSU2Move",
-    "EdgeSpinHeatbathMove",
     "GaugeInvariantSU2Constraint",
     "GaugeInvariantSU2Hilbert",
     "InvalidSU2CutoffError",
     "InvalidSU2StateLayoutError",
-    "LoopFundamentalMove",
-    "MixedSU2Move",
     "SU2ChannelConstructionFailureError",
     "SU2ExactEnumerationTooLargeError",
     "SU2GaugeConstraint",
@@ -75,7 +66,6 @@ __all__ = [
     "SpinNetworkLayout",
     "SpinNetworkView",
     "UnsupportedRecouplingSchemeError",
-    "VertexRecouplingMove",
     "all_left_comb_channels",
     "allowed_couplings",
     "channel_max_label",

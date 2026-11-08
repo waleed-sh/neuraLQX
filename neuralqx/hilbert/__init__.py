@@ -32,27 +32,22 @@ from .constraint import LinearConstraint
 from .constraint import NoConstraint
 from .constraint import NotConstraint
 from .constraint import OrConstraint
-
 from .layout import DofKind
 from .layout import GraphDofLayout
 from .layout import GraphHilbertLayout
 from .layout import HilbertStateView
 from .layout import SiteDof
-
 from .local import AbstractLocalSpace
 from .local import ExplicitLocalSpace
 from .local import HeterogeneousLocalSpace
 from .local import LocalRange
 from .local import VectorRange
 from .local import as_local_space
-
 from .proposal import AbstractProposalMove
 from .proposal import AdjacentSiteUpdate
 from .proposal import UniformSiteUpdate
 from .proposal import propose
-
 from .random import random_state
-
 from .space import AbstractDiscreteHilbert
 from .space import AbstractHilbertSpace
 from .space import DiscreteHilbertSpace
@@ -60,17 +55,11 @@ from .space import HeterogeneousDiscreteHilbert
 from .space import HeterogeneousHilbert
 from .space import HomogeneousDiscreteHilbert
 from .space import HomogeneousHilbert
-
-from .su2 import EdgeSpinHeatbathMove
 from .su2 import GaugeInvariantSU2Hilbert
-from .su2 import LoopFundamentalMove
-from .su2 import MixedSU2Move
 from .su2 import SpinNetworkHilbert
 from .su2 import SU2GaugeInvariantHilbert
 from .su2 import SU2Hilbert
 from .su2 import SU2PeterWeylHilbert
-from .su2 import VertexRecouplingMove
-
 from .u1 import ConstrainedU1Hilbert
 from .u1 import FreeEdgeFlipAllGauge
 from .u1 import FreeEdgeFlipSingleGauge
@@ -93,7 +82,6 @@ __all__ = [
     "ConstrainedU1Hilbert",
     "DiscreteHilbertSpace",
     "DofKind",
-    "EdgeSpinHeatbathMove",
     "ExplicitLocalSpace",
     "FreeEdgeFlipAllGauge",
     "FreeEdgeFlipSingleGauge",
@@ -109,8 +97,6 @@ __all__ = [
     "IdentityConstraint",
     "LinearConstraint",
     "LocalRange",
-    "LoopFundamentalMove",
-    "MixedSU2Move",
     "NoConstraint",
     "NotConstraint",
     "OrConstraint",
@@ -126,7 +112,6 @@ __all__ = [
     "UnconstrainedU1Hilbert",
     "UniformSiteUpdate",
     "VectorRange",
-    "VertexRecouplingMove",
     "as_local_space",
     "propose",
     "random_state",

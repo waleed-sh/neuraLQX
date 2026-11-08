@@ -42,8 +42,7 @@ from neuralqx.hilbert.su2.index import enumerate_exact_states
 from neuralqx.hilbert.su2.layout import SpinNetworkLayout
 from neuralqx.hilbert.su2.metadata import SU2GraphMetadata
 from neuralqx.hilbert.su2.metadata import compile_su2_graph_metadata
-from neuralqx.hilbert.su2.proposals import graph_loop_edge_indices
-from neuralqx.hilbert.su2.proposals.mixin import SU2ProposalMixin
+from neuralqx.hilbert.su2.metadata import graph_loop_edge_indices
 from neuralqx.hilbert.su2.recoupling import first_left_comb_channels
 from neuralqx.hilbert.su2.recoupling import left_comb_valid_py
 from neuralqx.hilbert.su2.sampling import SU2SamplingMixin
@@ -58,7 +57,6 @@ from neuralqx.utils.struct import field
 class SU2GaugeInvariantHilbert(
     SU2StateMixin,
     SU2SamplingMixin,
-    SU2ProposalMixin,
     DiscreteHilbertSpace,
 ):
     """Gauge-invariant SU(2) spin-network Hilbert space.
@@ -81,7 +79,8 @@ class SU2GaugeInvariantHilbert(
     ``max_exact_states`` and can be used for direct sampling, ranking, and
     unranking. Without exact enumeration the dimension is reported as unknown,
     but the space still supports valid-state generation through a compiled
-    Metropolis warmup and supports SU(2)-specific proposal moves.
+    Metropolis warmup. Wavefunction sampling uses ``MetropolisSU2`` and its
+    shared proposal kernel with explicit Hastings corrections.
 
     This class is the gauge-invariant SU(2) Hilbert space. Passing
     ``is_gauge_invariant=False`` raises an explicit error because the
@@ -262,10 +261,8 @@ class SU2GaugeInvariantHilbert(
         two_j_max = validate_two_j_max(self.two_j_max)
         if self.recoupling != "left_comb":
             raise UnsupportedRecouplingSchemeError(self.recoupling)
-        if self.random_init not in ("metropolis", "vacuum", "loop_warmup"):
-            raise ValueError(
-                "random_init must be 'metropolis', 'vacuum', or 'loop_warmup'."
-            )
+        if self.random_init not in ("metropolis", "vacuum"):
+            raise ValueError("random_init must be 'metropolis' or 'vacuum'.")
         if self.init_warmup is not None and (
             isinstance(self.init_warmup, (bool, np.bool_))
             or not isinstance(self.init_warmup, (int, np.integer))

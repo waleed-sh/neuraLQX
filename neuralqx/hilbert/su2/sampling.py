@@ -27,7 +27,6 @@ import jax.numpy as jnp
 import numpy as np
 
 import jax
-from neuralqx.hilbert.su2.proposals import random_loop_warmup
 from neuralqx.hilbert.su2.proposals.metropolis import random_metropolis_warmup
 from neuralqx.hilbert.utils import batch_shape
 
@@ -64,12 +63,12 @@ class SU2SamplingMixin:
             size: Optional leading batch shape.
             dtype: Optional dtype for returned state values.
             max_trials: Ignored because SU(2) uses constructive sampling.
-            method: Per-call override: ``"metropolis"``, ``"vacuum"`` or
-                legacy ``"loop_warmup"``. By default, sample a cached exact
-                basis if present, otherwise use ``self.random_init``.
+            method: Per-call override: ``"metropolis"`` or ``"vacuum"``.
+                By default, sample a cached exact
+                basis if present; otherwise use ``self.random_init``.
             n_steps: Attempted updates per output state. Defaults to
                 ``self.init_warmup`` or ``max(32, 4*n_edges)``. Static under JIT.
-                Used for Metropolis and legacy loop warmup only.
+                Used for Metropolis warmup only.
 
         Returns:
             Valid SU(2) state array with trailing dimension ``self.size``.
@@ -85,10 +84,8 @@ class SU2SamplingMixin:
         shape = batch_shape(size)
         out_dtype = self.dtype if dtype is None else np.dtype(dtype)
         count = int(np.prod(shape, dtype=np.int64)) if shape else 1
-        if method is not None and method not in ("metropolis", "vacuum", "loop_warmup"):
-            raise ValueError(
-                "method must be 'metropolis', 'vacuum', 'loop_warmup', or None."
-            )
+        if method is not None and method not in ("metropolis", "vacuum"):
+            raise ValueError("method must be 'metropolis', 'vacuum', or None.")
         if n_steps is not None and (
             isinstance(n_steps, (bool, np.bool_))
             or not isinstance(n_steps, (int, np.integer))
@@ -113,10 +110,7 @@ class SU2SamplingMixin:
 
         steps = self.init_warmup if n_steps is None else n_steps
         steps = max(32, 4 * max(self.n_edges, 1)) if steps is None else int(steps)
-        if method == "metropolis":
-            flat = random_metropolis_warmup(self, key, count, steps)
-        else:
-            flat = random_loop_warmup(self, key, count, n_steps=steps)
+        flat = random_metropolis_warmup(self, key, count, steps)
         flat = flat.astype(out_dtype)
         return flat[0] if not shape else flat.reshape((*shape, self.size))
 

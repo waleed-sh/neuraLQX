@@ -25,9 +25,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.graph import AbstractGraph
 
 
@@ -151,4 +151,19 @@ def compile_su2_graph_metadata(graph: AbstractGraph) -> SU2GraphMetadata:
     )
 
 
-__all__ = ["SU2GraphMetadata", "compile_su2_graph_metadata"]
+def graph_loop_edge_indices(graph: AbstractGraph) -> tuple[tuple[int, ...], ...]:
+    """Resolve minimal graph loops to unique indices in the flat edge ordering.
+
+    These geometric cycles supplement the spanning-forest cycle basis used by
+    the Metropolis kernel. No spin sectors or channel assignments are stored.
+    """
+    loops: list[tuple[int, ...]] = []
+    for loop in graph.minimal_loops():
+        edges = loop.edges if hasattr(loop, "edges") else tuple(loop)
+        indices = tuple(dict.fromkeys(graph.edge_to_index(edge) for edge in edges))
+        if indices:
+            loops.append(indices)
+    return tuple(loops)
+
+
+__all__ = ["SU2GraphMetadata", "compile_su2_graph_metadata", "graph_loop_edge_indices"]

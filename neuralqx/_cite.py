@@ -24,7 +24,7 @@ class _Citation:
     Attribute chaining accumulates citations:
         neuralqx.cite
         neuralqx.cite.netket
-        neuralqx.cite.netket
+        neuralqx.cite.netket.jax
         neuralqx.cite.netket.jax.flax
         (or any combination of the above)
     """

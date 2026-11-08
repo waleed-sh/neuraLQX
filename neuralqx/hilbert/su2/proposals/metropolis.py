@@ -177,10 +177,15 @@ def propose_metropolis(
     stay_probability=DEFAULT_STAY_PROBABILITY,
     coherent_loop_probability=0.0,
 ):
-    """Return valid proposals and log q(reverse)/q(forward), without acceptance.
+    """Return valid proposals and the selected component's Hastings correction.
 
     ``weights`` must be normalized and independent of the source state. Invalid
     attempts return the input state and zero correction, without retrying.
+    The correction is log q(reverse)/q(forward) conditional on the selected
+    move family and geometry. Accepting each component with its own correction
+    gives a mixture of reversible MH kernels, it is not the ratio of proposal
+    densities summed over all families. Returning valid states alone would not
+    suffice: sequential channel draws are generally asymmetric.
     """
     basis, loops = _cycle_geometry(space)
     batch = sigma.shape[0]

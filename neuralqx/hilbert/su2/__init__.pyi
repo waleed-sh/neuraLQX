@@ -25,20 +25,15 @@ from .errors import (
     SU2UnconstrainedNotImplementedError as SU2UnconstrainedNotImplementedError,
 )
 from .errors import UnsupportedRecouplingSchemeError as UnsupportedRecouplingSchemeError
-from .layout import SU2SiteInfo as SU2SiteInfo
 from .layout import SpinNetworkCoord as SpinNetworkCoord
 from .layout import SpinNetworkLayout as SpinNetworkLayout
 from .layout import SpinNetworkView as SpinNetworkView
+from .layout import SU2SiteInfo as SU2SiteInfo
 from .layout import channel_max_label as channel_max_label
 from .metadata import SU2GraphMetadata as SU2GraphMetadata
 from .metadata import compile_su2_graph_metadata as compile_su2_graph_metadata
-from .proposals import AbstractSU2Move as AbstractSU2Move
-from .proposals import EdgeSpinHeatbathMove as EdgeSpinHeatbathMove
-from .proposals import LoopFundamentalMove as LoopFundamentalMove
-from .proposals import MixedSU2Move as MixedSU2Move
-from .proposals import VertexRecouplingMove as VertexRecouplingMove
-from .recoupling import allowed_couplings as allowed_couplings
 from .recoupling import all_left_comb_channels as all_left_comb_channels
+from .recoupling import allowed_couplings as allowed_couplings
 from .recoupling import count_left_comb_channels as count_left_comb_channels
 from .recoupling import coupling_ok as coupling_ok
 from .recoupling import coupling_ok_py as coupling_ok_py
@@ -46,6 +41,6 @@ from .recoupling import first_left_comb_channels as first_left_comb_channels
 from .recoupling import left_comb_valid as left_comb_valid
 from .recoupling import left_comb_valid_py as left_comb_valid_py
 from .spaces import GaugeInvariantSU2Hilbert as GaugeInvariantSU2Hilbert
+from .spaces import SpinNetworkHilbert as SpinNetworkHilbert
 from .spaces import SU2GaugeInvariantHilbert as SU2GaugeInvariantHilbert
 from .spaces import SU2Hilbert as SU2Hilbert
-from .spaces import SpinNetworkHilbert as SpinNetworkHilbert

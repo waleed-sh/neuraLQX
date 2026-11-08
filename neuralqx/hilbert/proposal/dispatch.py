@@ -16,7 +16,7 @@
 """Plum-dispatched proposal moves for Hilbert states.
 
 The public ``propose`` entry point routes generic flat-site moves and
-domain-specific U(1) or SU(2) moves through local multiple dispatch. Generic
+domain-specific U(1) moves through local multiple dispatch. Generic
 moves update local indices and then convert them back to state values.
 """
 
@@ -24,14 +24,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 from plum import dispatch
 
+import jax
 from neuralqx.hilbert.proposal.moves import AdjacentSiteUpdate
 from neuralqx.hilbert.proposal.moves import UniformSiteUpdate
-from neuralqx.hilbert.su2.proposals import AbstractSU2Move
-from neuralqx.hilbert.su2.spaces import SU2GaugeInvariantHilbert
 from neuralqx.hilbert.space import DiscreteHilbertSpace
 from neuralqx.hilbert.u1.proposals import AbstractU1Move
 from neuralqx.hilbert.u1.spaces import U1Hilbert
@@ -57,17 +55,6 @@ def propose(
         Proposed state array with the same shape as ``states``.
     """
     return _nqx_propose(space, move, key, states)
-
-
-@dispatch
-def _nqx_propose(
-    space: SU2GaugeInvariantHilbert,
-    move: AbstractSU2Move,
-    key: jax.Array,
-    states: Any,
-) -> jax.Array:
-    """Delegates SU(2) move proposals to the SU(2) Hilbert implementation."""
-    return space.propose(move, key, states)
 
 
 @dispatch
