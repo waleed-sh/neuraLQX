@@ -32,6 +32,7 @@ from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import EdgeLike
 from neuralqx.utils.typing import GraphEdges
 from neuralqx.utils.typing import GraphEdgesLike
+from neuralqx.utils.typing import Loop
 from neuralqx.utils.typing import MinimalLoop
 from neuralqx.utils.typing import Vertex
 from neuralqx.utils.typing import VertexLike
@@ -229,6 +230,46 @@ class AbstractGraph(abc.ABC):
     @abc.abstractmethod
     def dual_adjacency(self) -> dict[Edge, list[Edge]]:
         """Adjacency lists for the line-graph dual."""
+
+    @abc.abstractmethod
+    def all_loops(self, length: int | None = None) -> list[Loop]:
+        """Return all simple primal loops up to an inclusive edge-length bound.
+
+        Traversal may use either direction of a stored edge. Rotations and
+        reversed traversals count once, while distinct parallel-edge choices
+        remain separate loops. Implementations return detached Loop objects.
+
+        Args:
+            length: Maximum number of edges per loop, inclusive. None includes
+                all simple loops, and zero returns an empty list.
+
+        Returns:
+            result (list[Loop]): Undressed simple primal loops.
+
+        Raises:
+            TypeError: If length is neither None nor an integer, or is a boolean.
+            ValueError: If length is negative.
+        """
+
+    @abc.abstractmethod
+    def all_dressed_loops(self, length: int | None = None) -> list[Loop]:
+        """Return all simple primal loops with creation/annihilation dressing.
+
+        A traversal along a stored edge is a creation action. A traversal
+        against its stored direction is an annihilation action. Each dressing
+        entry also retains the edge key.
+
+        Args:
+            length: Inclusive maximum edge count, with the same meaning and
+                validation as `all_loops`. None includes all simple loops.
+
+        Returns:
+            result (list[Loop]): Detached loops with one dressing entry per edge.
+
+        Raises:
+            TypeError: If length is neither None nor an integer, or is a boolean.
+            ValueError: If length is negative.
+        """
 
     @abc.abstractmethod
     def minimal_loops(self) -> list[MinimalLoop]:

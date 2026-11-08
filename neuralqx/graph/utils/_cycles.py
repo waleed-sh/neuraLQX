@@ -13,21 +13,26 @@
 # limitations under the License.
 
 
-"""Shortest-cycle utilities for keyed graph edges.
+"""Simple-cycle and shortest-cycle utilities for keyed graph edges.
 
 The algorithms in this module operate on canonical graph edges and lightweight
 raw edge triples. They preserve deterministic ordering while handling
 parallel-edge two-cycles and ordinary girth cycles in the underlying simple
-graph.
+graph. Exhaustive enumeration also includes self-loops and every keyed-edge
+realization of a simple vertex cycle.
 """
 
 from collections import defaultdict
 from collections import deque
 from collections.abc import Hashable
-
+from collections.abc import Iterator
 from itertools import combinations
-
+from itertools import pairwise
+from itertools import product
+from numbers import Integral
 from typing import Any
+
+import networkx as nx
 
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import GraphEdges
@@ -36,6 +41,107 @@ from neuralqx.utils.typing import RawEdge
 
 from ._ordering import object_key
 from ._ordering import unordered_pair_key
+
+
+def all_cycles(edges: GraphEdges, length: int | None = None) -> list[Loop]:
+    """Enumerate all simple undirected cycles, retaining parallel-edge choices.
+
+    A simple cycle visits each vertex once before closing. Self-loops count
+    as length one, and two distinct parallel edges form a length-two cycle.
+    Longer cycles include all combinations of the available edge keys.
+    Cyclic rotations and reversed traversals identify the same loop.
+
+    NetworkX enumerates vertex cycles with the length bound applied during
+    its search. Each vertex cycle is then expanded to keyed edge loops.
+    Stored edge directions do not restrict traversal, matching the geometry
+    used by the minimal-loop API. Dressing is applied separately.
+
+    Args:
+        edges: Canonical keyed primal graph edges.
+        length: Inclusive maximum number of edges per loop. None includes
+            every simple cycle. Zero returns an empty list.
+
+    Returns:
+        result (list[Loop]): New undressed loops, sorted by length and then
+            by their canonical edge sequence. Each representative has a
+            deterministic starting vertex and traversal direction.
+
+    Raises:
+        TypeError: If length is neither None nor an integer, or is a boolean.
+        ValueError: If length is negative.
+    """
+    # Validate before building a graph or starting an unbounded enumeration.
+    if length is not None:
+        if isinstance(length, bool) or not isinstance(length, Integral):
+            raise TypeError("length must be a non-negative integer or None.")
+        if length < 0:
+            raise ValueError("length must be non-negative.")
+        length = int(length)
+        if length == 0:
+            return []
+
+    # An undirected multigraph retains edge keys while permitting reverse traversal.
+    graph = nx.MultiGraph()
+    graph.add_edges_from(_edges_to_raw(edges))
+    loops: dict[tuple[Any, ...], list[RawEdge]] = {}
+
+    # Passing the bound into NetworkX avoids enumerating longer cycles first.
+    for vertices in nx.simple_cycles(graph, length_bound=length):
+        # NetworkX returns node sequences, so restore every allowed edge-key choice.
+        for raw_loop in _keyed_cycle_realizations(graph, vertices):
+            # Normalize both traversal directions to identify an undirected loop.
+            forward = canonical_rotate(raw_loop)
+            backward = canonical_rotate(
+                [(end, start, key) for start, end, key in reversed(raw_loop)]
+            )
+            canonical = min((forward, backward), key=_cycle_identity)
+            loops[_cycle_identity(canonical)] = canonical
+
+    # Stable ordering makes bounded results agree with filtering an unbounded call.
+    ordered = sorted(
+        loops.values(), key=lambda loop: (len(loop), _cycle_identity(loop))
+    )
+    return [Loop(Edge(start, end, key) for start, end, key in loop) for loop in ordered]
+
+
+def _keyed_cycle_realizations(
+    graph: nx.MultiGraph, vertices: list[Hashable]
+) -> Iterator[list[RawEdge]]:
+    """Expand a simple vertex cycle into its distinct keyed edge traversals.
+
+    A node cycle does not distinguish parallel edges. A self-loop therefore
+    emits one realization per key, and a two-vertex cycle emits one per pair
+    of distinct keys. For three or more vertices, each segment can choose
+    its key independently because the segments are distinct.
+
+    Args:
+        graph: Undirected multigraph containing the cycle's keyed edges.
+        vertices: Nonempty node sequence produced by NetworkX simple_cycles,
+            without a repeated closing vertex.
+
+    Yields:
+        result (list[RawEdge]): Closed edge sequence in the supplied vertex
+            direction. Its reverse is identified by the caller.
+    """
+    if len(vertices) == 1:
+        # Different self-loop keys describe different length-one cycles.
+        vertex = vertices[0]
+        for key in sorted(graph[vertex][vertex]):
+            yield [(vertex, vertex, key)]
+    elif len(vertices) == 2:
+        # A return along the same edge is a backtrack, not a simple cycle.
+        first, second = vertices
+        for outward, inward in combinations(sorted(graph[first][second]), 2):
+            yield [(first, second, outward), (second, first, inward)]
+    else:
+        # Include the closing segment when expanding the independent key choices.
+        segments = list(zip(vertices, vertices[1:] + vertices[:1], strict=True))
+        choices = (sorted(graph[start][end]) for start, end in segments)
+        for keys in product(*choices):
+            yield [
+                (start, end, key)
+                for (start, end), key in zip(segments, keys, strict=True)
+            ]
 
 
 def minimal_cycles(edges: GraphEdges) -> list[Loop]:
@@ -94,7 +200,7 @@ def minimal_raw_cycles(edges: list[RawEdge]) -> list[list[RawEdge]]:
         )
         for path in paths:
             raw_loop: list[RawEdge] = []
-            for left, right in zip(path[:-1], path[1:]):
+            for left, right in pairwise(path):
                 raw_loop.append((left, right, _pick_key(segment_keys, left, right)))
             raw_loop.append((end, start, _pick_key(segment_keys, start, end)))
 
@@ -387,7 +493,7 @@ def _all_shortest_paths_avoid_edge(
                 paths.append(path)
             continue
         for predecessor in predecessors.get(vertex, []):
-            stack.append((predecessor, reverse_path + [predecessor]))
+            stack.append((predecessor, [*reverse_path, predecessor]))
 
     return paths
 
@@ -406,6 +512,7 @@ def _cycle_identity(loop: list[RawEdge]) -> tuple[Any, ...]:
 
 __all__ = [
     "RawEdge",
+    "all_cycles",
     "canonical_rotate",
     "minimal_cycles",
     "minimal_raw_cycles",

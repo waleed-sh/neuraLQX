@@ -15,26 +15,25 @@
 
 """Loop dressing helpers for graph-derived operators.
 
-This module annotates minimal loops with creation and annihilation metadata.
+This module annotates loops with creation and annihilation metadata.
 The metadata records whether each loop edge follows the stored graph
 orientation or uses the reverse orientation.
 """
 
 from neuralqx.utils.typing import GraphEdges
 from neuralqx.utils.typing import Loop
-from neuralqx.utils.typing import MinimalLoop
 
 from ._mapping import reverse_edge
 
 
 def dress_loops(
-    loops: list[MinimalLoop],
+    loops: list[Loop],
     graph_edges: GraphEdges,
 ) -> list[Loop]:
-    """Adds creation/annihilation metadata to minimal loops.
+    """Add creation/annihilation metadata to loops of any length.
 
     Args:
-        loops: Minimal primal loops to annotate.
+        loops: Ordered primal loops to annotate.
         graph_edges: Canonical graph edges that define the stored orientation.
 
     Returns:

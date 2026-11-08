@@ -17,8 +17,8 @@
 
 The module contains the primary user-facing graph class. It augments
 ``AbstractGraph`` with edge-index mappings, dual graph construction, shortest
-loop enumeration, dressed loop metadata, plotting coordinates, and local
-orientation-sign tables used by graph-based quantum operators.
+and exhaustive loop enumeration, dressed loop metadata, plotting coordinates,
+and local orientation-sign tables used by graph-based quantum operators.
 """
 
 from __future__ import annotations
@@ -28,10 +28,12 @@ from typing import Any
 from neuralqx.utils.typing import DressedMinimalLoop
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import GraphEdgesLike
+from neuralqx.utils.typing import Loop
 from neuralqx.utils.typing import MinimalLoop
 from neuralqx.utils.typing import Vertex
 
 from .abstract_graph import AbstractGraph
+from .utils import all_cycles
 from .utils import build_adjacency_from_edge_pairs
 from .utils import build_directed_connectivity
 from .utils import build_dual_edges
@@ -62,6 +64,10 @@ class Graph(AbstractGraph):
     - shortest primal and dual loops,
     - dressed primal loops,
     - local orientation signs for planar or non-planar embeddings.
+
+    `all_loops` and `all_dressed_loops` enumerate simple primal loops on demand,
+    optionally restricted by an inclusive maximum edge count. These loops
+    can be longer than the cached minimal loops and can contain chords.
 
     Args:
         edges: Oriented graph edges. Vertices are coordinate triples.
@@ -289,6 +295,61 @@ class Graph(AbstractGraph):
         lists preserve canonical edge order within each direction.
         """
         return self._incidence
+
+    def all_loops(self, length: int | None = None) -> list[Loop]:
+        """Return every simple primal loop, optionally bounded by edge count.
+
+        A simple loop visits each vertex once before closing. Stored edge
+        directions do not restrict traversal. Self-loops have length one,
+        and two distinct parallel edges form a loop of length two. Longer
+        loops include every combination of parallel-edge keys along the path.
+        Loops with chords are included. Rotations and reverse traversals of
+        the same keyed loop are represented once.
+
+        The search uses NetworkX simple-cycle enumeration and applies the
+        length bound during traversal. Loops are computed on demand, so graph
+        construction does not enumerate this potentially large collection.
+        Repeated closed walks are excluded, making the unbounded result finite.
+
+        Args:
+            length: Inclusive maximum number of edges per loop. None returns
+                all simple loops. Zero returns an empty list.
+
+        Returns:
+            result (list[Loop]): Fresh undressed loops sorted by length and
+                canonical edge sequence. Starting vertices and traversal
+                directions are deterministic. An acyclic graph gives an empty list.
+
+        Raises:
+            TypeError: If length is neither None nor an integer, or is a boolean.
+            ValueError: If length is negative.
+        """
+        return all_cycles(self.edges, length=length)
+
+    def all_dressed_loops(self, length: int | None = None) -> list[Loop]:
+        """Return all simple primal loops with an action label on each edge.
+
+        The loop selection and ordering match `all_loops(length)`. A dressing
+        entry has type `creation` when traversal follows the stored graph edge
+        and `annihilation` when it goes against that direction. Its `key`
+        identifies the chosen parallel edge. Self-loops use `creation`.
+
+        Each call returns new Loop objects and new dressing data. Editing a
+        returned loop's dressing therefore does not affect later calls.
+
+        Args:
+            length: Inclusive maximum number of edges per loop. None includes
+                all simple loops, and zero returns an empty list.
+
+        Returns:
+            result (list[Loop]): Dressed loops exposing `edges`, `dressing`,
+                and `dressed_edges` in the same traversal order.
+
+        Raises:
+            TypeError: If length is neither None nor an integer, or is a boolean.
+            ValueError: If length is negative.
+        """
+        return dress_loops(self.all_loops(length=length), self.edges)
 
     def minimal_loops(self) -> list[MinimalLoop]:
         """Returns all shortest primal loops.

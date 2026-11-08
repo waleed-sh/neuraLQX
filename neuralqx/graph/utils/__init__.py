@@ -25,33 +25,27 @@ matplotlib unless plotting is actually requested.
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ._validate import validate_vertices
-from ._validate import ensure_edge_keys
-
+from ._cycles import all_cycles
 from ._cycles import canonical_rotate
 from ._cycles import minimal_cycles
 from ._cycles import minimal_raw_cycles
-
+from ._dressing import dress_loops
 from ._dual import build_adjacency_from_edge_pairs
 from ._dual import build_directed_connectivity
 from ._dual import build_dual_edges
 from ._dual import build_incidence
-
-from ._dressing import dress_loops
-
 from ._embedding import dual_positions
 from ._embedding import graph_positions
 from ._embedding import randomize_vertices
-
 from ._mapping import build_edge_mapping
 from ._mapping import edge_to_index
 from ._mapping import invert_edge_mapping
 from ._mapping import reverse_edge
-
 from ._parsing import find_unique_vertices
-
 from ._signs import compute_graph_signs
 from ._signs import compute_raw_signs
+from ._validate import ensure_edge_keys
+from ._validate import validate_vertices
 
 if TYPE_CHECKING:
     from ._plotting import plot_graph
@@ -67,25 +61,26 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
-    "validate_vertices",
-    "ensure_edge_keys",
-    "canonical_rotate",
-    "minimal_cycles",
-    "minimal_raw_cycles",
+    "all_cycles",
     "build_adjacency_from_edge_pairs",
     "build_directed_connectivity",
     "build_dual_edges",
-    "build_incidence",
-    "dress_loops",
-    "dual_positions",
-    "graph_positions",
-    "randomize_vertices",
     "build_edge_mapping",
-    "edge_to_index",
-    "invert_edge_mapping",
-    "reverse_edge",
-    "find_unique_vertices",
+    "build_incidence",
+    "canonical_rotate",
     "compute_graph_signs",
     "compute_raw_signs",
+    "dress_loops",
+    "dual_positions",
+    "edge_to_index",
+    "ensure_edge_keys",
+    "find_unique_vertices",
+    "graph_positions",
+    "invert_edge_mapping",
+    "minimal_cycles",
+    "minimal_raw_cycles",
     "plot_graph",
+    "randomize_vertices",
+    "reverse_edge",
+    "validate_vertices",
 ]
