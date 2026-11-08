@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 import jax.numpy as jnp
@@ -75,8 +76,7 @@ class QGTOnTheFly(LinearOperator):
             )
         if self.mode not in {"real", "complex", "holomorphic"}:
             raise ValueError(
-                "QGTOnTheFly mode must be 'real', 'complex', or "
-                f"'holomorphic', got {self.mode!r}."
+                f"QGTOnTheFly mode must be 'real', 'complex', or 'holomorphic', got {self.mode!r}."
             )
 
         if self.sample_weights is not None:
@@ -160,8 +160,7 @@ class QGTOnTheFly(LinearOperator):
             flat_params, unravel = ravel_pytree(coordinate_parameters)
             if vector.size != flat_params.size:
                 raise ValueError(
-                    f"Vector size {vector.size} does not match "
-                    f"parameter size {flat_params.size}."
+                    f"Vector size {vector.size} does not match parameter size {flat_params.size}."
                 )
             if self.mode == "holomorphic":
                 result = _qgt_matvec_tree(self, unravel(vector))
@@ -202,6 +201,114 @@ class QGTOnTheFly(LinearOperator):
             f"QGTOnTheFly(n_parameters={self.n_parameters}, "
             f"diag_shift={self.diag_shift}, mode={self.mode!r})"
         )
+
+    def _solve(self, solve_fn, rhs, *, x0=None, **kwargs):
+        # Reuse the same linearization throughout this solve. Keeping it local
+        # to the solve avoids stale residuals after parameters or samples change.
+        operator = _LinearizedQGT(
+            linear_map=_linearize_qgt(self),
+            parameters=self.parameters,
+            mode=self.mode,
+            weights=_flatten_weights(self),
+            n_samples=int(jnp.asarray(self.samples).size // self.hilbert_size),
+            diag_shift=self.diag_shift,
+        )
+        return operator.solve(solve_fn, rhs, x0=x0, **kwargs)
+
+
+class _LinearizedQGT(LinearOperator):
+    linear_map: Any
+    parameters: Any
+    weights: Any
+    n_samples: int = field(static=True)
+    mode: str = field(static=True)
+
+    @property
+    def n_parameters(self):
+        return (
+            tree_size(self.parameters)
+            if self.mode == "holomorphic"
+            else real_coordinate_size(self.parameters)
+        )
+
+    def __matmul__(self, vector):
+        flat_vector = hasattr(vector, "ndim")
+        coordinates, _ = _coordinate_parameters(self.parameters, self.mode)
+        if flat_vector:
+            reference, unravel = ravel_pytree(coordinates)
+            if vector.ndim != 1 or vector.size != reference.size:
+                raise ValueError(
+                    "QGT vector must match the flattened parameter coordinates."
+                )
+            coordinate_vector = unravel(vector)
+        elif self.mode == "holomorphic":
+            coordinate_vector = tree_cast_like(vector, self.parameters)
+        else:
+            coordinate_vector, reassemble = _vector_to_coordinates(
+                vector, self.parameters
+            )
+        coordinate_vector = tree_cast_like(coordinate_vector, coordinates)
+        result = _linearized_coordinate_matvec(
+            self.linear_map,
+            coordinate_vector,
+            self.weights,
+            self.diag_shift,
+            n_samples=self.n_samples,
+            mode=self.mode,
+        )
+        if flat_vector:
+            return ravel_pytree(result)[0]
+        return result if self.mode == "holomorphic" else reassemble(result)
+
+    def to_dense(self):
+        coordinates, _ = _coordinate_parameters(self.parameters, self.mode)
+        flat, _ = ravel_pytree(coordinates)
+        return jax.vmap(self.__matmul__)(jnp.eye(flat.size, dtype=flat.dtype)).T
+
+
+@partial(jax.jit, static_argnames=("n_samples", "mode"))
+def _linearized_coordinate_matvec(
+    linear_map, vector, weights, shift, *, n_samples, mode
+):
+    values = linear_map(vector)
+    if weights is None:
+        cotangent = (values - jnp.mean(values, axis=0, keepdims=True)) / n_samples
+    else:
+        w = weights.reshape((weights.shape[0],) + (1,) * (values.ndim - 1))
+        cotangent = w * (values - jnp.sum(w * values, axis=0, keepdims=True))
+    transpose = jax.linear_transpose(linear_map, vector)
+    if mode == "holomorphic":
+        result = jax.tree_util.tree_map(
+            jnp.conjugate, transpose(jnp.conjugate(cotangent))[0]
+        )
+    else:
+        result = transpose(cotangent)[0]
+    return tree_axpy(shift, vector, result)
+
+
+@jax.jit
+def _linearize_qgt(qgt):
+    parameters, reassemble = _coordinate_parameters(qgt.parameters, qgt.mode)
+    samples, _ = flatten_samples(qgt.samples, qgt.hilbert_size)
+
+    def logpsi(coordinates):
+        variables = qgt.framework.merge_variables(
+            reassemble(coordinates), qgt.model_state
+        )
+
+        def apply(variables, states):
+            return qgt.framework.apply_variables(
+                variables, states, training_kwargs=dict(qgt.training_kwargs)
+            )
+
+        values = apply_batched(apply, variables, samples, chunk_size=qgt.chunk_size)
+        if qgt.mode == "real":
+            return jnp.real(values)
+        if qgt.mode == "complex":
+            return jnp.stack((jnp.real(values), jnp.imag(values)), axis=-1)
+        return values
+
+    return jax.linearize(logpsi, parameters)[1]
 
 
 @jax.jit

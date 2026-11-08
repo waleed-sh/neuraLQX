@@ -281,6 +281,32 @@ def discrete_operator_local_values(
 ) -> jax.Array:
     """Local values for a neuraLQX discrete algorithmic operator."""
     flat, sample_shape = flatten_samples(samples, operator.hilbert.size)
+    x_primes, mels, owners = prepare_discrete_connections(
+        operator,
+        flat,
+        operator_streaming=operator_streaming,
+        operator_streaming_chunk_size=operator_streaming_chunk_size,
+    )
+    if owners is not None:
+        values = local_values_from_compact_connections(
+            apply_variables,
+            variables,
+            flat,
+            x_primes,
+            mels,
+            owners,
+            chunk_size=chunk_size,
+        )
+    else:
+        values = local_values_from_connections(
+            apply_variables, variables, flat, x_primes, mels, chunk_size=chunk_size
+        )
+    return restore_sample_values(values, sample_shape)
+
+
+def prepare_discrete_connections(
+    operator, flat, *, operator_streaming, operator_streaming_chunk_size
+):
     compact = getattr(operator, "get_conn_compact", None)
     packed = (
         compact(flat)
@@ -290,10 +316,7 @@ def discrete_operator_local_values(
         else None
     )
     if packed is not None:
-        values = local_values_from_compact_connections(
-            apply_variables, variables, flat, *packed, chunk_size=chunk_size
-        )
-        return restore_sample_values(values, sample_shape)
+        return packed
     x_primes, mels = operator.get_conn_padded(
         flat,
         use_streaming=operator_streaming,
@@ -301,19 +324,8 @@ def discrete_operator_local_values(
     )
     packed = compact_connections(x_primes, mels)
     if packed is not None:
-        values = local_values_from_compact_connections(
-            apply_variables, variables, flat, *packed, chunk_size=chunk_size
-        )
-        return restore_sample_values(values, sample_shape)
-    values = local_values_from_connections(
-        apply_variables,
-        variables,
-        flat,
-        x_primes,
-        mels,
-        chunk_size=chunk_size,
-    )
-    return restore_sample_values(values, sample_shape)
+        return packed
+    return x_primes, mels, None
 
 
 def squared_operator_local_values(

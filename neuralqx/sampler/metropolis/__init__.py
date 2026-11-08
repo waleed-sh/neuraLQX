@@ -19,6 +19,7 @@ from .factories import MetropolisExchange
 from .factories import MetropolisLocal
 from .factories import MetropolisNeighbor
 from .factories import MetropolisSU2
+from .factories import MetropolisU1Gauge
 from .sampler import MetropolisSampler
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "MetropolisNeighbor",
     "MetropolisSU2",
     "MetropolisSampler",
+    "MetropolisU1Gauge",
 ]

@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 import jax.scipy as jsp
 
 import jax
 
+from ..linear_operator import LinearOperator
 from ._api import solver_with_kwargs
 
 
@@ -38,17 +40,34 @@ def cg(
     M: Any | None = None,
 ):
     """Conjugate-gradient solve for Hermitian positive-definite systems."""
-    matvec = jax.tree_util.Partial(operator)
-    solution, info = jsp.sparse.linalg.cg(
-        matvec,
+    solution, info = _cg_solve(
+        _compiled_matvec(operator),
         rhs,
         x0=x0,
         tol=tol,
         atol=atol,
         maxiter=maxiter,
-        M=M,
+        M=_compiled_matvec(M),
     )
     return solution, {"method": "cg", "info": info}
+
+
+def _compiled_matvec(operator):
+    if callable(operator) and not isinstance(
+        operator, (LinearOperator, jax.tree_util.Partial)
+    ):
+        return jax.tree_util.Partial(operator)
+    return operator
+
+
+@partial(jax.jit, static_argnames=("maxiter",))
+def _cg_solve(operator, rhs, *, x0, tol, atol, maxiter, M):
+    # Operator arrays are dynamic arguments, rather than constants captured by
+    # a fresh callable on every solve. This lets changing SR systems reuse CG's
+    # compiled loop and keeps custom_linear_solve tracing off the hot path.
+    return jsp.sparse.linalg.cg(
+        operator, rhs, x0=x0, tol=tol, atol=atol, maxiter=maxiter, M=M
+    )
 
 
 @solver_with_kwargs

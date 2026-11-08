@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 import jax.numpy as jnp
@@ -34,6 +35,7 @@ from neuralqx.vqs.estimators import statistics
 from neuralqx.vqs.estimators.connectivity import prepare_estimator
 from neuralqx.vqs.estimators.kernels import discrete_operator_local_values
 from neuralqx.vqs.estimators.kernels import discrete_operator_terms_local_values
+from neuralqx.vqs.estimators.kernels import prepare_discrete_connections
 from neuralqx.vqs.estimators.kernels import squared_operator_local_values
 from neuralqx.vqs.estimators.operators import discrete_linear_terms
 from neuralqx.vqs.estimators.operators import is_operator_sequence
@@ -124,6 +126,38 @@ def _expect_and_grad_noncovariance(
         enabled=options.connection_deduplication,
     )
 
+    squared_terms = tuple(operator) if is_operator_sequence(operator) else (operator,)
+    if (
+        plan is None
+        and squared_terms
+        and all(
+            isinstance(term, Squared) and isinstance(term.operator, DiscreteOperator)
+            for term in squared_terms
+        )
+    ):
+        # Connections are independent of the network parameters. Prepare them
+        # before AD so sparsity counts cannot synchronize between model passes.
+        connections = tuple(
+            prepare_discrete_connections(
+                term.operator,
+                flat_samples,
+                operator_streaming=options.operator_streaming,
+                operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+            )
+            for term in squared_terms
+        )
+        return _squared_expect_and_grad(
+            vstate.apply_variables_kernel,
+            vstate.merge_variables_kernel,
+            vstate.parameters,
+            vstate.model_state,
+            flat_samples,
+            connections,
+            vstate.machine_pow,
+            sample_shape=sample_shape,
+            chunk_size=model_chunk_size,
+        )
+
     def values_for_params(parameters):
         if plan is not None:
             variables = vstate.merge_variables_kernel(parameters, vstate.model_state)
@@ -184,6 +218,98 @@ def _expect_and_grad_noncovariance(
     else:
         score_grad = score_pullback((centered / n_samples).astype(log_pdf.dtype))[0]
     return stats, _tree_add(direct_grad, score_grad)
+
+
+@partial(
+    jax.jit,
+    static_argnames=(
+        "apply_variables",
+        "merge_variables",
+        "sample_shape",
+        "chunk_size",
+    ),
+)
+def _squared_expect_and_grad(
+    apply_variables,
+    merge_variables,
+    parameters,
+    model_state,
+    samples,
+    connections,
+    machine_pow,
+    *,
+    sample_shape,
+    chunk_size,
+):
+    def log_value(params):
+        variables = merge_variables(params, model_state)
+        return apply_batched(apply_variables, variables, samples, chunk_size=chunk_size)
+
+    logpsi, source_pullback = jax.vjp(log_value, parameters)
+    value_dtype = jnp.result_type(
+        logpsi.real.dtype,
+        *(jnp.empty((), mels.dtype).real.dtype for _, mels, _ in connections),
+    )
+    carry = (
+        jnp.zeros(len(samples), value_dtype),
+        jax.tree_util.tree_map(jnp.zeros_like, parameters),
+    )
+
+    # Scan equal-sized terms so only one vertex's network activations are live
+    # at a time. An unrolled VJP retains all vertices and can require gigabytes.
+    buckets = {}
+    for targets, mels, owners in connections:
+        key = (targets.shape, targets.dtype, mels.shape, mels.dtype, owners is None)
+        buckets.setdefault(key, []).append((targets, mels, owners))
+
+    def term_gradient(carry, connection):
+        total, gradient = carry
+        targets, mels, owners = connection
+
+        def target_loss(params):
+            variables = merge_variables(params, model_state)
+            target_values = apply_batched(
+                apply_variables,
+                variables,
+                targets.reshape((-1, samples.shape[-1])),
+                chunk_size=chunk_size,
+            )
+            if owners is None:
+                delta = target_values.reshape(mels.shape) - logpsi[:, None]
+            else:
+                delta = target_values - logpsi[owners]
+            contributions = mels * jnp.exp(jnp.where(mels != 0, delta, 0))
+            if owners is None:
+                local = jnp.sum(contributions, axis=-1)
+            else:
+                local = (
+                    jnp.zeros(len(samples), contributions.dtype)
+                    .at[owners]
+                    .add(contributions)
+                )
+            values = jnp.abs(local) ** 2
+            return jnp.mean(values), values
+
+        (_, values), target_gradient = jax.value_and_grad(target_loss, has_aux=True)(
+            parameters
+        )
+        return (total + values, _tree_add(gradient, target_gradient)), None
+
+    for bucket in buckets.values():
+        stacked = jax.tree_util.tree_map(lambda *arrays: jnp.stack(arrays), *bucket)
+        carry, _ = jax.lax.scan(term_gradient, carry, stacked)
+
+    values, gradient = carry
+    stats = statistics(values.reshape(sample_shape))
+    # The denominator contributes -2 f d Re(logpsi). Add the sampling score
+    # p (f - mean(f)) d Re(logpsi) before the shared source pullback. This keeps
+    # the full estimator derivative, including for machine_pow other than two.
+    source_cotangent = (
+        (machine_pow - 2) * values - machine_pow * stats.mean
+    ) / values.size
+    source_gradient = source_pullback(source_cotangent.astype(logpsi.dtype))[0]
+    gradient = _tree_add(gradient, source_gradient)
+    return stats, jax.tree_util.tree_map(jnp.conjugate, gradient)
 
 
 def _expect_and_grad_biadjoint(

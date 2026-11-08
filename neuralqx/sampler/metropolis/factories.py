@@ -19,11 +19,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from neuralqx.hilbert.u1 import U1GaugeInvariantHilbert
 from neuralqx.sampler.metropolis.sampler import MetropolisSampler
 from neuralqx.sampler.rules import ExchangeRule
 from neuralqx.sampler.rules import LocalRule
 from neuralqx.sampler.rules import NeighborRule
 from neuralqx.sampler.rules import SU2MetropolisRule
+from neuralqx.sampler.rules import U1GaugeRule
 
 
 def MetropolisLocal(hilbert, **kwargs: Any) -> MetropolisSampler:
@@ -34,6 +36,45 @@ def MetropolisLocal(hilbert, **kwargs: Any) -> MetropolisSampler:
 def MetropolisNeighbor(hilbert, **kwargs: Any) -> MetropolisSampler:
     """Construct a Metropolis sampler using ``NeighborRule``."""
     return MetropolisSampler(hilbert=hilbert, rule=NeighborRule(), **kwargs)
+
+
+def MetropolisU1Gauge(
+    hilbert: U1GaugeInvariantHilbert,
+    *,
+    n_edges: int = 1,
+    adjacency: bool = False,
+    **kwargs: Any,
+) -> MetropolisSampler:
+    r"""Construct a gauge-preserving sampler for a U(1)^N Hilbert space.
+
+    The default proposal replaces one independent charge selected from all
+    gauge copies and reconstructs the dependent edges. It uses the constructive
+    relations of ``U1GaugeInvariantHilbert`` and needs no proposal-probability
+    correction. The Metropolis acceptance targets $|\psi(\sigma)|^p$, where
+    ``machine_pow`` supplies $p$ and defaults to two.
+
+    Args:
+        hilbert: A ``U1GaugeInvariantHilbert`` with resolved gauge relations.
+        n_edges: Number of distinct free charge coordinates to update per move.
+        adjacency: Take modular nearest-neighbor steps instead of uniformly
+            replacing the selected charges.
+        **kwargs: Settings passed to ``MetropolisSampler``, including
+            ``n_chains``, ``sweep_size``, and ``reset_chains``. A sweep counts
+            attempted proposals per stored sample.
+
+    Returns:
+        A ``MetropolisSampler`` using ``U1GaugeRule``.
+
+    Raises:
+        TypeError: The Hilbert space or proposal settings have the wrong type.
+        ValueError: The update count is nonpositive or exceeds the number of
+            available free coordinates in a nontrivial space.
+    """
+    return MetropolisSampler(
+        hilbert=hilbert,
+        rule=U1GaugeRule(n_edges=n_edges, adjacency=adjacency),
+        **kwargs,
+    )
 
 
 def MetropolisExchange(hilbert, **kwargs: Any) -> MetropolisSampler:
@@ -86,4 +127,5 @@ __all__ = [
     "MetropolisLocal",
     "MetropolisNeighbor",
     "MetropolisSU2",
+    "MetropolisU1Gauge",
 ]

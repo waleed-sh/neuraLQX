@@ -23,6 +23,7 @@ from .functional import FunctionalRule
 from .local import LocalRule
 from .neighbor import NeighborRule
 from .su2 import SU2MetropolisRule
+from .u1 import U1GaugeRule
 
 __all__ = [
     "AbstractTransitionRule",
@@ -32,5 +33,6 @@ __all__ = [
     "NeighborRule",
     "SU2MetropolisRule",
     "TransitionOutput",
+    "U1GaugeRule",
     "normalize_transition_output",
 ]

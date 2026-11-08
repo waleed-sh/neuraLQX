@@ -24,6 +24,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.hilbert.u1 import U1GaugeInvariantHilbert
 from neuralqx.jax.sharding import place_sample_batch
 from neuralqx.sampler._samples import n_batches as resolve_n_batches
 from neuralqx.sampler._samples import n_chains_per_device as resolve_n_chains_per_device
@@ -41,30 +42,56 @@ from neuralqx.sampler.metropolis.validation import ensure_metropolis_state
 from neuralqx.sampler.metropolis.validation import validate_rule_for_hilbert
 from neuralqx.sampler.rules import AbstractTransitionRule
 from neuralqx.sampler.rules import LocalRule
+from neuralqx.sampler.rules import U1GaugeRule
 from neuralqx.sampler.state import AbstractSamplerState
 from neuralqx.sampler.state import MetropolisSamplerState
 from neuralqx.utils.struct import field
 
 
 class MetropolisSampler(AbstractSampler):
-    """Metropolis-Hastings sampler with pluggable transition rules."""
+    """Metropolis-Hastings chains with a Hilbert-aware default proposal.
+
+    With no explicit ``rule``, a ``U1GaugeInvariantHilbert`` uses
+    ``U1GaugeRule`` to update independent charges and reconstruct dependent
+    edges. Other spaces use ``LocalRule``. An explicitly supplied rule always
+    takes precedence. ``MetropolisU1Gauge`` exposes the U(1) proposal settings
+    directly when a different update count or adjacent-charge move is needed.
+
+    Each stored configuration follows ``sweep_size`` attempted proposals per
+    chain. The chain loop and batched transitions run in compiled JAX kernels.
+    """
 
     rule: AbstractTransitionRule | None = field(pytree=False, default=None)
+    """Proposal rule, selected from the Hilbert type when omitted."""
+
     sweep_size: int | None = field(static=True, default=None)
+    """Attempts per stored configuration, defaulting to the flat Hilbert size."""
+
     reset_chains: bool = field(static=True, default=False)
+    """Whether resetting the sampler also redraws the chain configurations."""
+
     n_chains: int | None = field(static=True, default=None)
+    """Total number of Markov chains across the configured sample devices."""
+
     n_chains_per_device: int | None = field(static=True, default=None)
+    """Per-device chain count, used as an alternative to the total chain count."""
 
     def __post_init__(self) -> None:
         super().__post_init__()
         if self.rule is None:
-            object.__setattr__(self, "rule", LocalRule())
+            rule = (
+                U1GaugeRule()
+                if isinstance(self.hilbert, U1GaugeInvariantHilbert)
+                else LocalRule()
+            )
+            object.__setattr__(self, "rule", rule)
         if not isinstance(self.rule, AbstractTransitionRule):
             raise TypeError(
-                "rule must be an AbstractTransitionRule; "
-                f"got {type(self.rule).__name__}."
+                f"rule must be an AbstractTransitionRule; got {type(self.rule).__name__}."
             )
         validate_rule_for_hilbert(self.rule, self.hilbert.size)
+        if isinstance(self.rule, U1GaugeRule):
+            self.rule.validate_hilbert(self.hilbert)
         if not isinstance(self.reset_chains, bool):
             raise TypeError("reset_chains must be a boolean.")
 

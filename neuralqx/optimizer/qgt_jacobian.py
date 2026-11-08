@@ -51,8 +51,7 @@ class QGTJacobianDense(LinearOperator):
         jacobian = jnp.asarray(self.jacobian)
         if jacobian.ndim != 2:
             raise ValueError(
-                "QGTJacobianDense expects a rank-2 Jacobian with shape "
-                "(n_samples, n_parameters)."
+                "QGTJacobianDense expects a rank-2 Jacobian with shape (n_samples, n_parameters)."
             )
         if self.mode not in {"real", "complex", "holomorphic"}:
             raise ValueError(
@@ -126,8 +125,7 @@ class QGTJacobianDense(LinearOperator):
                 raise ValueError("Dense QGT matvec expects a rank-1 vector.")
             if vector.size != self.n_parameters:
                 raise ValueError(
-                    f"Vector size {vector.size} does not match "
-                    f"parameter size {self.n_parameters}."
+                    f"Vector size {vector.size} does not match parameter size {self.n_parameters}."
                 )
             return _dense_jacobian_matvec(
                 self.jacobian,
@@ -203,36 +201,41 @@ def _dense_centered_jacobian(
 ) -> jax.Array:
     flat_parameters, unravel = ravel_pytree(parameters)
 
-    def logpsi_flat(flat: jax.Array) -> jax.Array:
+    def logpsi_flat(flat: jax.Array, sample: jax.Array) -> jax.Array:
         params = unravel(flat)
         variables = merge_variables(params, model_state)
-        return apply_batched(
-            apply_variables,
-            variables,
-            flat_samples,
-            chunk_size=chunk_size,
-        )
+        return jnp.asarray(apply_variables(variables, sample[None, :])).reshape(())
 
     if mode == "holomorphic":
-        jacobian = jax.jacfwd(logpsi_flat, holomorphic=True)(flat_parameters)
+        coordinates = flat_parameters
+        differentiate = jax.jacrev(logpsi_flat, holomorphic=True)
     else:
         coordinate_parameters, reassemble = split_tree_to_real(parameters)
         flat_coordinates, unravel_coordinates = ravel_pytree(coordinate_parameters)
 
-        def logpsi_coordinates(flat: jax.Array) -> jax.Array:
+        def logpsi_coordinates(flat: jax.Array, sample: jax.Array) -> jax.Array:
             params = reassemble(unravel_coordinates(flat))
             variables = merge_variables(params, model_state)
-            values = apply_batched(
-                apply_variables,
-                variables,
-                flat_samples,
-                chunk_size=chunk_size,
+            values = jnp.asarray(apply_variables(variables, sample[None, :])).reshape(
+                ()
             )
             if mode == "real":
                 return jnp.real(values)
             return jnp.stack((jnp.real(values), jnp.imag(values)), axis=-1)
 
-        jacobian = jax.jacfwd(logpsi_coordinates)(flat_coordinates)
+        coordinates = flat_coordinates
+        differentiate = jax.jacrev(logpsi_coordinates)
+
+    # Each configuration has only one complex output. Differentiate its one
+    # or two real components in reverse mode, then batch over configurations.
+    # Forward differentiation of the entire batch scales every activation by
+    # the parameter count, which is prohibitive even for modest dense networks.
+    jacobian = apply_batched(
+        jax.vmap(differentiate, in_axes=(None, 0)),
+        coordinates,
+        flat_samples,
+        chunk_size=chunk_size,
+    )
 
     if flat_weights is None:
         centered = jacobian - jnp.mean(jacobian, axis=0, keepdims=True)
