@@ -31,6 +31,9 @@ from .wrappers import penalty_is_linear
 from .wrappers import penalty_linear_scale
 from .wrappers import penalty_local_value_coefficients
 
+# Prebuilt operators import the public base classes above.
+from . import prebuilt  # isort: skip
+
 __all__ = [
     "AbstractOperator",
     "ComputationalOperator",
@@ -49,4 +52,5 @@ __all__ = [
     "penalty_is_linear",
     "penalty_linear_scale",
     "penalty_local_value_coefficients",
+    "prebuilt",
 ]
