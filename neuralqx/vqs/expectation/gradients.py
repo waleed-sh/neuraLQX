@@ -24,8 +24,8 @@ import jax.numpy as jnp
 
 import jax
 from neuralqx.jax.differentiation import vjp as neuralqx_vjp
+from neuralqx.jax.differentiation.real import split_tree_to_real
 from neuralqx.jax.streaming import apply_batched
-from neuralqx.jax.tree import tree_any_complex
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.wrappers import PenaltyCost
@@ -39,6 +39,7 @@ from neuralqx.vqs.estimators.kernels import prepare_discrete_connections
 from neuralqx.vqs.estimators.kernels import squared_operator_local_values
 from neuralqx.vqs.estimators.operators import discrete_linear_terms
 from neuralqx.vqs.estimators.operators import is_operator_sequence
+from neuralqx.vqs.estimators.operators import linear_operator_terms
 from neuralqx.vqs.estimators.options import LocalEstimatorOptions
 from neuralqx.vqs.estimators.utils import flatten_samples
 from neuralqx.vqs.estimators.utils import validate_operator_hilbert
@@ -46,7 +47,7 @@ from neuralqx.vqs.estimators.utils import validate_operator_hilbert
 from .forces import can_use_covariance
 from .forces import expect_and_forces
 from .forces import force_to_grad
-from .forces import forces_from_cotangent
+from .forces import machine_pow_is_two
 from .penalties import penalty_expect_and_grad
 
 
@@ -68,8 +69,15 @@ def expect_and_grad(
             use_covariance,
         )
     else:
+        covariance_valid = can_use_covariance(operator, machine_pow=vstate.machine_pow)
         if use_covariance is None:
-            use_covariance = can_use_covariance(operator)
+            use_covariance = covariance_valid
+        elif use_covariance and not covariance_valid:
+            raise ValueError(
+                "Covariance gradients require a Hermitian linear estimator and either "
+                "machine_pow=2 or a diagonal operator. Use use_covariance=False "
+                "to include the local estimator's parameter derivative."
+            )
         if use_covariance:
             stats, forces = expect_and_forces(vstate, operator, **kwargs)
             grad = force_to_grad(
@@ -88,19 +96,16 @@ def _expect_and_grad_noncovariance(
     vstate: Any,
     operator: Any,
     kwargs: dict[str, Any],
+    *,
+    expectation_transform: Any = None,
 ) -> tuple[Stats, Any]:
     if isinstance(operator, PenaltyCost):
         return penalty_expect_and_grad(vstate, operator, kwargs, False)
-
-    biadjoint = _expect_and_grad_biadjoint(vstate, operator, dict(kwargs))
-    if biadjoint is not None:
-        return biadjoint
 
     samples = kwargs.pop("samples", None)
     if samples is None:
         samples = vstate.samples
     flat_samples, sample_shape = flatten_samples(samples, vstate.hilbert.size)
-    n_samples = jnp.asarray(flat_samples.shape[0], dtype=jnp.float32)
     options = LocalEstimatorOptions.resolve(
         vstate,
         options=kwargs.pop("options", None),
@@ -116,6 +121,34 @@ def _expect_and_grad_noncovariance(
             f"Unexpected expect_and_grad keyword argument(s): {', '.join(sorted(kwargs))}."
         )
     validate_operator_hilbert(vstate, operator)
+    if expectation_transform is None:
+        terms = linear_operator_terms(operator)
+        if any(isinstance(term.operator, PenaltyCost) for term in terms):
+            gradients = [
+                jax.tree_util.tree_map(
+                    lambda leaf, coefficient=term.coefficient: coefficient * leaf,
+                    expect_and_grad(
+                        vstate,
+                        term.operator,
+                        samples=samples,
+                        options=options,
+                        use_covariance=False,
+                    )[1],
+                )
+                for term in terms
+            ]
+            total = gradients[0]
+            for gradient in gradients[1:]:
+                total = _tree_add(total, gradient)
+            return (
+                local_estimators(
+                    vstate, operator, samples=samples, options=options
+                ).to_stats(),
+                total,
+            )
+        biadjoint = _expect_and_grad_biadjoint(vstate, operator, samples, options)
+        if biadjoint is not None:
+            return biadjoint
     model_chunk_size = options.chunk_size
     plan = prepare_estimator(
         operator,
@@ -129,6 +162,7 @@ def _expect_and_grad_noncovariance(
     squared_terms = tuple(operator) if is_operator_sequence(operator) else (operator,)
     if (
         plan is None
+        and expectation_transform is None
         and squared_terms
         and all(
             isinstance(term, Squared) and isinstance(term.operator, DiscreteOperator)
@@ -158,7 +192,10 @@ def _expect_and_grad_noncovariance(
             chunk_size=model_chunk_size,
         )
 
-    def values_for_params(parameters):
+    coordinates, reassemble = split_tree_to_real(vstate.parameters)
+
+    def values_for_params(real_parameters):
+        parameters = reassemble(real_parameters)
         if plan is not None:
             variables = vstate.merge_variables_kernel(parameters, vstate.model_state)
             return plan.evaluate(
@@ -178,7 +215,8 @@ def _expect_and_grad_noncovariance(
             operator_streaming_chunk_size=options.operator_streaming_chunk_size,
         ).reshape((-1,))
 
-    def log_pdf_for_params(parameters):
+    def log_pdf_for_params(real_parameters):
+        parameters = reassemble(real_parameters)
         variables = vstate.merge_variables_kernel(parameters, vstate.model_state)
         logpsi = apply_batched(
             vstate.apply_variables_kernel,
@@ -188,36 +226,28 @@ def _expect_and_grad_noncovariance(
         )
         return jnp.asarray(vstate.machine_pow) * jnp.real(logpsi)
 
-    values, values_pullback = neuralqx_vjp(
-        values_for_params,
-        vstate.parameters,
-        conjugate=True,
+    def objective_for_params(real_parameters):
+        values = values_for_params(real_parameters)
+        log_pdf = log_pdf_for_params(real_parameters)
+        # This term is zero in value and contributes the normalized sampling
+        # score to the derivative. Keep the direct estimator derivative in the
+        # same graph so both contributions share one pullback.
+        centered = jax.lax.stop_gradient(values - jnp.mean(values))
+        score = log_pdf - jax.lax.stop_gradient(log_pdf)
+        objective = jnp.mean(values + centered * score)
+        if expectation_transform is not None:
+            objective = expectation_transform(objective)
+        return objective, values
+
+    # Real coordinates preserve both channels of a complex objective.
+    # Reassembly gives dE/dx + i dE/dy for z=x+iy, also for mixed trees and
+    # non-holomorphic models. Conjugating this pullback would change dE.
+    objective, pullback, values = neuralqx_vjp(
+        objective_for_params, coordinates, has_aux=True
     )
     stats = statistics(values.reshape(sample_shape))
-    direct_grad = values_pullback(jnp.ones_like(values) / values.size)[0]
-
-    # Match the optimizer convention used by direct_grad also for complex
-    # parameters: dE/dRe(theta) + i*dE/dIm(theta). JAX's real-output VJP
-    # has the opposite imaginary sign unless explicitly conjugated.
-    log_pdf, score_pullback = neuralqx_vjp(
-        log_pdf_for_params, vstate.parameters, conjugate=True
-    )
-    centered = values - stats.mean
-    if jnp.iscomplexobj(centered):
-        score_real = score_pullback(
-            (jnp.real(centered) / n_samples).astype(log_pdf.dtype)
-        )[0]
-        score_imag = score_pullback(
-            (jnp.imag(centered) / n_samples).astype(log_pdf.dtype)
-        )[0]
-        score_grad = jax.tree_util.tree_map(
-            lambda real, imag: real + 1j * imag,
-            score_real,
-            score_imag,
-        )
-    else:
-        score_grad = score_pullback((centered / n_samples).astype(log_pdf.dtype))[0]
-    return stats, _tree_add(direct_grad, score_grad)
+    gradient = reassemble(pullback(jnp.ones_like(objective))[0])
+    return stats, gradient
 
 
 @partial(
@@ -265,6 +295,8 @@ def _squared_expect_and_grad(
     def term_gradient(carry, connection):
         total, gradient = carry
         targets, mels, owners = connection
+        sources = samples[:, None, :] if owners is None else samples[owners]
+        targets = jnp.where((mels != 0)[..., None], targets, sources)
 
         def target_loss(params):
             variables = merge_variables(params, model_state)
@@ -315,96 +347,92 @@ def _squared_expect_and_grad(
 def _expect_and_grad_biadjoint(
     vstate: Any,
     operator: Any,
-    kwargs: dict[str, Any],
+    samples: Any,
+    options: LocalEstimatorOptions,
 ) -> tuple[Stats, Any] | None:
-    """Try the adjoint-assisted covariance gradient for non-Hermitian operators."""
-    if _contains_squared_estimator(operator):
-        return None
-    if bool(getattr(operator, "is_hermitian", False)):
-        return None
-    if tree_any_complex(vstate.parameters):
-        return None
-    if not _machine_pow_is_two(vstate.machine_pow):
-        return None
+    r"""Use both matrix actions to avoid differentiating connected-state models.
 
+    For each real parameter coordinate, Born sampling gives
+    :math:`\partial E_A = \operatorname{Cov}(O^*, L_A)
+    + \operatorname{Cov}(O, L_{A^\dagger}^*)`.
+    This identity applies to linear local estimators. Positive norm estimators
+    and nonlinear penalties must retain their explicit parameter derivatives.
+    """
+    if not machine_pow_is_two(vstate.machine_pow):
+        return None
+    if discrete_linear_terms(operator) is None:
+        return None
+    if can_use_covariance(operator):
+        return None
     adjoint = _operator_adjoint_or_none(operator)
     if adjoint is None:
         return None
 
-    samples = kwargs.pop("samples", None)
-    if samples is None:
-        samples = vstate.samples
-
-    options_kwargs = {
-        "options": kwargs.pop("options", None),
-        "chunk_size": kwargs.pop("chunk_size", None),
-        "operator_sharding": kwargs.pop("operator_sharding", None),
-        "operator_streaming": kwargs.pop("operator_streaming", None),
-        "operator_streaming_chunk_size": kwargs.pop(
-            "operator_streaming_chunk_size", None
-        ),
-        "operator_chunk_size": kwargs.pop("operator_chunk_size", None),
-        "connection_deduplication": kwargs.pop("connection_deduplication", None),
-    }
-    options_kwargs = {
-        key: value for key, value in options_kwargs.items() if value is not None
-    }
-
-    estimators = local_estimators(
-        vstate,
-        operator,
-        samples=samples,
-        **options_kwargs,
-    )
+    estimators = local_estimators(vstate, operator, samples=samples, options=options)
     stats = estimators.to_stats()
+    adjoint_estimators = (
+        estimators
+        if adjoint is operator
+        else local_estimators(vstate, adjoint, samples=samples, options=options)
+    )
+    # Only the mean is needed here, not another set of chain diagnostics.
+    values = jnp.asarray(estimators.data).reshape((-1,))
+    adjoint_values = jnp.asarray(adjoint_estimators.data).reshape((-1,))
+    flat_samples, _ = flatten_samples(samples, vstate.hilbert.size)
+    gradient = _biadjoint_gradient(
+        vstate.apply_variables_kernel,
+        vstate.merge_variables_kernel,
+        vstate.parameters,
+        vstate.model_state,
+        flat_samples,
+        values - stats.mean,
+        adjoint_values - jnp.mean(adjoint_values),
+        chunk_size=options.chunk_size,
+    )
+    return stats, gradient
 
-    if adjoint is operator:
-        centered = jnp.asarray(estimators.data).reshape((-1,)) - stats.mean
-        n_samples = jnp.asarray(centered.shape[0], dtype=jnp.result_type(centered))
-        cotangent = (jnp.conjugate(centered) + centered) / n_samples
-        forces = forces_from_cotangent(vstate, samples, cotangent)
-        return stats, _combined_biadjoint_force_to_grad(forces, vstate.parameters)
-    else:
-        adjoint_estimators = local_estimators(
-            vstate,
-            adjoint,
-            samples=samples,
-            **options_kwargs,
+
+@partial(jax.jit, static_argnames=("apply_variables", "merge_variables", "chunk_size"))
+def _biadjoint_gradient(
+    apply_variables,
+    merge_variables,
+    parameters,
+    model_state,
+    samples,
+    centered,
+    adjoint_centered,
+    *,
+    chunk_size,
+):
+    """Pull back amplitude and phase contributions on the sampled states once."""
+    coordinates, reassemble = split_tree_to_real(parameters)
+
+    def log_channels(real_parameters):
+        variables = merge_variables(reassemble(real_parameters), model_state)
+        logpsi = apply_batched(
+            apply_variables, variables, samples, chunk_size=chunk_size
         )
-        adjoint_stats = adjoint_estimators.to_stats()
-        centered = jnp.asarray(estimators.data).reshape((-1,)) - stats.mean
-        adjoint_centered = (
-            jnp.asarray(adjoint_estimators.data).reshape((-1,)) - adjoint_stats.mean
+        return logpsi.real, logpsi.imag
+
+    (real_logpsi, imag_logpsi), pullback = jax.vjp(log_channels, coordinates)
+    # Write O = du + i dv. The full complex derivative is
+    # du (L_A + conj(L_Adagger)) + i dv (conj(L_Adagger) - L_A).
+    # Pull back its real and imaginary parts without projecting either away.
+    amplitude = (centered + jnp.conjugate(adjoint_centered)) / centered.size
+    phase = 1j * (jnp.conjugate(adjoint_centered) - centered) / centered.size
+    real_gradient = pullback(
+        (amplitude.real.astype(real_logpsi.dtype), phase.real.astype(imag_logpsi.dtype))
+    )[0]
+    if not jnp.iscomplexobj(centered) and not jnp.iscomplexobj(adjoint_centered):
+        return reassemble(real_gradient)
+    imag_gradient = pullback(
+        (amplitude.imag.astype(real_logpsi.dtype), phase.imag.astype(imag_logpsi.dtype))
+    )[0]
+    return reassemble(
+        jax.tree_util.tree_map(
+            lambda real, imag: real + 1j * imag, real_gradient, imag_gradient
         )
-        n_samples = jnp.asarray(centered.shape[0], dtype=jnp.result_type(centered))
-        cotangent = (jnp.conjugate(centered) + adjoint_centered) / n_samples
-        forces = forces_from_cotangent(vstate, samples, cotangent)
-
-    grad = _combined_biadjoint_force_to_grad(forces, vstate.parameters)
-    return stats, grad
-
-
-def _contains_squared_estimator(operator: Any) -> bool:
-    """Squared local values need their direct parameter derivative, also in sums."""
-    if isinstance(operator, Squared):
-        return True
-    if is_operator_sequence(operator):
-        return any(_contains_squared_estimator(item) for item in operator)
-    return False
-
-
-@jax.jit
-def _combined_biadjoint_force_to_grad(forces: Any, parameters: Any) -> Any:
-    """Cast a combined biadjoint pullback to optimizer-compatible dtypes."""
-
-    def convert(force_leaf: Any, param_leaf: Any) -> Any:
-        force_arr = jnp.asarray(force_leaf)
-        param_arr = jnp.asarray(param_leaf)
-        if jnp.iscomplexobj(param_arr):
-            return force_arr.astype(param_arr.dtype)
-        return jnp.real(force_arr).astype(param_arr.dtype)
-
-    return jax.tree_util.tree_map(convert, forces, parameters)
+    )
 
 
 def _operator_adjoint_or_none(operator: Any) -> Any | None:
@@ -420,13 +448,6 @@ def _operator_adjoint_or_none(operator: Any) -> Any | None:
         return operator.adjoint
     except (AttributeError, NotImplementedError):
         return None
-
-
-def _machine_pow_is_two(machine_pow: Any) -> bool:
-    try:
-        return bool(jnp.isclose(jnp.asarray(machine_pow), 2.0))
-    except TypeError:
-        return False
 
 
 def _local_values_for_params(

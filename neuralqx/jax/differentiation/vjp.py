@@ -36,56 +36,37 @@ def vjp(
 
     JAX's raw VJP is correct for many complex cases, but VMC force estimators
     need consistent behavior across R->R, R->C, C->R, and C->C call signatures.
-    For real primals and complex outputs, this wrapper differentiates real and
-    imaginary output channels separately and recombines the pullback so callers
-    can pass a complex cotangent directly.
+    For real primals and complex outputs, the pullback returns the full
+    complex contraction ``sum(cotangent * derivative)``. Both channels share
+    one forward trace. Complex primals retain JAX's VJP convention.
+    ``conjugate=True`` conjugates the resulting contraction, so it is useful
+    for covariance forces but must not be used for a direct complex derivative
+    with respect to real coordinates.
     """
-    primals_are_complex = tree_any_complex(primals)
-    # Complex primals always use JAX's standard pullback. An eval_shape pass
-    # would trace the entire estimator (including its operator) a second time
-    # without influencing this dispatch decision.
-    if primals_are_complex:
-        return _vjp_standard(fun, *primals, conjugate=conjugate, has_aux=has_aux)
-    if has_aux:
-        output_shape, _ = jax.eval_shape(fun, *primals)
-    else:
-        output_shape = jax.eval_shape(fun, *primals)
-    output_is_complex = bool(jnp.iscomplexobj(output_shape))
-    if primals_are_complex or not output_is_complex:
-        return _vjp_standard(
-            fun,
-            *primals,
-            conjugate=conjugate,
-            has_aux=has_aux,
-        )
-    return _vjp_real_to_complex(
-        fun,
-        *primals,
-        conjugate=conjugate,
-        has_aux=has_aux,
-    )
-
-
-def _vjp_standard(
-    fun: Callable[..., Any],
-    *primals: Any,
-    conjugate: bool,
-    has_aux: bool,
-):
     if has_aux:
         output, pullback, aux = jax.vjp(fun, *primals, has_aux=True)
     else:
         output, pullback = jax.vjp(fun, *primals)
+    real_to_complex = not tree_any_complex(primals) and jnp.iscomplexobj(output)
 
     def wrapped(cotangent: Any):
-        if jnp.iscomplexobj(cotangent) and not jnp.iscomplexobj(output):
+        if real_to_complex:
+            # For real coordinates JAX returns Re(c J). A second pullback
+            # with i c recovers -Im(c J), using the same forward trace.
+            cotangent = jnp.asarray(cotangent, dtype=output.dtype)
+            real = pullback(cotangent)
+            minus_imag = pullback(1j * cotangent)
+            result = jax.tree_util.tree_map(
+                lambda r, i: _complex_from_parts(r, i, imag_sign=-1), real, minus_imag
+            )
+        elif jnp.iscomplexobj(cotangent) and not jnp.iscomplexobj(output):
             real = pullback(jnp.asarray(jnp.real(cotangent), dtype=output.dtype))
             imag = pullback(jnp.asarray(jnp.imag(cotangent), dtype=output.dtype))
             result = jax.tree_util.tree_map(_complex_from_parts, real, imag)
         else:
             result = pullback(jnp.asarray(cotangent, dtype=output.dtype))
         if conjugate:
-            result = jax.tree_util.tree_map(jnp.conjugate, result)
+            result = jax.tree_util.tree_map(_conjugate, result)
         return result
 
     if has_aux:
@@ -93,73 +74,20 @@ def _vjp_standard(
     return output, wrapped
 
 
-def _vjp_real_to_complex(
-    fun: Callable[..., Any],
-    *primals: Any,
-    conjugate: bool,
-    has_aux: bool,
-):
-    if has_aux:
-
-        def real_fun(*args: Any):
-            value, aux = fun(*args)
-            return jnp.real(value), aux
-
-        def imag_fun(*args: Any):
-            value, aux = fun(*args)
-            return jnp.imag(value), aux
-
-        real_output, real_pullback, aux = jax.vjp(real_fun, *primals, has_aux=True)
-        imag_output, imag_pullback, _ = jax.vjp(imag_fun, *primals, has_aux=True)
-    else:
-
-        def real_fun(*args):
-            return jnp.real(fun(*args))
-
-        def imag_fun(*args):
-            return jnp.imag(fun(*args))
-
-        real_output, real_pullback = jax.vjp(real_fun, *primals)
-        imag_output, imag_pullback = jax.vjp(imag_fun, *primals)
-        aux = None
-
-    output = real_output + 1j * imag_output
-
-    def wrapped(cotangent: Any):
-        cotangent = jnp.asarray(cotangent, dtype=output.dtype)
-        real_real = real_pullback(
-            jnp.asarray(jnp.real(cotangent), dtype=real_output.dtype)
-        )
-        real_imag = real_pullback(
-            jnp.asarray(jnp.imag(cotangent), dtype=real_output.dtype)
-        )
-        imag_real = imag_pullback(
-            jnp.asarray(jnp.real(cotangent), dtype=imag_output.dtype)
-        )
-        imag_imag = imag_pullback(
-            jnp.asarray(jnp.imag(cotangent), dtype=imag_output.dtype)
-        )
-
-        real_part = jax.tree_util.tree_map(_complex_from_parts, real_real, real_imag)
-        imag_part = jax.tree_util.tree_map(_complex_from_parts, imag_real, imag_imag)
-        result = jax.tree_util.tree_map(_complex_from_parts, real_part, imag_part)
-        if conjugate:
-            result = jax.tree_util.tree_map(jnp.conjugate, result)
-        return result
-
-    if has_aux:
-        return output, wrapped, aux
-    return output, wrapped
-
-
-def _complex_from_parts(real: Any, imag: Any) -> Any:
+def _complex_from_parts(real: Any, imag: Any, *, imag_sign: int = 1) -> Any:
     real_arr = jnp.asarray(real)
     imag_arr = jnp.asarray(imag)
     if jax.dtypes.issubdtype(real_arr.dtype, jax.dtypes.float0):
         return real
     if jax.dtypes.issubdtype(imag_arr.dtype, jax.dtypes.float0):
         return real
-    return real + 1j * imag
+    return real + (imag_sign * 1j) * imag
+
+
+def _conjugate(value: Any) -> Any:
+    if jax.dtypes.issubdtype(jnp.asarray(value).dtype, jax.dtypes.float0):
+        return value
+    return jnp.conjugate(value)
 
 
 __all__ = ["vjp"]

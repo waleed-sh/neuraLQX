@@ -57,6 +57,9 @@ def local_values_from_connections(
     logpsi = apply_batched(
         apply_variables, variables, samples_2d, chunk_size=chunk_size
     )
+    # Padding need not contain valid configurations. Evaluate a sampled state
+    # there so zero matrix elements cannot hide NaNs in the backward pass.
+    xp = jnp.where((mel != 0)[..., None], xp, samples_2d[:, None, :])
     connected = xp.reshape((-1, samples_2d.shape[-1]))
     logpsi_connected = apply_batched(
         apply_variables,
@@ -64,7 +67,7 @@ def local_values_from_connections(
         connected,
         chunk_size=chunk_size,
     ).reshape(mel.shape)
-    ratios = jnp.exp(logpsi_connected - logpsi[:, None])
+    ratios = jnp.exp(jnp.where(mel != 0, logpsi_connected - logpsi[:, None], 0))
     contrib_dtype = jnp.result_type(mel, ratios)
     contrib = jnp.where(
         mel != 0,
@@ -109,6 +112,7 @@ def local_values_from_compact_connections(
     chunk_size: int | None,
 ) -> jax.Array:
     """Apply the model only to packed connections, then sum by source row."""
+    connected = jnp.where((mels != 0)[:, None], connected, samples_2d[owners])
     logpsi = apply_batched(
         apply_variables, variables, samples_2d, chunk_size=chunk_size
     )
@@ -197,6 +201,7 @@ def _local_values_from_operator_terms_with_logpsi(
     if xp.shape[1] != samples_2d.shape[0]:
         raise ValueError("Operator-term connections and sample batch disagree.")
 
+    xp = jnp.where((mel != 0)[..., None], xp, samples_2d[None, :, None, :])
     connected = xp.reshape((-1, samples_2d.shape[-1]))
     logpsi_connected = apply_batched(
         apply_variables,
@@ -204,7 +209,7 @@ def _local_values_from_operator_terms_with_logpsi(
         connected,
         chunk_size=chunk_size,
     ).reshape(mel.shape)
-    ratios = jnp.exp(logpsi_connected - logpsi[None, :, None])
+    ratios = jnp.exp(jnp.where(mel != 0, logpsi_connected - logpsi[None, :, None], 0))
     contrib_dtype = jnp.result_type(mel, ratios)
     contrib = jnp.where(
         mel != 0,

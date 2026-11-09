@@ -24,13 +24,15 @@ from plum import dispatch
 
 import jax
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.operator.wrappers import Squared
+from neuralqx.operator.wrappers import SumOfSquares
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
-from neuralqx.vqs.estimators import Stats
-from neuralqx.vqs.estimators import local_estimators
-from neuralqx.vqs.estimators.penalties import transform_stats
 from neuralqx.utils.typing import PenaltyExpectationRule
 from neuralqx.utils.typing import PenaltyForcesRule
 from neuralqx.utils.typing import PenaltyGradientRule
+from neuralqx.vqs.estimators import Stats
+from neuralqx.vqs.estimators import local_estimators
+from neuralqx.vqs.estimators.penalties import transform_stats
 
 
 @dispatch
@@ -81,11 +83,17 @@ def penalty_expect_and_grad(
     """Estimate a penalty objective and optimiser-compatible gradients."""
     from .forces import can_use_covariance
     from .forces import force_to_grad
+    from .gradients import _expect_and_grad_noncovariance
     from .gradients import expect_and_grad
 
     if use_covariance is None:
-        use_covariance = can_use_covariance(operator)
+        use_covariance = can_use_covariance(operator, machine_pow=vstate.machine_pow)
     if use_covariance:
+        if not can_use_covariance(operator, machine_pow=vstate.machine_pow):
+            raise ValueError(
+                "Covariance gradients are not valid for this penalty and sampling "
+                "distribution. Use use_covariance=False for the full derivative."
+            )
         stats, forces = penalty_expect_and_forces(vstate, operator, kwargs)
         grad = force_to_grad(
             forces,
@@ -94,11 +102,33 @@ def penalty_expect_and_grad(
         )
         return stats, grad
 
+    if not operator.is_linear_penalty() and not isinstance(
+        operator.cost_operator, (Squared, SumOfSquares)
+    ):
+        # Apply the scalar objective before combining complex parameter
+        # coordinates. A real-part penalty cannot in general be differentiated
+        # by multiplying a complex parent's already assembled gradient.
+        parent = operator.cost_operator
+        transform = operator.expectation_value
+        penalties = [operator]
+        while isinstance(parent, PenaltyCost):
+            outer, inner = transform, parent.expectation_value
+
+            def transform(mean, outer=outer, inner=inner):
+                return outer(inner(mean))
+
+            penalties.append(parent)
+            parent = parent.cost_operator
+        stats, grad = _expect_and_grad_noncovariance(
+            vstate, parent, dict(kwargs), expectation_transform=transform
+        )
+        for penalty in reversed(penalties):
+            scale, shift = penalty_local_value_coefficients(penalty, stats.mean)
+            stats = transform_stats(stats, scale, shift)
+        return stats, grad
+
     parent_stats, parent_grad = expect_and_grad(
-        vstate,
-        operator.cost_operator,
-        use_covariance=False,
-        **kwargs,
+        vstate, operator.cost_operator, use_covariance=False, **kwargs
     )
     scale, shift = penalty_local_value_coefficients(operator, parent_stats.mean)
     stats = transform_stats(parent_stats, scale, shift)

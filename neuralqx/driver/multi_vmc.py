@@ -255,7 +255,9 @@ def _fidelity_expect_and_grad_joint_kernel(
     stats = statistics(values)
     direct_grad = values_pullback(jnp.ones_like(values) / values.size)[0]
 
-    log_pdf, score_pullback = neuralqx_vjp(log_pdf_for_params, parameters)
+    log_pdf, score_pullback = neuralqx_vjp(
+        log_pdf_for_params, parameters, conjugate=True
+    )
     centered = values - stats.mean
     score_grad = score_pullback((centered / values.size).astype(log_pdf.dtype))[0]
     return stats, _tree_add(direct_grad, score_grad)

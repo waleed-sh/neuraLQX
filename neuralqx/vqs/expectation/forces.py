@@ -70,9 +70,12 @@ def _expect_and_forces_sequence(
     samples = kwargs.pop("samples", None)
     if samples is None:
         samples = vstate.samples
-    estimators = local_estimators(vstate, operator, samples=samples, **kwargs)
+    options = LocalEstimatorOptions.resolve(vstate, **kwargs)
+    estimators = local_estimators(vstate, operator, samples=samples, options=options)
     stats = estimators.to_stats()
-    forces = forces_from_local_values(vstate, samples, estimators.data, stats=stats)
+    forces = forces_from_local_values(
+        vstate, samples, estimators.data, stats=stats, chunk_size=options.chunk_size
+    )
     return stats, forces
 
 
@@ -138,9 +141,12 @@ def _expect_and_forces(vstate: Any, operator: Any, kwargs: dict[str, Any]):
     samples = kwargs.pop("samples", None)
     if samples is None:
         samples = vstate.samples
-    estimators = local_estimators(vstate, operator, samples=samples, **kwargs)
+    options = LocalEstimatorOptions.resolve(vstate, **kwargs)
+    estimators = local_estimators(vstate, operator, samples=samples, options=options)
     stats = estimators.to_stats()
-    forces = forces_from_local_values(vstate, samples, estimators.data, stats=stats)
+    forces = forces_from_local_values(
+        vstate, samples, estimators.data, stats=stats, chunk_size=options.chunk_size
+    )
     return stats, forces
 
 
@@ -193,6 +199,7 @@ def forces_from_local_values(
     local_values: Any,
     *,
     stats: Stats | None = None,
+    chunk_size: int | None = None,
 ) -> Any:
     """Compute covariance forces using one VJP through ``logpsi``."""
     flat_samples, _sample_shape = flatten_samples(samples, vstate.hilbert.size)
@@ -209,7 +216,7 @@ def forces_from_local_values(
         flat_samples,
         flat_values,
         stats.mean,
-        vstate.chunk_size,
+        vstate.chunk_size if chunk_size is None else chunk_size,
     )
 
 
@@ -291,7 +298,13 @@ def _forces_from_cotangent_kernel(
 
 @jax.jit
 def force_to_grad(forces: Any, parameters: Any, *, machine_pow: Any = 2.0) -> Any:
-    """Convert covariance forces to JAX optimizer-compatible gradients."""
+    """Convert valid covariance forces to optimizer-compatible gradients.
+
+    Scaling by ``machine_pow`` is sufficient for a parameter-independent
+    diagonal estimator. For off-diagonal Hermitian operators this formula
+    requires Born sampling, with ``machine_pow=2``. Use ``expect_and_grad``
+    to select the full derivative when those conditions do not hold.
+    """
 
     def convert(force_leaf: Any, param_leaf: Any) -> Any:
         force_arr = jnp.asarray(force_leaf)
@@ -304,17 +317,30 @@ def force_to_grad(forces: Any, parameters: Any, *, machine_pow: Any = 2.0) -> An
     return jax.tree_util.tree_map(convert, forces, parameters)
 
 
-def can_use_covariance(operator: Any) -> bool:
-    """Return whether the fast covariance force path is valid."""
+def can_use_covariance(operator: Any, *, machine_pow: Any = 2.0) -> bool:
+    """Check Hermiticity, estimator semantics, and the sampling distribution."""
     if is_operator_sequence(operator):
-        return all(can_use_covariance(item) for item in operator)
+        return all(
+            can_use_covariance(item, machine_pow=machine_pow) for item in operator
+        )
     if isinstance(operator, Squared):
         return False
     if isinstance(operator, PenaltyCost):
         return bool(
-            operator.is_hermitian and can_use_covariance(operator.cost_operator)
+            operator.is_hermitian
+            and can_use_covariance(operator.cost_operator, machine_pow=machine_pow)
         )
-    return bool(getattr(operator, "is_hermitian", False))
+    return bool(getattr(operator, "is_hermitian", False)) and (
+        machine_pow_is_two(machine_pow) or bool(getattr(operator, "is_diagonal", False))
+    )
+
+
+def machine_pow_is_two(machine_pow: Any) -> bool:
+    """Require exactly Born sampling before using a Born-only identity."""
+    try:
+        return bool(machine_pow == 2.0)
+    except (TypeError, ValueError):
+        return False
 
 
 __all__ = [

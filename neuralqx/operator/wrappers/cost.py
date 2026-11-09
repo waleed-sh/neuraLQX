@@ -31,34 +31,48 @@ from .base import WrappedOperator
 
 
 class PenaltyCost(WrappedOperator):
-    """A penalty objective driven by the expectation of one operator.
+    r"""An expectation-level objective built from another operator.
 
-    The default penalty is linear: ``factor * <operator>``. Nonlinear subclasses
-    define the same small protocol used by the expectation engine:
-    ``expectation_value``, ``expectation_gradient``, and
-    ``local_value_coefficients``.
+    The base penalty maps the parent expectation $m=\langle A\rangle$ to
+    $f(m)=\lambda m$. Subclasses can supply a nonlinear objective by overriding
+    `expectation_value`, `expectation_gradient`, and `local_value_coefficients`.
+
+    This wrapper describes an objective for the expectation engine. It does
+    not represent a new matrix or provide connected configurations. For a
+    nonlinear penalty, applying $f$ to a sampled local value would give a
+    different objective from $f(\langle A\rangle)$.
+
+    Attributes:
+        operator (AbstractOperator): Parent operator from which this wrapper is constructed.
+        factor (Any): Overall penalty weight $\lambda$.
     """
 
     factor: Any = field(default=1.0)
+    r"""Overall penalty weight $\lambda$."""
 
     def __post_init__(self) -> None:
+        """Validate the construction arguments and prepare static kernel metadata."""
         super().__post_init__()
         object.__setattr__(self, "factor", canonical_scalar(self.factor))
 
     @property
     def cost_operator(self) -> AbstractOperator:
+        """Parent operator whose expectation determines this penalty."""
         return self.operator
 
     @property
     def dtype(self) -> jnp.dtype:
+        """Real or complex dtype used for the matrix elements."""
         return jnp.dtype(jnp.result_type(self.operator.dtype, self.factor))
 
     @property
     def is_hermitian(self) -> bool:
+        """Whether this operator is known to equal its conjugate transpose."""
         return bool(self.operator.is_hermitian and is_known_real_scalar(self.factor))
 
     @property
     def adjoint(self) -> PenaltyCost:
+        """Return this expectation-objective marker without constructing a matrix adjoint."""
         return self
 
     def is_linear_penalty(self) -> bool:
@@ -91,26 +105,51 @@ class PenaltyCost(WrappedOperator):
 
 
 class InverseExpectationCost(PenaltyCost):
-    """Penalty objective ``factor / (alpha + real(<operator>) + eps)^2``."""
+    r"""An inverse-square penalty on the expectation of a Hermitian operator.
+
+    For $m=\operatorname{Re}\langle A\rangle$, the objective and its derivative are
+
+    $$
+    f(m)=\frac{\lambda}{(\alpha+m+\varepsilon)^2},\qquad
+    f'(m)=-\frac{2\lambda}{(\alpha+m+\varepsilon)^3}.
+    $$
+
+    The offset `eps` is added to the denominator. It is not an absolute-value
+    floor, so the objective remains singular when the full denominator is
+    zero. The parent operator must declare itself Hermitian.
+
+    Attributes:
+        operator (AbstractOperator): Parent operator from which this wrapper is constructed.
+        factor (Any): Overall penalty weight $\lambda$.
+        alpha (Any): Offset added to the real parent expectation in the denominator.
+        eps (float): Small additive denominator offset, without clipping or absolute values.
+    """
 
     alpha: Any = field(default=0.0)
+    """Offset added to the real parent expectation in the denominator."""
+
     eps: float = field(static=True, default=1e-24)
+    """Small additive denominator offset, without clipping or absolute values."""
 
     def __post_init__(self) -> None:
+        """Validate the construction arguments and prepare static kernel metadata."""
         super().__post_init__()
         if not self.operator.is_hermitian:
             raise ValueError("InverseExpectationCost requires a Hermitian operator.")
         object.__setattr__(self, "alpha", canonical_scalar(self.alpha))
 
     def is_linear_penalty(self) -> bool:
+        """Return false because the inverse-square objective depends nonlinearly on the mean."""
         return False
 
     def expectation_value(self, parent_expectation: Any) -> jnp.ndarray:
+        r"""Evaluate $\lambda/(\alpha+\operatorname{Re}(m)+\varepsilon)^2$ at the parent mean."""
         parent = jnp.real(parent_expectation)
         denom = self.alpha + parent + self.eps
         return self.factor / (denom * denom)
 
     def expectation_gradient(self, parent_expectation: Any) -> jnp.ndarray:
+        r"""Evaluate the derivative $-2\lambda/(\alpha+\operatorname{Re}(m)+\varepsilon)^3$."""
         parent = jnp.real(parent_expectation)
         denom = self.alpha + parent + self.eps
         return (-2.0 * self.factor) / (denom * denom * denom)
@@ -119,10 +158,15 @@ class InverseExpectationCost(PenaltyCost):
         self,
         parent_expectation: Any,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """Return the scale and shift for the affine local estimator.
+
+        The scale is the derivative at the current real parent mean. The shift
+        makes the transformed estimator's mean equal the penalty objective.
+        """
         parent = jnp.real(parent_expectation)
         scale = self.expectation_gradient(parent)
         value = self.expectation_value(parent)
-        return scale, value - scale * parent
+        return scale, value - scale * parent_expectation
 
 
 @dispatch

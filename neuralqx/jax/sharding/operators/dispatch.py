@@ -231,6 +231,7 @@ def _operator_term_branch(
         )
         if bool(getattr(operator, "is_diagonal", False)):
             return jnp.sum(mels, axis=-1)
+        x_primes = jnp.where((mels != 0)[..., None], x_primes, states_2d[:, None, :])
         connected = x_primes.reshape((-1, states_2d.shape[-1]))
         logpsi_connected = apply_batched(
             apply_variables,
@@ -238,7 +239,7 @@ def _operator_term_branch(
             connected,
             chunk_size=model_chunk_size,
         ).reshape(mels.shape)
-        ratios = jnp.exp(logpsi_connected - logpsi[:, None])
+        ratios = jnp.exp(jnp.where(mels != 0, logpsi_connected - logpsi[:, None], 0))
         contrib_dtype = jnp.result_type(mels, ratios)
         contrib = jnp.where(
             mels != 0,
