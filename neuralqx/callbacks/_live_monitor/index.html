@@ -27,17 +27,17 @@
               <button id="errors" aria-pressed="true" title="Show standard error bars">Error bars</button>
               <select id="scale" aria-label="Vertical scale"><option value="linear">Linear</option><option value="log">Log scale</option></select>
               <button id="pause" aria-pressed="false">Pause view</button>
-              <button id="reset" title="Reset chart zoom">Reset</button>
+              <button id="reset" title="Reset plot zoom">Reset</button>
             </div>
           </div>
           <div class="chart-wrap" id="chart-wrap">
             <canvas id="chart" tabindex="0" role="img" aria-label="Live metric history. Click a point to inspect its values, use arrow keys to browse points, scroll to zoom, or drag to pan."></canvas>
-            <div id="empty"><span class="empty-mark">∿</span><strong>Waiting for the first step</strong><span>The chart will update as the run progresses.</span></div>
+            <div id="empty"><span class="empty-mark">∿</span><strong>Waiting for the first step</strong><span>The plot will update as the run progresses.</span></div>
             <section id="tooltip" aria-label="Point details" hidden>
               <div class="tip-heading"><div><strong id="tip-step"></strong><span id="tip-count"></span></div><button id="tip-pin" aria-label="Unpin point details">Unpin</button><button id="tip-close" aria-label="Close point details">×</button></div>
               <div class="tip-columns"><span>Metric</span><span>Estimate ± SE</span></div>
               <div id="tip-values" role="group" aria-label="Values at this point" tabindex="0"></div>
-              <div class="tip-help"><strong id="tip-help-title">Click the chart to pin this card</strong><span id="tip-help-detail">Then move here to scroll through the values.</span></div>
+              <div class="tip-help"><strong id="tip-help-title">Click the plot to pin this card</strong><span id="tip-help-detail">Then move here to scroll through the values.</span></div>
             </section>
           </div>
           <div class="plot-footer"><span>Click to inspect · Scroll to zoom · Drag to pan</span><div><button id="save-image">Save image</button><a href="/history.csv" download="neuralqx-monitor.csv">Export CSV <span aria-hidden="true">↗</span></a></div></div>

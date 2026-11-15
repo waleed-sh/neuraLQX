@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import jax.numpy as jnp
@@ -267,6 +268,8 @@ def sample_chain_sharded(
     chain_length: int,
 ) -> tuple[tuple[jax.Array, jax.Array], MetropolisSamplerState]:
     """Run a fixed-length sample chain with explicit sample shard-map execution."""
+    state = ensure_sharded_state(state)
+    mesh = _sample_mesh_or_error()
     if isinstance(sampler.rule, ExchangeRule):
         return _sample_chain_sharded_exchange(
             sampler,
@@ -274,6 +277,7 @@ def sample_chain_sharded(
             parameters,
             state,
             chain_length,
+            mesh=mesh,
         )
     return _sample_chain_sharded_generic(
         sampler,
@@ -281,18 +285,22 @@ def sample_chain_sharded(
         parameters,
         state,
         chain_length,
+        mesh=mesh,
     )
 
 
+@partial(jax.jit, static_argnames=("apply_fn", "chain_length", "mesh"))
 def _sample_chain_sharded_generic(
     sampler: Any,
     apply_fn: Callable[[Any, jax.Array], jax.Array],
     parameters: Any,
     state: MetropolisSamplerState,
     chain_length: int,
+    *,
+    mesh,
 ) -> tuple[tuple[jax.Array, jax.Array], MetropolisSamplerState]:
-    mesh = _sample_mesh_or_error()
-    state = ensure_sharded_state(state)
+    # Keep the complete chain inside one executable. Eager shard_map recreates
+    # tracing/dispatch work on every sampling call, including after warmup.
 
     def local_sample_chain(sigma, log_prob, rng, rule_state, n_steps, accepted, params):
         local_sampler = LocalBatchSamplerView(sampler, sigma.shape[0])
@@ -374,15 +382,16 @@ def _sample_chain_sharded_generic(
     return (samples, log_probabilities), new_state
 
 
+@partial(jax.jit, static_argnames=("apply_fn", "chain_length", "mesh"))
 def _sample_chain_sharded_exchange(
     sampler: Any,
     apply_fn: Callable[[Any, jax.Array], jax.Array],
     parameters: Any,
     state: MetropolisSamplerState,
     chain_length: int,
+    *,
+    mesh,
 ) -> tuple[tuple[jax.Array, jax.Array], MetropolisSamplerState]:
-    mesh = _sample_mesh_or_error()
-    state = ensure_sharded_state(state)
     probabilities = _exchange_probabilities(sampler.rule)
 
     def local_sample_chain(

@@ -48,6 +48,7 @@ dependencies = [
     "networkx>=3.2",
     "optax",
     "scipy>=1.13",
+    "tqdm",
 ]
 
 [project.optional-dependencies]

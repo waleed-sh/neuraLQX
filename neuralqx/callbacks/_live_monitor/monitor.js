@@ -146,7 +146,7 @@
     if (!hasData) {
       ymin = 0; ymax = 1;
       $("empty").querySelector("strong").textContent = !selected.size ? "Choose a metric to plot" : rows.length ? (logarithmic ? "No positive values in this view" : "No values in this range") : "Waiting for the first step";
-      $("empty").querySelector("span:last-child").textContent = !selected.size ? "Select one or more metrics from the panel." : rows.length ? "Reset the view or select a different scale." : "The chart will update as the run progresses.";
+      $("empty").querySelector("span:last-child").textContent = !selected.size ? "Select one or more metrics from the panel." : rows.length ? "Reset the view or select a different scale." : "The plot will update as the run progresses.";
     }
     const positive = ymin >= 0;
     const pad = (ymax - ymin || Math.abs(ymax) * 0.1 || 1) * 0.1;
@@ -254,7 +254,7 @@
     $("tooltip").style.width = !hoverPinned && size.width >= 480 ? `${Math.min(300, size.width / 2 - 16)}px` : "300px";
     $("tip-pin").hidden = !hoverPinned;
     $("tip-close").hidden = !hoverPinned;
-    $("tip-help-title").textContent = hoverPinned ? "Card pinned" : "Click the chart to pin this card";
+    $("tip-help-title").textContent = hoverPinned ? "Card pinned" : "Click the plot to pin this card";
     $("tip-help-detail").textContent = hoverPinned ? "Scroll through the values, or Unpin to follow your pointer." : "Then move here to scroll through the values.";
     $("tooltip").hidden = false;
   }
@@ -266,8 +266,8 @@
     const step = xmin + (px - left) / (right - left) * (xmax - xmin);
     let closest = rows[0];
     for (const row of rows) if (Math.abs(row.step - step) < Math.abs(closest.step - step)) closest = row;
-    // Unpinned cards let pointer events reach the chart underneath them.
-    // Moving across the chart can therefore always reveal the covered area.
+    // Unpinned cards let pointer events reach the plot underneath them.
+    // Moving across the plot can therefore always reveal the covered area.
     $("tooltip").dataset.side = size.width >= 480
       ? (px > size.width / 2 ? "left" : "right")
       : (py > size.height / 2 ? "top" : "bottom");

@@ -29,6 +29,7 @@ from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.vqs.estimators.operators import OperatorTerm
 
+from .sharded import local_model_layout
 from .utils import flatten_samples
 from .utils import host_operator_term_values
 from .utils import is_computational_operator
@@ -125,6 +126,46 @@ def local_values_from_compact_connections(
         jnp.zeros((len(samples_2d),), dtype=contributions.dtype)
         .at[owners]
         .add(contributions)
+    )
+
+
+@partial(jax.jit, static_argnames=("apply_variables", "chunk_size", "layout"))
+def _sharded_local_values_from_compact_connections(
+    apply_variables, variables, samples, connected, mels, owners, *, chunk_size, layout
+):
+    from jax.sharding import NamedSharding
+    from jax.sharding import PartitionSpec as P
+    from neuralqx.jax.shard_map import shard_map
+
+    axis = layout.spec[0]
+    axes = axis if isinstance(axis, tuple) else (axis,)
+
+    def local(variables, samples, connected, mels, owners):
+        index = 0
+        for name in axes:
+            index = index * layout.mesh.shape[name] + jax.lax.axis_index(name)
+        return local_values_from_compact_connections(
+            apply_variables,
+            variables,
+            samples,
+            connected,
+            mels,
+            owners - index * len(samples),
+            chunk_size=chunk_size,
+        )
+
+    mapped = shard_map(
+        local,
+        mesh=layout.mesh,
+        in_specs=(P(), P(axis), P(axis), P(axis), P(axis)),
+        out_specs=P(axis),
+    )
+    return mapped(
+        jax.device_put(variables, NamedSharding(layout.mesh, P())),
+        samples,
+        connected,
+        mels,
+        owners,
     )
 
 
@@ -293,7 +334,14 @@ def discrete_operator_local_values(
         operator_streaming_chunk_size=operator_streaming_chunk_size,
     )
     if owners is not None:
-        values = local_values_from_compact_connections(
+        layout = local_model_layout(flat, variables)
+        evaluate = (
+            local_values_from_compact_connections
+            if layout is None
+            else _sharded_local_values_from_compact_connections
+        )
+        extra = {} if layout is None else {"layout": layout}
+        values = evaluate(
             apply_variables,
             variables,
             flat,
@@ -301,6 +349,7 @@ def discrete_operator_local_values(
             mels,
             owners,
             chunk_size=chunk_size,
+            **extra,
         )
     else:
         values = local_values_from_connections(
@@ -310,6 +359,28 @@ def discrete_operator_local_values(
 
 
 def prepare_discrete_connections(
+    operator, flat, *, operator_streaming, operator_streaming_chunk_size
+):
+    from .sharded import prepare_sharded_connections
+
+    packed = prepare_sharded_connections(
+        operator,
+        flat,
+        _prepare_local_connections,
+        operator_streaming=operator_streaming,
+        operator_streaming_chunk_size=operator_streaming_chunk_size,
+    )
+    if packed is not None:
+        return packed
+    return _prepare_local_connections(
+        operator,
+        flat,
+        operator_streaming=operator_streaming,
+        operator_streaming_chunk_size=operator_streaming_chunk_size,
+    )
+
+
+def _prepare_local_connections(
     operator, flat, *, operator_streaming, operator_streaming_chunk_size
 ):
     compact = getattr(operator, "get_conn_compact", None)

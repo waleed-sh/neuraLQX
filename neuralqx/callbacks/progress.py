@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from .base import Callback
@@ -50,6 +51,13 @@ class ProgressBar(Callback):
             from tqdm.auto import tqdm
         except ImportError:
             self._bar = None
+            warnings.warn(
+                "Progress display is unavailable because tqdm could not be imported. "
+                "Install it with `python -m pip install tqdm`. "
+                "Training will continue without a progress bar.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             return
 
         disable = False

@@ -41,6 +41,7 @@ from neuralqx.vqs.estimators.operators import discrete_linear_terms
 from neuralqx.vqs.estimators.operators import is_operator_sequence
 from neuralqx.vqs.estimators.operators import linear_operator_terms
 from neuralqx.vqs.estimators.options import LocalEstimatorOptions
+from neuralqx.vqs.estimators.sharded import sample_layout
 from neuralqx.vqs.estimators.utils import flatten_samples
 from neuralqx.vqs.estimators.utils import validate_operator_hilbert
 
@@ -180,7 +181,23 @@ def _expect_and_grad_noncovariance(
             )
             for term in squared_terms
         )
-        return _squared_expect_and_grad(
+        layout = sample_layout(flat_samples)
+        if layout is not None and any(
+            isinstance(a, jax.Array)
+            and len(a.devices()) > 1
+            and not a.sharding.is_fully_replicated
+            for a in jax.tree_util.tree_leaves((vstate.parameters, vstate.model_state))
+        ):
+            # Preserve a caller's model-parallel placement instead of silently
+            # replicating a parameter tree that may not fit on one device.
+            layout = None
+        evaluate = (
+            _squared_expect_and_grad
+            if layout is None
+            else _sharded_squared_expect_and_grad
+        )
+        extra = {} if layout is None else {"layout": layout}
+        return evaluate(
             vstate.apply_variables_kernel,
             vstate.merge_variables_kernel,
             vstate.parameters,
@@ -190,6 +207,7 @@ def _expect_and_grad_noncovariance(
             vstate.machine_pow,
             sample_shape=sample_shape,
             chunk_size=model_chunk_size,
+            **extra,
         )
 
     coordinates, reassemble = split_tree_to_real(vstate.parameters)
@@ -271,11 +289,121 @@ def _squared_expect_and_grad(
     sample_shape,
     chunk_size,
 ):
+    values, gradient = _squared_values_and_grad(
+        apply_variables,
+        merge_variables,
+        parameters,
+        model_state,
+        samples,
+        connections,
+        machine_pow,
+        chunk_size=chunk_size,
+    )
+    return statistics(values.reshape(sample_shape)), gradient
+
+
+@partial(
+    jax.jit,
+    static_argnames=(
+        "apply_variables",
+        "merge_variables",
+        "sample_shape",
+        "chunk_size",
+        "layout",
+    ),
+)
+def _sharded_squared_expect_and_grad(
+    apply_variables,
+    merge_variables,
+    parameters,
+    model_state,
+    samples,
+    connections,
+    machine_pow,
+    *,
+    sample_shape,
+    chunk_size,
+    layout,
+):
+    from jax.sharding import NamedSharding
+    from jax.sharding import PartitionSpec as P
+    from neuralqx.jax.shard_map import shard_map
+
+    axis = layout.spec[0]
+    axes = axis if isinstance(axis, tuple) else (axis,)
+
+    def local(params, state, batch, connected, power):
+        index = 0
+        for name in axes:
+            index = index * layout.mesh.shape[name] + jax.lax.axis_index(name)
+        connected = tuple(
+            (x, m, owners - index * len(batch)) for x, m, owners in connected
+        )
+        return _squared_values_and_grad(
+            apply_variables,
+            merge_variables,
+            params,
+            state,
+            batch,
+            connected,
+            power,
+            chunk_size=chunk_size,
+            axis_name=axes,
+        )
+
+    replicated = NamedSharding(layout.mesh, P())
+    mapped = shard_map(
+        local,
+        mesh=layout.mesh,
+        in_specs=(
+            P(),
+            P(),
+            P(axis),
+            tuple((P(axis), P(axis), P(axis)) for _ in connections),
+            P(),
+        ),
+        out_specs=(P(axis), P()),
+    )
+    values, gradient = mapped(
+        jax.device_put(parameters, replicated),
+        jax.device_put(model_state, replicated),
+        samples,
+        connections,
+        jax.device_put(machine_pow, replicated),
+    )
+    return statistics(values.reshape(sample_shape)), gradient
+
+
+def _vary(values, axes):
+    if hasattr(jax.lax, "pcast"):
+        return jax.lax.pcast(values, axes, to="varying")
+    return jax.lax.pvary(values, axes)
+
+
+def _squared_values_and_grad(
+    apply_variables,
+    merge_variables,
+    parameters,
+    model_state,
+    samples,
+    connections,
+    machine_pow,
+    *,
+    chunk_size,
+    axis_name=None,
+):
+    local_parameters = parameters
+    if axis_name is not None:
+        # Differentiate a local copy. Otherwise the transpose of an implicit
+        # broadcast of replicated parameters already sums device cotangents,
+        # before our explicit reduction of the local Monte Carlo gradients.
+        local_parameters = _vary(parameters, axis_name)
+
     def log_value(params):
         variables = merge_variables(params, model_state)
         return apply_batched(apply_variables, variables, samples, chunk_size=chunk_size)
 
-    logpsi, source_pullback = jax.vjp(log_value, parameters)
+    logpsi, source_pullback = jax.vjp(log_value, local_parameters)
     value_dtype = jnp.result_type(
         logpsi.real.dtype,
         *(jnp.empty((), mels.dtype).real.dtype for _, mels, _ in connections),
@@ -284,6 +412,9 @@ def _squared_expect_and_grad(
         jnp.zeros(len(samples), value_dtype),
         jax.tree_util.tree_map(jnp.zeros_like, parameters),
     )
+    if axis_name is not None:
+        carry = _vary(carry, axis_name)
+    parameters = local_parameters
 
     # Scan equal-sized terms so only one vertex's network activations are live
     # at a time. An unrolled VJP retains all vertices and can require gigabytes.
@@ -332,16 +463,19 @@ def _squared_expect_and_grad(
         carry, _ = jax.lax.scan(term_gradient, carry, stacked)
 
     values, gradient = carry
-    stats = statistics(values.reshape(sample_shape))
+    mean = jnp.mean(values)
+    if axis_name is not None:
+        mean = jax.lax.pmean(mean, axis_name)
     # The denominator contributes -2 f d Re(logpsi). Add the sampling score
     # p (f - mean(f)) d Re(logpsi) before the shared source pullback. This keeps
     # the full estimator derivative, including for machine_pow other than two.
-    source_cotangent = (
-        (machine_pow - 2) * values - machine_pow * stats.mean
-    ) / values.size
+    source_cotangent = ((machine_pow - 2) * values - machine_pow * mean) / values.size
     source_gradient = source_pullback(source_cotangent.astype(logpsi.dtype))[0]
     gradient = _tree_add(gradient, source_gradient)
-    return stats, jax.tree_util.tree_map(jnp.conjugate, gradient)
+    gradient = jax.tree_util.tree_map(jnp.conjugate, gradient)
+    if axis_name is not None:
+        gradient = jax.lax.pmean(gradient, axis_name)
+    return values, gradient
 
 
 def _expect_and_grad_biadjoint(
