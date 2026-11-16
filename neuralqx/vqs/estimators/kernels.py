@@ -25,6 +25,7 @@ import jax.numpy as jnp
 import jax
 from neuralqx.jax.sharding.operators.dispatch import sharded_operator_term_values
 from neuralqx.jax.streaming import apply_batched
+from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.vqs.estimators.operators import OperatorTerm
@@ -62,10 +63,12 @@ def local_values_from_connections(
     # there so zero matrix elements cannot hide NaNs in the backward pass.
     xp = jnp.where((mel != 0)[..., None], xp, samples_2d[:, None, :])
     connected = xp.reshape((-1, samples_2d.shape[-1]))
-    logpsi_connected = apply_batched(
+    logpsi_connected = apply_connected(
         apply_variables,
         variables,
+        samples_2d,
         connected,
+        jnp.repeat(jnp.arange(samples_2d.shape[0]), xp.shape[1]),
         chunk_size=chunk_size,
     ).reshape(mel.shape)
     ratios = jnp.exp(jnp.where(mel != 0, logpsi_connected - logpsi[:, None], 0))
@@ -117,8 +120,8 @@ def local_values_from_compact_connections(
     logpsi = apply_batched(
         apply_variables, variables, samples_2d, chunk_size=chunk_size
     )
-    connected_logpsi = apply_batched(
-        apply_variables, variables, connected, chunk_size=chunk_size
+    connected_logpsi = apply_connected(
+        apply_variables, variables, samples_2d, connected, owners, chunk_size=chunk_size
     )
     delta = jnp.where(mels != 0, connected_logpsi - logpsi[owners], 0)
     contributions = mels * jnp.exp(delta)
@@ -244,10 +247,12 @@ def _local_values_from_operator_terms_with_logpsi(
 
     xp = jnp.where((mel != 0)[..., None], xp, samples_2d[None, :, None, :])
     connected = xp.reshape((-1, samples_2d.shape[-1]))
-    logpsi_connected = apply_batched(
+    logpsi_connected = apply_connected(
         apply_variables,
         variables,
+        samples_2d,
         connected,
+        jnp.tile(jnp.repeat(jnp.arange(samples_2d.shape[0]), xp.shape[2]), xp.shape[0]),
         chunk_size=chunk_size,
     ).reshape(mel.shape)
     ratios = jnp.exp(jnp.where(mel != 0, logpsi_connected - logpsi[None, :, None], 0))

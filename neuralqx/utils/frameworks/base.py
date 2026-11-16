@@ -77,6 +77,30 @@ class AbstractModelFramework(Struct, metaclass=StructABCMeta):
         parameters, _model_state = self.split_variables(variables)
         return parameters
 
+    def apply_connected(
+        self,
+        variables,
+        sources,
+        targets,
+        owners,
+        *,
+        chunk_size=None,
+        training_kwargs=None,
+    ):
+        """Evaluate connected states through the ordinary model by default.
+
+        Adapters may override this method when their model exposes an exact
+        connected-state evaluator. The fallback preserves custom frameworks.
+        """
+        from neuralqx.jax.streaming import apply_batched
+
+        def apply(variables, states):
+            return self.apply_variables(
+                variables, states, training_kwargs=training_kwargs
+            )
+
+        return apply_batched(apply, variables, targets, chunk_size=chunk_size)
+
     def model_state_from_variables(self, variables: Variables) -> Any:
         """Extract non-trainable framework state."""
         _parameters, model_state = self.split_variables(variables)
@@ -107,6 +131,19 @@ class FrameworkApply:
             variables,
             states,
             mutable=False,
+            training_kwargs=dict(self.training_kwargs),
+        )
+
+    def connected_log_value(
+        self, variables, sources, targets, owners, *, chunk_size=None
+    ):
+        """Dispatch exact connected-state reuse through the framework adapter."""
+        return self.framework.apply_connected(
+            variables,
+            sources,
+            targets,
+            owners,
+            chunk_size=chunk_size,
             training_kwargs=dict(self.training_kwargs),
         )
 

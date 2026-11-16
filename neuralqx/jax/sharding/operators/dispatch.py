@@ -28,6 +28,7 @@ from neuralqx.jax.distributed.coordinator import plan_distributed_execution
 from neuralqx.jax.shard_map import shard_map
 from neuralqx.jax.sharding.samples import place_sample_batch
 from neuralqx.jax.streaming import apply_batched
+from neuralqx.jax.streaming import apply_connected
 from neuralqx.jax.streaming import stream_flattened_kernel
 from neuralqx.operator import ComputationalOperator
 from neuralqx.operator._policy import resolve_streaming_policy
@@ -233,10 +234,12 @@ def _operator_term_branch(
             return jnp.sum(mels, axis=-1)
         x_primes = jnp.where((mels != 0)[..., None], x_primes, states_2d[:, None, :])
         connected = x_primes.reshape((-1, states_2d.shape[-1]))
-        logpsi_connected = apply_batched(
+        logpsi_connected = apply_connected(
             apply_variables,
             variables,
+            states_2d,
             connected,
+            jnp.repeat(jnp.arange(len(states_2d)), x_primes.shape[1]),
             chunk_size=model_chunk_size,
         ).reshape(mels.shape)
         ratios = jnp.exp(jnp.where(mels != 0, logpsi_connected - logpsi[:, None], 0))

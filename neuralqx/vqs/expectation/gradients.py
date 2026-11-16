@@ -26,6 +26,7 @@ import jax
 from neuralqx.jax.differentiation import vjp as neuralqx_vjp
 from neuralqx.jax.differentiation.real import split_tree_to_real
 from neuralqx.jax.streaming import apply_batched
+from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.wrappers import PenaltyCost
@@ -431,10 +432,20 @@ def _squared_values_and_grad(
 
         def target_loss(params):
             variables = merge_variables(params, model_state)
-            target_values = apply_batched(
+            target_owners = (
+                jnp.repeat(jnp.arange(len(samples)), targets.shape[1])
+                if owners is None
+                else owners
+            )
+            # Rebuild source features inside this derivative. Their parameter
+            # dependence belongs to the target amplitude, even though the
+            # source denominator below is differentiated separately.
+            target_values = apply_connected(
                 apply_variables,
                 variables,
+                samples,
                 targets.reshape((-1, samples.shape[-1])),
+                target_owners,
                 chunk_size=chunk_size,
             )
             if owners is None:

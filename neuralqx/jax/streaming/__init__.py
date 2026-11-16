@@ -17,5 +17,6 @@
 
 from .batching import stream_flattened_kernel
 from .evaluation import apply_batched
+from .evaluation import apply_connected
 
-__all__ = ["apply_batched", "stream_flattened_kernel"]
+__all__ = ["apply_batched", "apply_connected", "stream_flattened_kernel"]

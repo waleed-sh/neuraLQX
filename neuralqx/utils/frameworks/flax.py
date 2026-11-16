@@ -76,6 +76,31 @@ class FlaxLinenFramework(AbstractModelFramework):
         state = {key: value for key, value in variables.items() if key != "params"}
         return params, state
 
+    def apply_connected(
+        self,
+        variables,
+        sources,
+        targets,
+        owners,
+        *,
+        chunk_size=None,
+        training_kwargs=None,
+    ):
+        """Use a Linen model's explicit connected-state method when available."""
+        method = getattr(self.model, "connected_log_value", None)
+        if not callable(method) or training_kwargs:
+            return super().apply_connected(
+                variables,
+                sources,
+                targets,
+                owners,
+                chunk_size=chunk_size,
+                training_kwargs=training_kwargs,
+            )
+        return self.model.apply(
+            variables, sources, targets, owners, chunk_size=chunk_size, method=method
+        )
+
     def merge_variables(
         self, parameters: Any, model_state: Any | None = None
     ) -> Variables:
@@ -92,19 +117,25 @@ class FlaxNNXFramework(AbstractModelFramework):
 
     graphdef: Any = field(pytree=False, compare=False)
 
+    supports_connections: bool = field(default=False, pytree=False)
+    """Whether the model explicitly implements exact connected-state evaluation."""
+
     @property
     def name(self) -> str:
         return "flax.nnx"
 
     def __hash__(self) -> int:
-        return hash((type(self), id(self.graphdef)))
+        return hash((type(self), id(self.graphdef), self.supports_connections))
 
     @classmethod
     def from_model(cls, model: Any) -> tuple[FlaxNNXFramework, Variables]:
         from flax import nnx
 
         graphdef, params, model_state = nnx.split(model, nnx.Param, ...)
-        framework = cls(graphdef)
+        framework = cls(
+            graphdef,
+            supports_connections=callable(getattr(model, "connected_log_value", None)),
+        )
         variables = framework.merge_variables(params, model_state)
         return framework, framework.place_variables(variables)
 
@@ -136,6 +167,34 @@ class FlaxNNXFramework(AbstractModelFramework):
         model = nnx.merge(self.graphdef, params, model_state)
         kwargs = {} if training_kwargs is None else dict(training_kwargs)
         return model(states, **kwargs)
+
+    def apply_connected(
+        self,
+        variables,
+        sources,
+        targets,
+        owners,
+        *,
+        chunk_size=None,
+        training_kwargs=None,
+    ):
+        """Merge NNX state at trace time and call its connected-state capability."""
+        if not self.supports_connections or training_kwargs:
+            return super().apply_connected(
+                variables,
+                sources,
+                targets,
+                owners,
+                chunk_size=chunk_size,
+                training_kwargs=training_kwargs,
+            )
+        from flax import nnx
+
+        params, model_state = self.split_variables(variables)
+        model = nnx.merge(self.graphdef, params, model_state)
+        return model.connected_log_value(
+            sources, targets, owners, chunk_size=chunk_size
+        )
 
     def split_variables(self, variables: Variables) -> tuple[Any, Any]:
         if not isinstance(variables, dict):

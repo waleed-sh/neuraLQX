@@ -67,4 +67,17 @@ def _apply_batched_chunked(
     return values.reshape((padded_size, *values.shape[2:]))[:n_states]
 
 
-__all__ = ["apply_batched"]
+def apply_connected(apply_fn, parameters, sources, targets, owners, *, chunk_size=None):
+    """Evaluate target log amplitudes using an optional exact model capability.
+
+    ``owners`` maps each target to its source row. Ordinary callable models
+    retain chunked full evaluation. Dispatch occurs during tracing and uses
+    neither host inspection of array values nor a parameter-name convention.
+    """
+    connected = getattr(apply_fn, "connected_log_value", None)
+    if callable(connected):
+        return connected(parameters, sources, targets, owners, chunk_size=chunk_size)
+    return apply_batched(apply_fn, parameters, targets, chunk_size=chunk_size)
+
+
+__all__ = ["apply_batched", "apply_connected"]

@@ -13,12 +13,13 @@
 # limitations under the License.
 
 
-"""Parameter-tree sharding helpers.
+"""Default placement of parameter trees on the configured device mesh.
 
-The current neuraLQX neural-network layer does not yet attach fine-grained
-partition metadata to individual parameters. Until `neuralqx.nn` grows sharded
-layers, the safe default is to replicate parameter trees over the configured
-mesh when parameter sharding is enabled.
+This placement policy replicates parameters. Layers in ``neuralqx.nn`` can
+carry axis annotations, but this helper does not interpret those annotations
+or choose a tensor-parallel or pipeline-parallel schedule. Leave
+``parameter_sharding_enabled`` disabled when supplying arrays that have already
+been explicitly partitioned on a chosen mesh.
 """
 
 from __future__ import annotations
@@ -28,7 +29,6 @@ from typing import Any
 import jax
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec
-
 from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 

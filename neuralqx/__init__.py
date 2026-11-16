@@ -28,6 +28,7 @@ from . import sampler
 from . import callbacks
 from . import driver
 from . import lqx
+from . import nn
 
 #
 #
@@ -71,4 +72,5 @@ __all__ = [
     "callbacks",
     "driver",
     "lqx",
+    "nn",
 ]
