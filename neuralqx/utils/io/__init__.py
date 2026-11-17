@@ -16,5 +16,6 @@
 """I/O utilities for runtime data produced by neuraLQX."""
 
 from . import logging
+from . import serialization
 
-__all__ = ["logging"]
+__all__ = ["logging", "serialization"]

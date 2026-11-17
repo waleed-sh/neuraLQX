@@ -42,7 +42,8 @@ classifiers = [
 dependencies = [
     "jax>=0.9.0",
     "packaging>=24.0",
-    "flax>=0.9.0",
+    "flax>=0.12.7",
+    "orbax-checkpoint>=0.12.0",
     "plum-dispatch",
     "matplotlib",
     "networkx>=3.2",
