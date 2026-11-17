@@ -14,11 +14,15 @@
 
 
 from .base import AbstractSampler
+from .importance import ImportanceSampling
+from .importance import OperatorBlur
+from .importance import SamplingMeasure
 from .metropolis import MetropolisExchange
 from .metropolis import MetropolisLocal
 from .metropolis import MetropolisNeighbor
 from .metropolis import MetropolisSampler
 from .metropolis import MetropolisSU2
+from .metropolis import MetropolisU1Gauge
 from .rules import AbstractTransitionRule
 from .rules import ExchangeRule
 from .rules import FunctionalRule
@@ -26,6 +30,7 @@ from .rules import LocalRule
 from .rules import NeighborRule
 from .rules import SU2MetropolisRule
 from .rules import TransitionOutput
+from .rules import U1GaugeRule
 from .state import AbstractSamplerState
 from .state import MetropolisSamplerState
 
@@ -35,6 +40,7 @@ __all__ = [
     "AbstractTransitionRule",
     "ExchangeRule",
     "FunctionalRule",
+    "ImportanceSampling",
     "LocalRule",
     "MetropolisExchange",
     "MetropolisLocal",
@@ -42,7 +48,11 @@ __all__ = [
     "MetropolisSU2",
     "MetropolisSampler",
     "MetropolisSamplerState",
+    "MetropolisU1Gauge",
     "NeighborRule",
+    "OperatorBlur",
     "SU2MetropolisRule",
+    "SamplingMeasure",
     "TransitionOutput",
+    "U1GaugeRule",
 ]

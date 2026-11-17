@@ -294,6 +294,24 @@ class SpinNetworkLayout:
             vertex_id: idx for idx, vertex_id in enumerate(vertex_ids)
         }
 
+    def __eq__(self, other: object) -> bool:
+        """Compare the data that determine edge and recoupling-channel sites.
+
+        Independently constructed layouts agree when their ordered vertices,
+        valences, edge count and cutoff agree. These constructor values also
+        determine the channel offsets and local label bounds.
+        """
+        if self is other:
+            return True
+        if type(self) is not type(other):
+            return NotImplemented
+        return (
+            self.n_edges == other.n_edges
+            and self.vertex_ids == other.vertex_ids
+            and self.valence_by_vertex == other.valence_by_vertex
+            and self.two_j_max == other.two_j_max
+        )
+
     def __hash__(self) -> int:
         """Returns a structural hash for the spin-network layout."""
         return hash(

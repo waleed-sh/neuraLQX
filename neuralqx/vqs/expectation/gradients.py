@@ -70,6 +70,16 @@ def expect_and_grad(
             dict(kwargs),
             use_covariance,
         )
+    elif getattr(vstate, "importance_sampling_enabled", False):
+        from .importance import importance_expect_and_grad
+
+        if use_covariance and not can_use_covariance(
+            operator, machine_pow=vstate.machine_pow
+        ):
+            raise ValueError(
+                "Covariance gradients require a Hermitian linear estimator."
+            )
+        stats, grad = importance_expect_and_grad(vstate, operator, kwargs)
     else:
         covariance_valid = can_use_covariance(operator, machine_pow=vstate.machine_pow)
         if use_covariance is None:
@@ -103,6 +113,12 @@ def _expect_and_grad_noncovariance(
 ) -> tuple[Stats, Any]:
     if isinstance(operator, PenaltyCost):
         return penalty_expect_and_grad(vstate, operator, kwargs, False)
+    if getattr(vstate, "importance_sampling_enabled", False):
+        from .importance import importance_expect_and_grad
+
+        return importance_expect_and_grad(
+            vstate, operator, kwargs, expectation_transform=expectation_transform
+        )
 
     samples = kwargs.pop("samples", None)
     if samples is None:

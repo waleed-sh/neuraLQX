@@ -39,6 +39,9 @@ def _fields(value):
 def _sampler_config(value):
     config = _fields(value)
     config.pop("n_chains_per_device", None)
+    for name in ("importance_sampling", "operator_blur"):
+        if config.get(name) is None:
+            config.pop(name, None)
     return config
 
 
@@ -80,7 +83,16 @@ def install_codecs():
     from neuralqx.hilbert.su2.peter_weyl import SU2PeterWeylHilbert
     from neuralqx.hilbert.u1.constraints.relation import GaugeRelation
     from neuralqx.nn.utils.connections import ConnectionPolicy
+    from neuralqx.operator import ProductOperator
+    from neuralqx.operator import ScaledOperator
+    from neuralqx.operator import Squared
+    from neuralqx.operator import SumOfSquares
+    from neuralqx.operator import SumOperator
+    from neuralqx.operator.prebuilt.su2 import CompilationBudget
+    from neuralqx.operator.prebuilt.su2 import EuclideanVertexConstraint
     from neuralqx.sampler import MetropolisSampler
+    from neuralqx.sampler.importance import ImportanceSampling
+    from neuralqx.sampler.importance import OperatorBlur
     from neuralqx.sampler.rules import ExchangeRule
     from neuralqx.sampler.rules import LocalRule
     from neuralqx.sampler.rules import NeighborRule
@@ -90,6 +102,15 @@ def install_codecs():
     from neuralqx.utils.typing.graph import Vertex
 
     classes = (
+        ImportanceSampling,
+        OperatorBlur,
+        CompilationBudget,
+        EuclideanVertexConstraint,
+        SumOperator,
+        ScaledOperator,
+        ProductOperator,
+        Squared,
+        SumOfSquares,
         HomogeneousDiscreteHilbert,
         HeterogeneousDiscreteHilbert,
         U1Hilbert,
@@ -128,7 +149,31 @@ def install_codecs():
         encode=_sampler_config,
         decode=lambda config: MetropolisSampler(**config),
     )
+    # Only installed public operator classes are eligible for reconstruction.
+    # Custom operators can register their own versioned recipe.
+    from neuralqx.operator import AbstractOperator
+    from neuralqx.operator.prebuilt import bojowald_swiderski
+    from neuralqx.operator.prebuilt import coloring
+    from neuralqx.operator.prebuilt import qr
+    from neuralqx.operator.prebuilt import su2
+    from neuralqx.operator.prebuilt import wcl
+
     from .registry import _BY_TYPE
+
+    for module in (wcl, su2, qr, bojowald_swiderski, coloring):
+        for name in module.__all__:
+            cls = getattr(module, name)
+            if (
+                isinstance(cls, type)
+                and issubclass(cls, AbstractOperator)
+                and cls not in _BY_TYPE
+            ):
+                register_codec(
+                    cls,
+                    name=f"{cls.__module__}.{cls.__qualname__}",
+                    encode=_fields,
+                    decode=lambda config, cls=cls: cls(**config),
+                )
 
     graph_codec = register_codec(
         graph.Graph,

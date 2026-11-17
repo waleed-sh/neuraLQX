@@ -66,6 +66,12 @@ def local_estimators(
         connection_deduplication=connection_deduplication,
     )
     validate_operator_hilbert(vstate, operator)
+    if getattr(vstate, "importance_sampling_enabled", False) and not isinstance(
+        operator, PenaltyCost
+    ):
+        from .importance import importance_local_estimators
+
+        return importance_local_estimators(vstate, operator, samples, options)
     terms = discrete_linear_terms(operator)
     if is_operator_sequence(operator) or (terms is not None and len(terms) > 1):
         prepared = _prepared_local_values(vstate, operator, samples, options)
@@ -180,6 +186,14 @@ def _penalty_local_estimator_kernel(
     )
     parent_stats = parent.to_stats()
     scale, shift = penalty_local_value_coefficients(penalty, parent_stats.mean)
+    from neuralqx.sampler.importance import WeightedLocalEstimators
+
+    if isinstance(parent, WeightedLocalEstimators):
+        return WeightedLocalEstimators(
+            jnp.asarray(scale) * parent.numerator
+            + jnp.asarray(shift) * parent.denominator,
+            parent.denominator,
+        )
     values = jnp.asarray(scale) * parent.data + jnp.asarray(shift)
     return LocalEstimators(values)
 

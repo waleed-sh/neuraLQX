@@ -50,6 +50,20 @@ def expect_and_forces(
     **kwargs: Any,
 ) -> tuple[Stats, Any]:
     """Estimate expectation statistics and covariance forces."""
+    if getattr(vstate, "importance_sampling_enabled", False) and not isinstance(
+        operator, PenaltyCost
+    ):
+        if not can_use_covariance(operator):
+            raise ValueError(
+                "Covariance forces require a Hermitian linear estimator. Use expect_and_grad."
+            )
+        samples = kwargs.pop("samples", None)
+        samples = vstate.samples if samples is None else samples
+        estimates = local_estimators(vstate, operator, samples=samples, **kwargs)
+        stats = estimates.to_stats()
+        cotangent = jnp.conj(estimates.numerator - stats.mean * estimates.denominator)
+        cotangent = cotangent / jnp.sum(estimates.denominator)
+        return stats, forces_from_cotangent(vstate, samples, cotangent)
     if is_operator_sequence(operator):
         return _expect_and_forces_sequence(vstate, operator, dict(kwargs))
     return _expect_and_forces(vstate, operator, dict(kwargs))

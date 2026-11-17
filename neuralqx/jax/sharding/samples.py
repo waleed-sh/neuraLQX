@@ -30,6 +30,7 @@ from neuralqx.jax.mesh import create_device_mesh
 from neuralqx.jax.mesh import logical_axis_name
 from neuralqx.jax.mesh import named_sharding
 
+from .arrays import place_global_array
 from .connected import _partition_count
 
 
@@ -91,7 +92,7 @@ def place_sample_batch(samples: Any) -> Any:
     partitions = _partition_count(sharding.spec, sharding.mesh.shape)
     if partitions <= 1 or samples.shape[0] % partitions != 0:
         return samples
-    return jax.device_put(samples, sharding)
+    return place_global_array(samples, sharding)
 
 
 def make_sample_zeros(shape: tuple[int, ...], dtype: Any) -> jax.Array:

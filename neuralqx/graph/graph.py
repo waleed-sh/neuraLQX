@@ -211,6 +211,33 @@ class Graph(AbstractGraph):
         if plot:
             self.plot(show=True)
 
+    def __eq__(self, other: object) -> bool:
+        """Compare the ordered embedded graphs used to define operator bases.
+
+        Edge order, orientation, parallel-edge keys, vertex order, coordinates
+        and the planar sign convention must agree. A graph-family constructor
+        and a reconstructed ``Graph`` can therefore describe the same graph.
+        Graph isomorphism alone is insufficient because permuting edges changes
+        the meaning of a wavefunction's input coordinates.
+        """
+        if self is other:
+            return True
+        if not isinstance(other, Graph):
+            return NotImplemented
+        return (
+            self.is_planar == other.is_planar
+            and self.edges == other.edges
+            and self.vertices == other.vertices
+        )
+
+    def __hash__(self) -> int:
+        """Hash the ordered embedded graph independently of its family name.
+
+        Graph structure must remain unchanged while the graph or a Hilbert
+        space containing it is used as a dictionary key or JAX static argument.
+        """
+        return hash((self.is_planar, tuple(self.edges), tuple(self.vertices)))
+
     @property
     def mapping(self) -> dict[Edge, int]:
         """Maps each canonical primal edge to its integer edge degree of freedom.

@@ -67,12 +67,28 @@ def _sampler_payload(state):
 
 
 def _payload(state, include_samples):
-    return {
+    payload = {
         "variables": state.variables,
         "sampler_key": state._sampler_key,
         "sampler_state": _sampler_payload(state._sampler_state),
         "samples": state._samples if include_samples else None,
     }
+    if state.importance_sampling_enabled:
+        measure = state._sample_measure if include_samples else None
+        payload["importance"] = {
+            "exponent": state._importance_exponent,
+            "key": state._importance_key,
+            "measure": (
+                None
+                if measure is None
+                else {
+                    "log_density": measure.log_density,
+                    "exponent_score": measure.exponent_score,
+                    "exponent": measure.exponent,
+                }
+            ),
+        }
+    return payload
 
 
 def _sampler_keys(key):
@@ -126,6 +142,25 @@ def _settings(state):
     }
 
 
+def _importance_policy(state):
+    """Keep sampling controls checkable even when a custom operator needs a template."""
+    blur = getattr(state.sampler, "operator_blur", None)
+    return {
+        "importance_sampling": encode_config(
+            getattr(state.sampler, "importance_sampling", None)
+        ),
+        "operator_blur": (
+            None
+            if blur is None
+            else {
+                "probability": blur.probability,
+                "chunk_size": blur.chunk_size,
+                "operator": component_description(blur.operator),
+            }
+        ),
+    }
+
+
 def save_variational_state(
     state, path="vstate.nqx", *, include_samples=False, metadata=None, overwrite=False
 ):
@@ -153,6 +188,20 @@ def save_variational_state(
             "sampler_initialized": state._sampler_state is not None,
             "sampler_state_stale": bool(state._sampler_state_stale),
             "cached_samples": bool(include_samples and state._samples is not None),
+            "importance": (
+                None
+                if not state.importance_sampling_enabled
+                else {
+                    "policy": _importance_policy(state),
+                    "batch": state._importance_batch,
+                    "last_adapted": state._importance_last_adapted,
+                    "measure_batch": (
+                        state._sample_measure.batch_id
+                        if include_samples and state._sample_measure is not None
+                        else None
+                    ),
+                }
+            ),
             "annotations": dict(metadata or {}),
         }
         return _payload(state, include_samples), description
@@ -256,6 +305,26 @@ def _restore_template(state, manifest, sampler_mode):
         if item["shape"] and item["shape"][0] % sample_partition_count() == 0:
             placement = sample_batch_sharding(len(item["shape"])) or replica
         payload["samples"] = _array_template(item, placement)
+    if description.get("importance") is not None:
+        importance = {
+            name: _array_template(leaves[f"['importance']['{name}']"], replica)
+            for name in ("exponent", "key")
+        }
+        importance["measure"] = None
+        if description["importance"]["measure_batch"] is not None:
+            measure = {}
+            for name in ("log_density", "exponent_score", "exponent"):
+                item = leaves[f"['importance']['measure']['{name}']"]
+                placement = replica
+                if name != "exponent":
+                    layout = payload["samples"].sharding
+                    placement = jax.sharding.NamedSharding(
+                        layout.mesh,
+                        jax.sharding.PartitionSpec(*layout.spec[: len(item["shape"])]),
+                    )
+                measure[name] = _array_template(item, placement)
+            importance["measure"] = measure
+        payload["importance"] = importance
     return payload
 
 
@@ -296,6 +365,18 @@ def load_variational_state(
         if state.hilbert.size != description["hilbert_size"]:
             raise CheckpointError("The saved and target Hilbert dimensions differ.")
         if sampler_mode == "continue":
+            if (
+                description.get("importance") is not None
+            ) != state.importance_sampling_enabled:
+                raise CheckpointError(
+                    "Saved and target importance-sampling policies differ."
+                )
+            importance = description.get("importance")
+            if importance is not None and importance.get("policy") is not None:
+                if importance["policy"] != _importance_policy(state):
+                    raise CheckpointError(
+                        "The target importance-sampling configuration differs from the checkpoint."
+                    )
             if sample_partition_count() != description["sample_partitions"]:
                 raise CheckpointError(
                     "The number of sample partitions changed. Use sampler_mode='restart' with sampler_seed to start new random streams."
@@ -343,6 +424,8 @@ def load_variational_state(
 
     def prepare():
         from neuralqx.sampler import MetropolisSamplerState
+        from neuralqx.sampler.importance import SamplingMeasure
+        from neuralqx.sampler.importance.measure import TemperedApply
 
         variables = payload["variables"]
         parameters, model_state = state.framework.split_variables(variables)
@@ -361,11 +444,37 @@ def load_variational_state(
         )
         stale = description["sampler_state_stale"]
         samples = payload["samples"]
+        runtime = payload.get("importance")
+        importance_exponent = (
+            state._importance_exponent if runtime is None else runtime["exponent"]
+        )
+        importance_key = state._importance_key if runtime is None else runtime["key"]
+        measure = None
+        if runtime is not None and runtime["measure"] is not None:
+            measure = SamplingMeasure(
+                **runtime["measure"],
+                batch_id=description["importance"]["measure_batch"],
+            )
+        sampling_apply = TemperedApply(apply_kernel)
         if sampler_mode == "restart":
             sampler_key = as_prng_key(sampler_seed)
-            sampler_state = state.sampler.reset(
-                apply_kernel, variables, key=sampler_key
+            importance_key = jax.random.fold_in(sampler_key, 194732)
+            if state.importance_sampling_enabled and jax.process_count() > 1:
+                from jax.experimental import multihost_utils
+
+                raw = multihost_utils.broadcast_one_to_all(
+                    jax.random.key_data(importance_key)
+                )
+                importance_key = jax.random.wrap_key_data(
+                    raw, impl=str(jax.random.key_impl(importance_key))
+                )
+            config = getattr(state.sampler, "importance_sampling", None)
+            importance_exponent = jax.numpy.asarray(
+                2.0 if config is None else config.exponent
             )
+            function = apply_kernel if config is None else sampling_apply
+            inputs = variables if config is None else (variables, importance_exponent)
+            sampler_state = state.sampler.reset(function, inputs, key=sampler_key)
             stale = False
             samples = None
         jax.block_until_ready((variables, sampler_state, sampler_key, samples))
@@ -378,6 +487,17 @@ def load_variational_state(
             "_sampler_state": sampler_state,
             "_sampler_state_stale": stale,
             "_samples": samples,
+            "_sample_measure": measure,
+            "_importance_weight_cache": None,
+            "_sampling_apply": sampling_apply,
+            "_importance_exponent": importance_exponent,
+            "_importance_key": importance_key,
+            "_importance_batch": (
+                0 if runtime is None else description["importance"]["batch"]
+            ),
+            "_importance_last_adapted": (
+                -1 if runtime is None else description["importance"]["last_adapted"]
+            ),
             "_n_samples": settings["n_samples"],
             "_n_discard_per_chain": settings["n_discard_per_chain"],
             "_chunk_size": settings["chunk_size"],

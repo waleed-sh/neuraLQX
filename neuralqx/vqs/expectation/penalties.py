@@ -87,7 +87,9 @@ def penalty_expect_and_grad(
     from .gradients import expect_and_grad
 
     if use_covariance is None:
-        use_covariance = can_use_covariance(operator, machine_pow=vstate.machine_pow)
+        use_covariance = not getattr(
+            vstate, "importance_sampling_enabled", False
+        ) and can_use_covariance(operator, machine_pow=vstate.machine_pow)
     if use_covariance:
         if not can_use_covariance(operator, machine_pow=vstate.machine_pow):
             raise ValueError(
@@ -102,8 +104,9 @@ def penalty_expect_and_grad(
         )
         return stats, grad
 
-    if not operator.is_linear_penalty() and not isinstance(
-        operator.cost_operator, (Squared, SumOfSquares)
+    if getattr(vstate, "importance_sampling_enabled", False) or (
+        not operator.is_linear_penalty()
+        and not isinstance(operator.cost_operator, (Squared, SumOfSquares))
     ):
         # Apply the scalar objective before combining complex parameter
         # coordinates. A real-part penalty cannot in general be differentiated

@@ -32,6 +32,8 @@ from jax.sharding import PartitionSpec
 from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 
+from .arrays import place_global_array
+
 
 def parameter_sharding_enabled() -> bool:
     """Return whether parameter sharding is enabled in the current config."""
@@ -61,7 +63,7 @@ def place_parameters(tree: Any) -> Any:
 
     def place_leaf(value: Any) -> Any:
         if isinstance(value, jax.Array):
-            return jax.device_put(value, sharding)
+            return place_global_array(value, sharding)
         return value
 
     return jax.tree_util.tree_map(place_leaf, tree)

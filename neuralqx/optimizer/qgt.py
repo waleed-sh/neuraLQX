@@ -88,6 +88,8 @@ class QGTOnTheFly(LinearOperator):
                 )
             if not bool(jnp.all(jnp.isfinite(jnp.asarray(self.sample_weights)))):
                 raise ValueError("sample_weights must be finite.")
+            if bool(jnp.any(jnp.asarray(self.sample_weights) < 0)):
+                raise ValueError("sample_weights must be nonnegative.")
             total_weight = jnp.sum(jnp.asarray(self.sample_weights))
             if not bool(jnp.isfinite(total_weight)) or float(total_weight) == 0.0:
                 raise ValueError("sample_weights must have a finite nonzero sum.")
@@ -109,6 +111,11 @@ class QGTOnTheFly(LinearOperator):
         if diag_scale is not None:
             raise NotImplementedError("QGTOnTheFly does not support diag_scale yet.")
         samples = vstate.samples if samples is None else samples
+        if sample_weights is None and getattr(
+            vstate, "importance_sampling_enabled", False
+        ):
+            vstate.sampling_measure_for(samples)
+            sample_weights = vstate.sample_weights
         flat_samples, _ = flatten_samples(samples, vstate.hilbert.size)
 
         def logpsi(parameters: Any) -> jax.Array:
@@ -277,6 +284,7 @@ def _linearized_coordinate_matvec(
         w = weights.reshape((weights.shape[0],) + (1,) * (values.ndim - 1))
         cotangent = w * (values - jnp.sum(w * values, axis=0, keepdims=True))
     transpose = jax.linear_transpose(linear_map, vector)
+    cotangent = cotangent.astype(values.dtype)
     if mode == "holomorphic":
         result = jax.tree_util.tree_map(
             jnp.conjugate, transpose(jnp.conjugate(cotangent))[0]
@@ -348,6 +356,7 @@ def _qgt_matvec_tree(qgt: QGTOnTheFly, vector: Any) -> Any:
         cotangent = flat_weights * (jvp_values - mean)
 
     _primal, pullback = jax.vjp(logpsi, qgt.parameters)
+    cotangent = cotangent.astype(_primal.dtype)
     result = jax.tree_util.tree_map(
         jnp.conjugate,
         pullback(jnp.conjugate(cotangent))[0],
@@ -401,6 +410,7 @@ def _qgt_matvec_coordinates(qgt: QGTOnTheFly, coordinate_vector: Any) -> Any:
         cotangent = weights * (jvp_values - mean)
 
     _primal, pullback = jax.vjp(logpsi_coordinates, coordinate_parameters)
+    cotangent = cotangent.astype(_primal.dtype)
     result = pullback(cotangent)[0]
     return tree_axpy(qgt.diag_shift, coordinate_vector, result)
 

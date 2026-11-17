@@ -39,17 +39,61 @@ from neuralqx.utils.typing import Key
 
 
 class AbstractSampler(Struct, metaclass=StructABCMeta):
-    """Base API for Monte Carlo samplers."""
+    """Base API for Monte Carlo samplers.
+
+    ``importance_sampling=True`` enables adaptive broadening in VariationalState.
+    Pass ImportanceSampling for explicit bounds and adaptation settings.
+    ``operator_blur=objective`` also visits connected configurations, including
+    configurations outside the wavefunction support. VariationalState carries
+    the sampling density into expectations, gradients and SR while preserving
+    the physical Born objective.
+
+    These policies work with custom proposal rules. Sampler subclasses must
+    honor the supplied log-amplitude callable and machine_pow. The low level
+    init_state, reset and sample methods operate on that callable alone.
+    Adaptive policies need the variational state's gradient information.
+    """
 
     hilbert: DiscreteHilbertSpace = field(static=True)
     machine_pow: Any = field(default=2.0)
     dtype: Any = field(static=True, default=None)
     chunk_size: int | None = field(static=True, default=None)
 
+    importance_sampling: Any = field(pytree=False, default=None)
+    """ImportanceSampling settings, or True for adaptive broadening in VariationalState."""
+
+    operator_blur: Any = field(pytree=False, default=None)
+    """OperatorBlur settings, or an operator defining post-sampling connections."""
+
     def __post_init__(self) -> None:
+        from neuralqx.sampler.importance import ImportanceSampling
+        from neuralqx.sampler.importance import OperatorBlur
+
+        importance = self.importance_sampling
+        if importance is True:
+            importance = ImportanceSampling()
+        elif importance is False:
+            importance = None
+        if importance is not None and not isinstance(importance, ImportanceSampling):
+            raise TypeError(
+                "importance_sampling must be a boolean or ImportanceSampling."
+            )
+        blur = self.operator_blur
+        if blur is False:
+            blur = None
+        if blur is not None and not isinstance(blur, OperatorBlur):
+            blur = OperatorBlur(blur)
+        if (importance is not None or blur is not None) and float(
+            self.machine_pow
+        ) != 2:
+            raise ValueError(
+                "Importance sampling preserves Born expectations and requires machine_pow=2."
+            )
+        object.__setattr__(self, "importance_sampling", importance)
+        object.__setattr__(self, "operator_blur", blur)
         if not isinstance(self.hilbert, DiscreteHilbertSpace):
             raise TypeError(
-                "Samplers currently require a DiscreteHilbertSpace, "
+                "Samplers currently require a DiscreteHilbertSpace; "
                 f"got {type(self.hilbert).__name__}."
             )
         machine_pow = jnp.asarray(self.machine_pow)
@@ -124,6 +168,11 @@ class AbstractSampler(Struct, metaclass=StructABCMeta):
         ``n_samples`` is the total requested sample count across all chains.
         When it is not divisible by ``n_chains``, it is rounded to the nearest
         positive divisible value and the chain length is adjusted accordingly.
+
+        This is the base-chain primitive. VariationalState supplies the
+        tempered callable and applies operator blurring with density tracking.
+        Use its sample method for those policies. Raw configurations returned
+        here do not carry density corrections.
         """
         if n_samples is not None and chain_length is not None:
             raise ValueError("Specify either n_samples or chain_length, not both.")

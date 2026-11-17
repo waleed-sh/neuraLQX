@@ -78,6 +78,11 @@ class QGTJacobianDense(LinearOperator):
                 "QGTJacobianDense does not support diag_scale yet."
             )
         samples = vstate.samples if samples is None else samples
+        if sample_weights is None and getattr(
+            vstate, "importance_sampling_enabled", False
+        ):
+            vstate.sampling_measure_for(samples)
+            sample_weights = vstate.sample_weights
         flat_samples, _ = flatten_samples(samples, vstate.hilbert.size)
         flat_weights = _flatten_weights(sample_weights, samples)
         model_chunk_size = vstate.chunk_size if chunk_size is None else chunk_size
@@ -325,6 +330,8 @@ def _flatten_weights(sample_weights: Any | None, samples: Any) -> jax.Array | No
         )
     if not bool(jnp.all(jnp.isfinite(weights))):
         raise ValueError("sample_weights must be finite.")
+    if bool(jnp.any(weights < 0)):
+        raise ValueError("sample_weights must be nonnegative.")
     flat = weights.reshape((-1,))
     total = jnp.sum(flat)
     if not bool(jnp.isfinite(total)) or float(total) == 0.0:

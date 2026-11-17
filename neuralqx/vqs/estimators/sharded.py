@@ -1,18 +1,3 @@
-# Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -77,7 +62,22 @@ def _on_device(operator, device):
         if found is not None and found[0] is operator:
             _operators.move_to_end(key)
             return found[1]
-        placed = jax.device_put(operator, device)
+
+        def local_leaf(value):
+            if isinstance(value, jax.Array) and not value.is_fully_addressable:
+                if not value.sharding.is_fully_replicated:
+                    raise ValueError(
+                        "Sample-local connection preparation requires replicated operator arrays."
+                    )
+                # Restored coefficients may be globally replicated. Use their
+                # local replica without requesting data from another process.
+                for shard in value.addressable_shards:
+                    if shard.device == device:
+                        return shard.data
+                value = value.addressable_shards[0].data
+            return jax.device_put(value, device)
+
+        placed = jax.tree.map(local_leaf, operator)
         _operators[key] = (operator, placed)
         while len(_operators) > 32:
             _operators.popitem(last=False)

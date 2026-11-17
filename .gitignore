@@ -24,3 +24,4 @@ docs/experimental/api/generated
 .DS_Store
 Thumbs.db
 neuralqx/_version.py
+misc/
