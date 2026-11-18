@@ -1,16 +1,16 @@
-#  Copyright (c) 2026. The neuraLQX Authors - All Rights Reserved
+# Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
 #
-#  Licensed under the Apache License 2.0, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 
 """Operator interfaces, algebra wrappers, and prebuilt model operators.
@@ -39,6 +39,10 @@ from .wrappers import penalty_expectation_value
 from .wrappers import penalty_is_linear
 from .wrappers import penalty_linear_scale
 from .wrappers import penalty_local_value_coefficients
+from .embedding import EmbeddedOperator
+from .embedding import FullResidual
+from .embedding import embed_operator
+from .embedding import outgoing_residual
 
 # Prebuilt operators import the public base classes above.
 from . import prebuilt  # isort: skip
@@ -48,6 +52,8 @@ __all__ = [
     "ComputationalOperator",
     "ComputationalWrappedOperator",
     "DiscreteOperator",
+    "EmbeddedOperator",
+    "FullResidual",
     "InverseExpectationCost",
     "PenaltyCost",
     "ProductOperator",
@@ -58,6 +64,8 @@ __all__ = [
     "VertexSum",
     "WrappedOperator",
     "coalesce_connections",
+    "embed_operator",
+    "outgoing_residual",
     "penalty_expectation_gradient",
     "penalty_expectation_value",
     "penalty_is_linear",

@@ -29,6 +29,7 @@ from neuralqx.jax.sharding import place_sample_batch
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
+from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.vqs.estimators import LocalEstimatorOptions
 from neuralqx.vqs.estimators import Stats
@@ -50,6 +51,10 @@ def expect_and_forces(
     **kwargs: Any,
 ) -> tuple[Stats, Any]:
     """Estimate expectation statistics and covariance forces."""
+    if contains_residual(operator):
+        raise ValueError(
+            "Embedded residuals require expect_and_grad, including the estimator derivative."
+        )
     if getattr(vstate, "importance_sampling_enabled", False) and not isinstance(
         operator, PenaltyCost
     ):
@@ -333,6 +338,8 @@ def force_to_grad(forces: Any, parameters: Any, *, machine_pow: Any = 2.0) -> An
 
 def can_use_covariance(operator: Any, *, machine_pow: Any = 2.0) -> bool:
     """Check Hermiticity, estimator semantics, and the sampling distribution."""
+    if contains_residual(operator):
+        return False
     if is_operator_sequence(operator):
         return all(
             can_use_covariance(item, machine_pow=machine_pow) for item in operator

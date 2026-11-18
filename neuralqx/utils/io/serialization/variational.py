@@ -70,6 +70,7 @@ def _payload(state, include_samples):
     payload = {
         "variables": state.variables,
         "sampler_key": state._sampler_key,
+        "estimator_key": state._estimator_key,
         "sampler_state": _sampler_payload(state._sampler_state),
         "samples": state._samples if include_samples else None,
     }
@@ -263,6 +264,8 @@ def _restore_template(state, manifest, sampler_mode):
         "sampler_state": None,
         "samples": None,
     }
+    if "['estimator_key']" in leaves:
+        payload["estimator_key"] = _array_template(leaves["['estimator_key']"], replica)
     if description["sampler_initialized"]:
         expected_shapes = {
             "sigma": [state.sampler.n_chains, state.hilbert.size],
@@ -449,6 +452,7 @@ def load_variational_state(
             state._importance_exponent if runtime is None else runtime["exponent"]
         )
         importance_key = state._importance_key if runtime is None else runtime["key"]
+        estimator_key = payload.get("estimator_key", state._estimator_key)
         measure = None
         if runtime is not None and runtime["measure"] is not None:
             measure = SamplingMeasure(
@@ -458,6 +462,16 @@ def load_variational_state(
         sampling_apply = TemperedApply(apply_kernel)
         if sampler_mode == "restart":
             sampler_key = as_prng_key(sampler_seed)
+            estimator_key = jax.random.fold_in(sampler_key, 741923)
+            if jax.process_count() > 1:
+                from jax.experimental import multihost_utils
+
+                raw = multihost_utils.broadcast_one_to_all(
+                    jax.random.key_data(estimator_key)
+                )
+                estimator_key = jax.random.wrap_key_data(
+                    raw, impl=str(jax.random.key_impl(estimator_key))
+                )
             importance_key = jax.random.fold_in(sampler_key, 194732)
             if state.importance_sampling_enabled and jax.process_count() > 1:
                 from jax.experimental import multihost_utils
@@ -484,6 +498,7 @@ def load_variational_state(
             "_model_state": model_state,
             "_parameters_structure": jax.tree.structure(parameters),
             "_sampler_key": sampler_key,
+            "_estimator_key": estimator_key,
             "_sampler_state": sampler_state,
             "_sampler_state_stale": stale,
             "_samples": samples,

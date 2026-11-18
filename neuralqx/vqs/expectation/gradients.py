@@ -29,6 +29,7 @@ from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
+from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.vqs.estimators import Stats
 from neuralqx.vqs.estimators import local_estimators
@@ -41,6 +42,7 @@ from neuralqx.vqs.estimators.kernels import squared_operator_local_values
 from neuralqx.vqs.estimators.operators import discrete_linear_terms
 from neuralqx.vqs.estimators.operators import is_operator_sequence
 from neuralqx.vqs.estimators.operators import linear_operator_terms
+from neuralqx.vqs.estimators.operators import needs_nodal_residual
 from neuralqx.vqs.estimators.options import LocalEstimatorOptions
 from neuralqx.vqs.estimators.sharded import sample_layout
 from neuralqx.vqs.estimators.utils import flatten_samples
@@ -70,7 +72,11 @@ def expect_and_grad(
             dict(kwargs),
             use_covariance,
         )
-    elif getattr(vstate, "importance_sampling_enabled", False):
+    elif (
+        getattr(vstate, "importance_sampling_enabled", False)
+        or contains_residual(operator)
+        or needs_nodal_residual(vstate, operator)
+    ):
         from .importance import importance_expect_and_grad
 
         if use_covariance and not can_use_covariance(
@@ -113,7 +119,11 @@ def _expect_and_grad_noncovariance(
 ) -> tuple[Stats, Any]:
     if isinstance(operator, PenaltyCost):
         return penalty_expect_and_grad(vstate, operator, kwargs, False)
-    if getattr(vstate, "importance_sampling_enabled", False):
+    if (
+        getattr(vstate, "importance_sampling_enabled", False)
+        or contains_residual(operator)
+        or needs_nodal_residual(vstate, operator)
+    ):
         from .importance import importance_expect_and_grad
 
         return importance_expect_and_grad(

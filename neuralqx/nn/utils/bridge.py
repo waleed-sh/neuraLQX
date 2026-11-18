@@ -57,6 +57,12 @@ def to_linen(module_class, *args, name=None, skip_rng=None, **kwargs):
 
     if "rngs" in kwargs:
         raise ValueError("Pass RNGs to Linen init(), not to to_linen().")
+    projected = getattr(module_class, "_neuralqx_projected_constructor", None)
+    if projected is not None:
+        base_class, projector = projected
+        return projector(
+            to_linen(base_class, *args, name=name, skip_rng=skip_rng, **kwargs)
+        )
     if not isinstance(module_class, type):
         raise TypeError(
             "to_linen expects an NNX module class, not an initialized instance."

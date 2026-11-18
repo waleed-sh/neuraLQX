@@ -226,12 +226,127 @@ class VariationalState(AbstractVariationalState):
         self._parameters_structure = jax.tree_util.tree_structure(self._parameters)
 
         self._sampler_key = as_prng_key(seed if sampler_seed is None else sampler_seed)
+        self._estimator_key = jax.random.fold_in(self._sampler_key, 741923)
+        if jax.process_count() > 1:
+            from jax.experimental import multihost_utils
+
+            raw = multihost_utils.broadcast_one_to_all(
+                jax.random.key_data(self._estimator_key)
+            )
+            self._estimator_key = jax.random.wrap_key_data(
+                raw, impl=str(jax.random.key_impl(self._estimator_key))
+            )
         self._sampler_state: MetropolisSamplerState | None = None
         self._sampler_state_stale = True
         self._samples: jax.Array | None = None
         self._initialize_importance()
         if not _defer_sampler_initialization:
             self.reset()
+
+    def transfer_weights(
+        self,
+        source: Any = None,
+        *,
+        variables: Any = None,
+        parameters: Any = None,
+    ) -> VariationalState:
+        """Copy compatible trained weights into this state's existing network.
+
+        Use this method to continue a calculation at another cutoff without
+        restoring the old Hilbert space or sampler. Construct the destination
+        state on the new space, then transfer from a trained state or network.
+        Source and destination parameter paths, container types, array shapes
+        and dtypes must match. Weights are never resized, renamed or cast.
+        Ordinary and Flax frozen dictionaries are treated as the same layout.
+
+        Compatibility refers to the parameter layout, not equivalence of
+        arbitrary Python model code. The destination's activation functions,
+        input conventions, projector and other static settings are retained.
+        It is the caller's responsibility to keep the physical meaning and
+        ordering of the model inputs consistent between calculations. Changing
+        a cutoff is allowed when the parameter layout remains compatible.
+
+        Only trainable parameters are transferred. Non-trainable collections,
+        including normalization statistics, graph data and model RNGs, stay
+        with the destination. Its Hilbert space, sampling settings and random
+        streams also remain unchanged. Cached samples and importance weights
+        are cleared, and chain probabilities are refreshed on the next sample
+        call. Existing chain configurations are handled by the usual sampler
+        reset policy. The source is never modified.
+
+        Arrays are placed on the destination parameters' devices and shardings
+        without gathering global arrays onto a host. NNX variable metadata
+        also comes from the destination. All JAX processes must participate
+        when arrays span multiple processes. A fully addressable source must
+        supply the same complete weights on each process. Validation and
+        placement finish before this state is changed.
+
+        Args:
+            source: Variational state, initialized NNX module, bound Linen
+                module, or another supported model or framework adapter.
+                Unbound Linen modules and functions require ``variables`` or
+                ``parameters`` because they do not store trained weights.
+                Omit this argument to supply weights directly in this state's
+                framework convention.
+            variables: Complete source framework variables. Trainable weights
+                are extracted using the source adapter, or this state's
+                adapter when ``source`` is omitted. Cannot accompany a source
+                variational state or ``parameters``.
+            parameters: Explicit trainable parameter tree. Cannot accompany
+                a source variational state or ``variables``.
+
+        Returns:
+            This state, after transferring all weights successfully.
+
+        Raises:
+            ValueError: Source weights are missing or their layout, shapes or
+                dtypes differ from those expected by the destination.
+            TypeError: The source model is unsupported or its parameters do
+                not contain concrete values.
+
+        Examples:
+            Continue a saved calculation on a larger Hilbert space::
+
+                trained = VariationalState.from_file("small_cutoff.nqx")
+                state = VariationalState(hilbert=larger_hilbert, model=new_model)
+                state.transfer_weights(trained)
+
+            Transfer from a custom Linen model with separately stored weights::
+
+                state.transfer_weights(model, variables=trained_variables)
+
+            Transfer from an initialized NNX model or a parameter pytree::
+
+                state.transfer_weights(trained_nnx_model)
+                state.transfer_weights(parameters=trained_parameters)
+        """
+        from neuralqx.utils.frameworks.transfer import model_parameters
+        from neuralqx.utils.frameworks.transfer import transfer_parameter_tree
+
+        if isinstance(source, AbstractVariationalState):
+            if variables is not None or parameters is not None:
+                raise ValueError(
+                    "A source variational state already supplies its parameters."
+                )
+            donor = source.parameters
+        else:
+            donor = model_parameters(
+                self.framework if source is None else source,
+                variables=variables,
+                parameters=parameters,
+            )
+        transferred = transfer_parameter_tree(donor, self.parameters)
+        jax.block_until_ready(transferred)
+        new_variables = self.framework.merge_variables(transferred, self.model_state)
+        new_parameters, new_model_state = self.framework.split_variables(new_variables)
+        # These arrays already follow the destination placement. Reapplying
+        # the global placement policy could overwrite explicit model sharding.
+        self._variables = new_variables
+        self._parameters = new_parameters
+        self._model_state = new_model_state
+        self._parameters_structure = jax.tree_util.tree_structure(new_parameters)
+        self._invalidate_sampler_state()
+        return self
 
     def save(
         self,

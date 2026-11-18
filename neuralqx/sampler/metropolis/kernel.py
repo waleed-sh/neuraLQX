@@ -61,7 +61,12 @@ def metropolis_sweep(
         correction = jnp.asarray(transition.log_correction, dtype=log_ratio.dtype)
         log_ratio = log_ratio + correction
 
-    accept = jax.random.uniform(key_accept, shape=log_ratio.shape) < jnp.exp(log_ratio)
+    # Two zero-density states have an undefined ratio. Reject that proposal,
+    # but permit a chain initialized on a node to enter finite support.
+    accept = jnp.isfinite(proposal_log_prob) & (
+        jnp.isneginf(state.log_prob)
+        | (jax.random.uniform(key_accept, shape=log_ratio.shape) < jnp.exp(log_ratio))
+    )
     sigma = jnp.where(accept[:, None], sigma_p, state.sigma)
     log_prob = jnp.where(accept, proposal_log_prob, state.log_prob)
     step_increment = jnp.asarray(
@@ -94,6 +99,47 @@ def sample_next(
     return new_state, (new_state.sigma, new_state.log_prob)
 
 
+def ensure_finite_support(sampler, apply_fn, parameters, state):
+    """Move zero-density initial chains into support before storing samples.
+
+    The search uses the configured proposal rule entirely on device. It is
+    skipped for ordinary finite-density batches. A bounded failure raises
+    rather than returning samples from a wavefunction node. Finding support
+    does not replace the user's thermalization discard.
+    """
+    if not getattr(apply_fn, "has_projector", True):
+        # Omit the search and its failure branch entirely for ordinary models.
+        return state
+
+    def condition(carry):
+        current, attempts = carry
+        return jnp.any(jnp.isneginf(current.log_prob)) & (attempts < 1024)
+
+    def advance(carry):
+        current, attempts = carry
+        return metropolis_sweep(sampler, apply_fn, parameters, current), attempts + 1
+
+    repaired, _ = jax.lax.while_loop(condition, advance, (state, jnp.int32(0)))
+
+    def fail(_):
+        def report():
+            raise RuntimeError(
+                "Metropolis could not initialize every chain at finite wavefunction density "
+                "within 1024 proposals. The projected state may be zero, or the proposal "
+                "rule cannot reach its support. Initialize chains in support or change the rule."
+            )
+
+        jax.debug.callback(report)
+        return jnp.int32(0)
+
+    jax.lax.cond(
+        jnp.any(~jnp.isfinite(repaired.log_prob)), fail, lambda _: jnp.int32(0), None
+    )
+    return repaired.replace(
+        n_steps=state.n_steps, n_accepted_per_chain=state.n_accepted_per_chain
+    )
+
+
 def sample_chain(
     sampler: Any,
     apply_fn: Callable[[Any, jax.Array], jax.Array],
@@ -102,6 +148,7 @@ def sample_chain(
     chain_length: int,
 ) -> tuple[MetropolisSamplerState, tuple[jax.Array, jax.Array]]:
     """Scan ``sample_next`` for a fixed chain length."""
+    state = ensure_finite_support(sampler, apply_fn, parameters, state)
     state, (samples, log_probabilities) = jax.lax.scan(
         lambda carry, _unused: sample_next(sampler, apply_fn, parameters, carry),
         state,

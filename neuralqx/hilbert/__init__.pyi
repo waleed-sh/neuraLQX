@@ -21,6 +21,7 @@ from .constraint import LinearConstraint as LinearConstraint
 from .constraint import NoConstraint as NoConstraint
 from .constraint import NotConstraint as NotConstraint
 from .constraint import OrConstraint as OrConstraint
+from .embedding import BasisEmbedding as BasisEmbedding
 from .layout import DofKind as DofKind
 from .layout import GraphDofLayout as GraphDofLayout
 from .layout import GraphHilbertLayout as GraphHilbertLayout

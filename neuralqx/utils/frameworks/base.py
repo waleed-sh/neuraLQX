@@ -32,6 +32,11 @@ class AbstractModelFramework(Struct, metaclass=StructABCMeta):
     """Framework-neutral interface used by variational states."""
 
     @property
+    def has_projector(self) -> bool:
+        """Whether amplitude projection can introduce exact wavefunction nodes."""
+        return False
+
+    @property
     @abc.abstractmethod
     def name(self) -> str:
         """Short framework name."""
@@ -125,6 +130,11 @@ class FrameworkApply:
 
     framework: AbstractModelFramework
     training_kwargs: tuple[tuple[str, Any], ...] = ()
+
+    @property
+    def has_projector(self) -> bool:
+        """Expose the need for projected-support initialization to samplers."""
+        return self.framework.has_projector
 
     def __call__(self, variables: Variables, states: Any) -> Any:
         return self.framework.apply_variables(

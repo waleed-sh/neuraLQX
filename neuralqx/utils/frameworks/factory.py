@@ -40,6 +40,19 @@ def as_framework(
     if model is not None and apply_fn is not None:
         raise ValueError("Pass either model or apply_fn, not both.")
 
+    from neuralqx.nn.projectors import ProjectedCallable
+
+    candidate = model if model is not None else apply_fn
+    if isinstance(candidate, ProjectedCallable):
+        from .projected import ProjectedFramework
+
+        base, variables = as_framework(
+            apply_fn=candidate.model,
+            init_fn=init_fn,
+            expects_variables=expects_variables,
+        )
+        return ProjectedFramework(base, candidate.projector), variables
+
     if model is not None:
         if _is_linen_module(model):
             return FlaxLinenFramework(model), None

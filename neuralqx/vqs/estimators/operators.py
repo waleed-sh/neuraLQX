@@ -83,6 +83,27 @@ def sequence_is_hermitian(operator: Any) -> bool:
     )
 
 
+def needs_nodal_residual(vstate, operator):
+    """Require output coverage for squared actions of projected wavefunctions.
+
+    Born sampling cannot see an excluded basis state even when the action
+    reaches it. Use auxiliary output proposals for these norms. Diagonal
+    actions preserve support and keep their inexpensive ordinary estimator.
+    """
+    if not getattr(getattr(vstate, "framework", None), "has_projector", False):
+        return False
+    from neuralqx.operator import Squared
+
+    for term in linear_operator_terms(operator):
+        op = term.operator
+        if isinstance(op, PenaltyCost):
+            if needs_nodal_residual(vstate, op.cost_operator):
+                return True
+        elif isinstance(op, Squared) and not getattr(op.operator, "is_diagonal", False):
+            return True
+    return False
+
+
 def _linear_operator_terms(
     operator: Any, *, coefficient: Any
 ) -> tuple[OperatorTerm, ...]:

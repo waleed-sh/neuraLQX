@@ -145,3 +145,21 @@ def install_model_codecs():
         encode=encode_linen,
         decode=decode_linen,
     )
+
+    from neuralqx.nn.projectors import NonVacuum
+    from neuralqx.nn.projectors import ProjectedLinen
+    from neuralqx.nn.projectors import ProjectedNNX
+
+    register_codec(
+        NonVacuum,
+        name="neuralqx.nn.projectors.NonVacuum",
+        encode=lambda p: {"vacuum": p.vacuum},
+        decode=lambda cfg: NonVacuum(**cfg),
+    )
+    for cls in (ProjectedNNX, ProjectedLinen):
+        register_codec(
+            cls,
+            name=f"neuralqx.nn.projectors.{cls.__name__}",
+            encode=lambda m: {"model": m.model, "projector": m.projector},
+            decode=lambda cfg, cls=cls: cls(**cfg),
+        )

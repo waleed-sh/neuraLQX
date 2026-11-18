@@ -27,6 +27,7 @@ and gradient code can use it without relying on a model's parameter names.
 from . import activations
 from . import layers
 from . import models
+from . import projectors
 from . import utils
 from .activations import activation
 from .activations import get_activation
@@ -55,6 +56,7 @@ __all__ = [
     "get_activation",
     "layers",
     "models",
+    "projectors",
     "reim",
     "to_linen",
     "utils",

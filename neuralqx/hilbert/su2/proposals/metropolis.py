@@ -13,7 +13,11 @@
 # limitations under the License.
 
 
-"""Shared SU(2) proposals for Metropolis sampling and random initialization."""
+"""Shared SU(2) proposals for Metropolis sampling and random initialization.
+
+No global basis or intertwiner table is enumerated. Each proposal returns
+its reverse/forward log probability ratio, acceptance belongs to the caller.
+"""
 
 from __future__ import annotations
 
@@ -27,7 +31,6 @@ import numpy as np
 import jax
 from neuralqx.hilbert.su2.recoupling import coupling_ok
 
-# TODO: this needs to be done more properly, users basically have no idea right now...
 DEFAULT_WEIGHTS = (0.45, 0.2, 0.25, 0.1)
 DEFAULT_STAY_PROBABILITY = 0.05
 
@@ -296,7 +299,7 @@ def random_metropolis_warmup(space, key, batch, n_steps):
     uniform draw. The vacuum is a legitimate outcome and is never filtered.
     """
     states = jnp.zeros((batch, space.size), dtype=jnp.int32)
-    if batch == 0 or space.two_j_max == 0 or space.n_edges == 0:
+    if batch == 0 or space.two_j_max == 0 or space.n_edges == 0 or n_steps <= 0:
         return states
 
     def step(i, current):
@@ -310,4 +313,9 @@ def random_metropolis_warmup(space, key, batch, n_steps):
         accept = log_u < jnp.minimum(correction, 0.0)
         return jnp.where(accept[:, None], candidate, current)
 
-    return jax.lax.fori_loop(0, n_steps, step, states)
+    # The first draw makes the carry vary over the same manual mesh axes as
+    # the RNG key. Starting a shard-mapped scan with constant zeros instead
+    # changes the carry's axis type on its first iteration. This preserves
+    # the exact draw sequence without assuming particular mesh-axis names.
+    states = step(0, states)
+    return jax.lax.fori_loop(1, n_steps, step, states)

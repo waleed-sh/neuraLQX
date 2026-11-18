@@ -57,8 +57,14 @@ class SU2MetropolisRule(AbstractTransitionRule):
     ergodic on the positive support of |psi|^machine_pow at fixed parameters.
     This is a support/convergence guarantee, not a bound on mixing time.
 
-    Initialization is the valid vacuum, thermalization belongs to the VQS
-    discard setting. No basis enumeration is used even for initialization.
+    Initialization uses the Hilbert space's random valid-state generator.
+    A cached exact basis permits uniform draws. Otherwise independent,
+    finite uniform-target warmups produce gauge-invariant starting states
+    without enumerating the basis. This initialization is independent of
+    the wavefunction and of this rule's training proposal weights. It does
+    not replace thermalization against the current wavefunction. Explicit
+    Hilbert initialization settings, including ``random_init="vacuum"``,
+    remain available when that starting configuration is intentional.
     """
 
     weights: tuple[float, float, float, float] = field(
@@ -104,8 +110,18 @@ class SU2MetropolisRule(AbstractTransitionRule):
         return None
 
     def random_state_local(self, sampler, apply_fn, parameters, sampler_state, key):
+        """Draw valid initial configurations using the Hilbert initialization policy.
+
+        The default policy randomizes spins and intertwiner channels before
+        the configurations enter the variational chains. Each sample shard
+        supplies its own key and local batch size through the common rule
+        interface. The vacuum remains an allowed random outcome and is the
+        only outcome when the gauge-invariant space is trivial.
+        """
         _cycle_geometry(sampler.hilbert)
-        return jnp.zeros((sampler.n_batches, sampler.hilbert.size), dtype=sampler.dtype)
+        return super().random_state_local(
+            sampler, apply_fn, parameters, sampler_state, key
+        )
 
     def global_log_proposal(self, hilbert, states):
         """Log mass for a *valid* global draw, before rejection of invalid draws.

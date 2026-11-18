@@ -97,5 +97,29 @@ class CallableFramework(AbstractModelFramework):
     ) -> Variables:
         return variables_dict(parameters, model_state)
 
+    def apply_connected(
+        self,
+        variables,
+        sources,
+        targets,
+        owners,
+        *,
+        chunk_size=None,
+        training_kwargs=None,
+    ):
+        """Retain an explicit apply function's optional exact connection evaluator."""
+        method = getattr(self.apply_fn, "connected_log_value", None)
+        if callable(method) and not training_kwargs:
+            data = variables if self.expects_variables else variables["params"]
+            return method(data, sources, targets, owners, chunk_size=chunk_size)
+        return super().apply_connected(
+            variables,
+            sources,
+            targets,
+            owners,
+            chunk_size=chunk_size,
+            training_kwargs=training_kwargs,
+        )
+
 
 __all__ = ["CallableFramework"]

@@ -38,6 +38,13 @@ class FlaxLinenFramework(AbstractModelFramework):
     def name(self) -> str:
         return "flax.linen"
 
+    @property
+    def has_projector(self) -> bool:
+        """Whether this model uses the native projected Linen wrapper."""
+        from neuralqx.nn.projectors import ProjectedLinen
+
+        return isinstance(self.model, ProjectedLinen)
+
     def __hash__(self) -> int:
         return hash((type(self), type(self.model), repr(self.model)))
 
@@ -120,21 +127,39 @@ class FlaxNNXFramework(AbstractModelFramework):
     supports_connections: bool = field(default=False, pytree=False)
     """Whether the model explicitly implements exact connected-state evaluation."""
 
+    projected_model: bool = field(default=False, static=True)
+    """Whether a projection wrapper can create exact amplitude nodes."""
+
+    @property
+    def has_projector(self) -> bool:
+        """Whether exact nodes require squared-action output coverage."""
+        return self.projected_model
+
     @property
     def name(self) -> str:
         return "flax.nnx"
 
     def __hash__(self) -> int:
-        return hash((type(self), id(self.graphdef), self.supports_connections))
+        return hash(
+            (
+                type(self),
+                id(self.graphdef),
+                self.supports_connections,
+                self.has_projector,
+            )
+        )
 
     @classmethod
     def from_model(cls, model: Any) -> tuple[FlaxNNXFramework, Variables]:
         from flax import nnx
 
+        from neuralqx.nn.projectors import ProjectedNNX
+
         graphdef, params, model_state = nnx.split(model, nnx.Param, ...)
         framework = cls(
             graphdef,
             supports_connections=callable(getattr(model, "connected_log_value", None)),
+            projected_model=isinstance(model, ProjectedNNX),
         )
         variables = framework.merge_variables(params, model_state)
         return framework, framework.place_variables(variables)

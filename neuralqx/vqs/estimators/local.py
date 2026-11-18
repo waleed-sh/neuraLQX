@@ -24,6 +24,7 @@ from plum import dispatch
 
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
+from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
 from neuralqx.utils.typing import EstimatorRule
@@ -34,6 +35,7 @@ from .kernels import discrete_operator_terms_local_values
 from .kernels import squared_operator_local_values
 from .operators import discrete_linear_terms
 from .operators import is_operator_sequence
+from .operators import needs_nodal_residual
 from .options import LocalEstimatorOptions
 from .statistics import LocalEstimators
 from .utils import validate_operator_hilbert
@@ -66,9 +68,11 @@ def local_estimators(
         connection_deduplication=connection_deduplication,
     )
     validate_operator_hilbert(vstate, operator)
-    if getattr(vstate, "importance_sampling_enabled", False) and not isinstance(
-        operator, PenaltyCost
-    ):
+    if (
+        getattr(vstate, "importance_sampling_enabled", False)
+        or contains_residual(operator)
+        or needs_nodal_residual(vstate, operator)
+    ) and not isinstance(operator, PenaltyCost):
         from .importance import importance_local_estimators
 
         return importance_local_estimators(vstate, operator, samples, options)

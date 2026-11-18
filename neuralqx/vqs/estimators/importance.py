@@ -39,6 +39,7 @@ from .connectivity import _apply_active
 from .connectivity import prepare_estimator
 from .kernels import prepare_discrete_connections
 from .operators import linear_operator_terms
+from .operators import needs_nodal_residual
 from .sharded import sample_layout
 from .utils import validate_operator_hilbert
 
@@ -53,9 +54,44 @@ def prepare_importance(vstate, operator, samples, options):
     """Prepare sparse actions once, outside differentiation of network variables."""
     validate_operator_hilbert(vstate, operator)
     measure = vstate.sampling_measure_for(samples)
+    if measure is None:
+        from neuralqx.sampler.importance import SamplingMeasure
+
+        if vstate.machine_pow != 2:
+            raise ValueError(
+                "Embedded residuals require Born sampling or an explicit importance sampling measure."
+            )
+        logs = apply_batched(
+            vstate.apply_variables_kernel,
+            vstate.variables,
+            samples.reshape((-1, vstate.hilbert.size)),
+            chunk_size=options.chunk_size,
+        )
+        density = jax.lax.stop_gradient(2 * logs.real).reshape(samples.shape[:-1])
+        measure = SamplingMeasure(density, jnp.zeros_like(density), 2.0, -1)
     flat = samples.reshape((-1, vstate.hilbert.size))
+    from neuralqx.operator.embedding import FullResidual
+    from neuralqx.operator.embedding import contains_residual
+
+    from .residual import prepare_residual
+
+    if isinstance(operator, Squared) and needs_nodal_residual(vstate, operator):
+        from neuralqx.hilbert import BasisEmbedding
+
+        # This is an identity embedding, not a projection of the operator.
+        # Output draws retain action on nodes excluded by the ansatz.
+        embedding = BasisEmbedding(vstate.hilbert, vstate.hilbert)
+        operator = FullResidual(operator, embedding)
+    if isinstance(operator, FullResidual):
+        plan = prepare_residual(vstate, operator, samples)
+        return flat, plan, (), jnp.ones(1), measure
     terms = linear_operator_terms(operator)
-    if any(isinstance(t.operator, PenaltyCost) for t in terms):
+    if any(
+        isinstance(t.operator, PenaltyCost)
+        or contains_residual(t.operator)
+        or needs_nodal_residual(vstate, t.operator)
+        for t in terms
+    ):
         children, penalties = [], []
         for term in terms:
             penalty = term.operator if isinstance(term.operator, PenaltyCost) else None
@@ -231,6 +267,18 @@ def sharded_amplitude_values(
 def evaluate_importance(vstate, variables, prepared, options):
     """Select sample-local execution while respecting model-parallel variables."""
     flat, connections, squared, coefficients, measure = prepared
+    from .residual import ResidualPlan
+    from .residual import evaluate_residual
+
+    if isinstance(connections, ResidualPlan):
+        return evaluate_residual(
+            vstate,
+            variables,
+            flat,
+            connections,
+            measure.log_density.reshape(-1),
+            options,
+        )
     if isinstance(connections, _Combination):
         total = 0
         for i, (child, penalty) in enumerate(

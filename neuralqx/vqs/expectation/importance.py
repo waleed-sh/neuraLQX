@@ -20,10 +20,11 @@ import jax.numpy as jnp
 import jax
 from neuralqx.jax.differentiation import vjp
 from neuralqx.jax.differentiation.real import split_tree_to_real
+from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.sampler.importance import WeightedLocalEstimators
-from neuralqx.vqs.estimators.importance import _Combination
 from neuralqx.vqs.estimators.importance import evaluate_importance
 from neuralqx.vqs.estimators.importance import prepare_importance
+from neuralqx.vqs.estimators.operators import linear_operator_terms
 from neuralqx.vqs.estimators.operators import sequence_is_hermitian
 from neuralqx.vqs.estimators.options import LocalEstimatorOptions
 
@@ -65,7 +66,10 @@ def importance_expect_and_grad(vstate, operator, kwargs, *, expectation_transfor
         numerator.reshape(shape), denominator.reshape(shape)
     )
     vstate._cache_importance_weights(samples, estimates.weights)
-    if not isinstance(prepared[1], _Combination):
+    if not any(
+        isinstance(term.operator, PenaltyCost)
+        for term in linear_operator_terms(operator)
+    ):
         _adapt(vstate, values, coordinates, prepared[-1], estimates, transform)
     return estimates.to_stats(), gradient
 

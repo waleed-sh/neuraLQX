@@ -33,6 +33,11 @@ class TemperedApply:
     apply: Any
     """Original model evaluator, kept static across parameter updates."""
 
+    @property
+    def has_projector(self):
+        """Preserve the base evaluator's support-initialization capability."""
+        return getattr(self.apply, "has_projector", True)
+
     def __call__(self, payload, states):
         """Evaluate the tempered log amplitude without changing physical variables."""
         variables, exponent = payload

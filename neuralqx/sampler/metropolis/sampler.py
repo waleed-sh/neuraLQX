@@ -24,12 +24,14 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.hilbert.su2 import SU2GaugeInvariantHilbert
 from neuralqx.hilbert.u1 import U1GaugeInvariantHilbert
 from neuralqx.jax.sharding import place_sample_batch
 from neuralqx.sampler._samples import n_batches as resolve_n_batches
 from neuralqx.sampler._samples import n_chains_per_device as resolve_n_chains_per_device
 from neuralqx.sampler._samples import resolve_n_chains
 from neuralqx.sampler.base import AbstractSampler
+from neuralqx.sampler.metropolis.kernel import ensure_finite_support
 from neuralqx.sampler.metropolis.kernel import sample_chain
 from neuralqx.sampler.metropolis.kernel import sample_next
 from neuralqx.sampler.metropolis.runtime import initialize_sharded_state_arrays
@@ -42,6 +44,7 @@ from neuralqx.sampler.metropolis.validation import ensure_metropolis_state
 from neuralqx.sampler.metropolis.validation import validate_rule_for_hilbert
 from neuralqx.sampler.rules import AbstractTransitionRule
 from neuralqx.sampler.rules import LocalRule
+from neuralqx.sampler.rules import SU2MetropolisRule
 from neuralqx.sampler.rules import U1GaugeRule
 from neuralqx.sampler.state import AbstractSamplerState
 from neuralqx.sampler.state import MetropolisSamplerState
@@ -53,9 +56,11 @@ class MetropolisSampler(AbstractSampler):
 
     With no explicit ``rule``, a ``U1GaugeInvariantHilbert`` uses
     ``U1GaugeRule`` to update independent charges and reconstruct dependent
-    edges. Other spaces use ``LocalRule``. An explicitly supplied rule always
-    takes precedence. ``MetropolisU1Gauge`` exposes the U(1) proposal settings
-    directly when a different update count or adjacent-charge move is needed.
+    edges. A ``SU2GaugeInvariantHilbert`` uses ``SU2MetropolisRule`` with its
+    default mixture of spin and intertwiner proposals and their Hastings
+    corrections. Other spaces use ``LocalRule``. An explicitly supplied rule
+    always takes precedence. ``MetropolisU1Gauge`` and ``MetropolisSU2`` expose
+    the corresponding proposal settings when customization is needed.
 
     Each stored configuration follows ``sweep_size`` attempted proposals per
     chain. The chain loop and batched transitions run in compiled JAX kernels.
@@ -79,15 +84,16 @@ class MetropolisSampler(AbstractSampler):
     def __post_init__(self) -> None:
         super().__post_init__()
         if self.rule is None:
-            rule = (
-                U1GaugeRule()
-                if isinstance(self.hilbert, U1GaugeInvariantHilbert)
-                else LocalRule()
-            )
+            if isinstance(self.hilbert, U1GaugeInvariantHilbert):
+                rule = U1GaugeRule()
+            elif isinstance(self.hilbert, SU2GaugeInvariantHilbert):
+                rule = SU2MetropolisRule()
+            else:
+                rule = LocalRule()
             object.__setattr__(self, "rule", rule)
         if not isinstance(self.rule, AbstractTransitionRule):
             raise TypeError(
-                f"rule must be an AbstractTransitionRule; got {type(self.rule).__name__}."
+                f"rule must be an AbstractTransitionRule, got {type(self.rule).__name__}."
             )
         validate_rule_for_hilbert(self.rule, self.hilbert.size)
         if isinstance(self.rule, U1GaugeRule):
@@ -248,6 +254,7 @@ class MetropolisSampler(AbstractSampler):
         parameters: Any,
         state: MetropolisSamplerState,
     ) -> tuple[MetropolisSamplerState, tuple[jax.Array, jax.Array]]:
+        state = ensure_finite_support(self, apply_fn, parameters, state)
         return sample_next(self, apply_fn, parameters, state)
 
     def _sample_chain(
@@ -313,7 +320,7 @@ class MetropolisSampler(AbstractSampler):
         expected = (int(sigma.shape[0]),)
         if out.shape != expected:
             raise ValueError(
-                "apply_fn must return one scalar per chain; "
+                "apply_fn must return one scalar per chain, "
                 f"got shape {out.shape}, expected {expected}."
             )
         return out

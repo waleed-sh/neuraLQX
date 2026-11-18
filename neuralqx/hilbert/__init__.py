@@ -68,6 +68,7 @@ from .u1 import PlaquetteFlipSingleGauge
 from .u1 import U1GaugeInvariantHilbert
 from .u1 import U1Hilbert
 from .u1 import UnconstrainedU1Hilbert
+from .embedding import BasisEmbedding
 
 __all__ = [
     "AbstractConstraint",
@@ -78,6 +79,7 @@ __all__ = [
     "AbstractProposalMove",
     "AdjacentSiteUpdate",
     "AndConstraint",
+    "BasisEmbedding",
     "CallableDiscreteConstraint",
     "ConstrainedU1Hilbert",
     "DiscreteHilbertSpace",
