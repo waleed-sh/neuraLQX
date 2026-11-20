@@ -25,6 +25,7 @@ from neuralqx.callbacks import CallbackContext
 from neuralqx.callbacks import CallbackPipeline
 from neuralqx.callbacks import ProgressBar
 from neuralqx.callbacks import StopRun
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.io.logging import as_logger
 
 
@@ -77,9 +78,9 @@ class AbstractVariationalDriver(abc.ABC):
     def iter(self, n_steps: int, *, step_size: int = 1):
         """Yield step numbers while advancing the driver."""
         if n_steps < 0:
-            raise ValueError("n_steps must be non-negative.")
+            raise NeuralqxValueError("n_steps must be non-negative.")
         if step_size <= 0:
-            raise ValueError("step_size must be positive.")
+            raise NeuralqxValueError("step_size must be positive.")
         for _ in range(0, int(n_steps), int(step_size)):
             for inner in range(int(step_size)):
                 self.reset_step()
@@ -106,7 +107,7 @@ class AbstractVariationalDriver(abc.ABC):
     ) -> list[dict[str, Any]]:
         """Run the optimization loop and return in-memory log records."""
         if callbacks is not None and callback is not None:
-            raise ValueError("Pass either callbacks or callback, not both.")
+            raise NeuralqxValueError("Pass either callbacks or callback, not both.")
         runtime_logger = as_logger(logger)
         self._logger = runtime_logger
         default_callbacks = (

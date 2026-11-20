@@ -24,6 +24,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,9 @@ def split_tree_to_real(tree: Any) -> tuple[Any, Callable[[Any], Any]]:
                 rebuilt.append(values[index])
                 index += 1
         if index != len(values):
-            raise ValueError("Real-coordinate pytree has incompatible structure.")
+            raise NeuralqxValueError(
+                "Real-coordinate pytree has incompatible structure."
+            )
         return jax.tree_util.tree_unflatten(treedef, rebuilt)
 
     return real_tree, reassemble

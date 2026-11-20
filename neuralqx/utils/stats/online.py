@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 
 from .core import Stats
@@ -50,7 +51,7 @@ class OnlineStats(Struct):
         """Create an empty accumulator for ``n_chains`` independent chains."""
         n_chains = int(n_chains)
         if n_chains <= 0:
-            raise ValueError("n_chains must be positive.")
+            raise NeuralqxValueError("n_chains must be positive.")
         return cls(
             chain_count=jnp.zeros((n_chains,), dtype=jnp.float64),
             chain_mean=jnp.zeros((n_chains,), dtype=dtype),
@@ -73,7 +74,7 @@ class OnlineStats(Struct):
         """Return a new accumulator with ``values`` merged in."""
         matrix = as_chain_matrix(values, chain_axis=chain_axis)
         if matrix.shape[0] != self.n_chains:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Number of chains changed: expected {self.n_chains}, "
                 f"got {matrix.shape[0]}."
             )

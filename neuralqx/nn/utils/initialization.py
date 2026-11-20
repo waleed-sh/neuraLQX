@@ -20,6 +20,8 @@ import operator
 import jax.numpy as jnp
 from flax import nnx
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 
 def as_rngs(rngs):
     """Accept an NNX RNG stream, integer seed, or JAX PRNG key.
@@ -33,13 +35,13 @@ def as_rngs(rngs):
 def positive_int(value, name):
     """Validate a positive static dimension without silently rounding it."""
     if isinstance(value, bool):
-        raise ValueError(f"{name} must be a positive integer.")
+        raise NeuralqxValueError(f"{name} must be a positive integer.")
     try:
         value = operator.index(value)
     except TypeError:
-        raise ValueError(f"{name} must be a positive integer.") from None
+        raise NeuralqxValueError(f"{name} must be a positive integer.") from None
     if value < 1:
-        raise ValueError(f"{name} must be a positive integer.")
+        raise NeuralqxValueError(f"{name} must be a positive integer.")
     return value
 
 
@@ -52,7 +54,7 @@ def input_array(states, features, dtype):
     """Check the final feature axis and cast inputs to the model's compute dtype."""
     states = jnp.asarray(states, dtype=dtype)
     if states.ndim == 0 or states.shape[-1] != features:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Expected a final input axis of length {features}, got {states.shape}."
         )
     return states
@@ -70,11 +72,13 @@ def compute_dtype(dtype, param_dtype):
     if not jnp.issubdtype(parameter, jnp.inexact) or not jnp.issubdtype(
         resolved, jnp.inexact
     ):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Model computation and parameter dtypes must be floating point or complex."
         )
     if jnp.issubdtype(parameter, jnp.complexfloating) and not jnp.issubdtype(
         resolved, jnp.complexfloating
     ):
-        raise ValueError("Complex parameters require a complex computation dtype.")
+        raise NeuralqxValueError(
+            "Complex parameters require a complex computation dtype."
+        )
     return resolved

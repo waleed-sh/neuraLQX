@@ -17,6 +17,8 @@
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from .base import DiagonalProjector
 
 
@@ -50,7 +52,7 @@ class NonVacuum(DiagonalProjector, name="nonvacuum"):
         states = jnp.asarray(states)
         vacuum = jnp.asarray(self.vacuum)
         if vacuum.ndim > 1 or (vacuum.ndim == 1 and vacuum.shape != states.shape[-1:]):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "vacuum must be a scalar or a vector matching the configuration size."
             )
         return jnp.any(states != vacuum, axis=-1)

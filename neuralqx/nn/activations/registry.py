@@ -22,6 +22,9 @@ from functools import wraps
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
+
 
 @dataclass(frozen=True)
 class ActivationSpec:
@@ -59,7 +62,7 @@ class ActivationSpec:
             and self.supports_complex is False
             and jnp.issubdtype(jnp.dtype(dtype), jnp.complexfloating)
         ):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"Activation {self.name!r} accepts real inputs only. "
                 f"Use reim({self.name!r}) to apply it separately to real and imaginary "
                 "components, or choose an activation with a native complex implementation."
@@ -140,17 +143,17 @@ def activation(
 
     def register(fn):
         if not callable(fn):
-            raise TypeError("An activation must be callable.")
+            raise NeuralqxTypeError("An activation must be callable.")
         key = name if name is not None else getattr(fn, "__name__", None)
         if not isinstance(key, str) or not key.strip():
-            raise ValueError("An activation needs a nonempty name.")
+            raise NeuralqxValueError("An activation needs a nonempty name.")
         if key in _REGISTRY and not replace:
-            raise ValueError(f"Activation {key!r} is already registered.")
+            raise NeuralqxValueError(f"Activation {key!r} is already registered.")
         if any(
             flag is not None and not isinstance(flag, bool)
             for flag in (elementwise, supports_complex)
         ):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "elementwise and supports_complex must be booleans or None."
             )
         inherited = getattr(fn, "_neuralqx_activation_spec", None)
@@ -181,12 +184,14 @@ def activation_spec(value, *, dtype=None) -> ActivationSpec:
         try:
             spec = _REGISTRY[value]
         except KeyError:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Unknown activation {value!r}. Available: {', '.join(available_activations())}"
             ) from None
     else:
         if not callable(value):
-            raise TypeError("An activation must be a registered name or a callable.")
+            raise NeuralqxTypeError(
+                "An activation must be a registered name or a callable."
+            )
         attached = getattr(value, "_neuralqx_activation_spec", None)
         if isinstance(attached, ActivationSpec) and attached.function is value:
             spec = attached

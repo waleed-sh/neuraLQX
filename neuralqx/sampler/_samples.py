@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import warnings
 
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxValueError
+
 
 def device_count_for_samples(*, sample_sharding: bool, device_count: int) -> int:
     """Number of devices participating in sample-axis work."""
@@ -38,21 +41,23 @@ def resolve_n_chains(
         device_count=device_count,
     )
     if n_chains is not None and n_chains_per_device is not None:
-        raise ValueError("Specify either n_chains or n_chains_per_device, not both.")
+        raise NeuralqxValueError(
+            "Specify either n_chains or n_chains_per_device, not both."
+        )
     if n_chains_per_device is None and n_chains is None:
         n_chains_per_device = 16
     if n_chains_per_device is not None:
         if n_chains_per_device <= 0:
-            raise ValueError("n_chains_per_device must be positive.")
+            raise NeuralqxValueError("n_chains_per_device must be positive.")
         return int(n_chains_per_device) * n_devices
     if n_chains is None or n_chains <= 0:
-        raise ValueError("n_chains must be positive.")
+        raise NeuralqxValueError("n_chains must be positive.")
     chains_per_device = max((int(n_chains) + n_devices - 1) // n_devices, 1)
     resolved = chains_per_device * n_devices
     if resolved != int(n_chains):
         warnings.warn(
             f"Using n_chains={resolved} so chains divide evenly across "
-            f"{n_devices} sample device(s), requested n_chains={n_chains}.",
+            f"{n_devices} sample device(s); requested n_chains={n_chains}.",
             UserWarning,
             stacklevel=3,
         )
@@ -72,7 +77,7 @@ def n_chains_per_device(
     )
     per_device, remainder = divmod(int(n_chains), n_devices)
     if remainder:
-        raise RuntimeError("n_chains must be divisible by sample device count.")
+        raise NeuralqxRuntimeError("n_chains must be divisible by sample device count.")
     return per_device
 
 
@@ -95,9 +100,9 @@ def n_batches(
 def adjusted_sample_count(n_samples: int, n_chains: int) -> tuple[int, int]:
     """Return ``(adjusted_samples, chain_length)`` nearest-divisible by chains."""
     if n_samples <= 0:
-        raise ValueError("n_samples must be positive.")
+        raise NeuralqxValueError("n_samples must be positive.")
     if n_chains <= 0:
-        raise ValueError("n_chains must be positive.")
+        raise NeuralqxValueError("n_chains must be positive.")
     lower = (int(n_samples) // int(n_chains)) * int(n_chains)
     upper = lower + int(n_chains)
     if lower == 0:
@@ -119,7 +124,7 @@ def chain_length_from_samples(
     adjusted, chain_length = adjusted_sample_count(n_samples, n_chains)
     if warn and adjusted != int(n_samples):
         warnings.warn(
-            f"n_samples={n_samples} is not divisible by n_chains={n_chains}, "
+            f"n_samples={n_samples} is not divisible by n_chains={n_chains}; "
             f"using n_samples={adjusted} and chain_length={chain_length}.",
             UserWarning,
             stacklevel=3,

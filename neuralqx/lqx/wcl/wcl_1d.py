@@ -23,6 +23,7 @@ from neuralqx.lqx.base import LQXModel
 from neuralqx.operator.prebuilt import wcl
 from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 class LqxWCL1D(LQXModel):
@@ -106,7 +107,7 @@ class LqxWCL1D(LQXModel):
         if edge is None:
             self._not_implemented("holonomy", "Select an edge with get_holonomy(edge).")
         if int(dimension) != 1:
-            raise ValueError("LqxWCL1D only supports dimension=1 holonomies.")
+            raise NeuralqxValueError("LqxWCL1D only supports dimension=1 holonomies.")
         return wcl.U1HolonomyOperator(
             self.hilbert, edge, adjoint_flag=adjoint, copy=copy
         )
@@ -128,7 +129,9 @@ class LqxWCL1D(LQXModel):
             copy: Component index, which must be zero in a single-copy space.
         """
         if int(dimension) != 1:
-            raise ValueError("LqxWCL1D only supports dimension=1 loop holonomies.")
+            raise NeuralqxValueError(
+                "LqxWCL1D only supports dimension=1 loop holonomies."
+            )
         return wcl.MinimalLoopHolonomyOperator(
             self.hilbert,
             loop,

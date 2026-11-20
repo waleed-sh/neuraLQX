@@ -25,6 +25,7 @@ from __future__ import annotations
 import abc
 from typing import Literal
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import StructABCMeta
 from neuralqx.utils.struct import field
@@ -66,7 +67,7 @@ class UniformSiteUpdate(AbstractProposalMove):
     def __post_init__(self) -> None:
         """Validates the number of selected sites."""
         if self.n_sites <= 0:
-            raise ValueError("n_sites must be > 0.")
+            raise NeuralqxValueError("n_sites must be > 0.")
 
     def __hash__(self) -> int:
         """Returns a structural hash for the move descriptor."""
@@ -93,9 +94,9 @@ class AdjacentSiteUpdate(AbstractProposalMove):
     def __post_init__(self) -> None:
         """Validates the number of selected sites and boundary mode."""
         if self.n_sites <= 0:
-            raise ValueError("n_sites must be > 0.")
+            raise NeuralqxValueError("n_sites must be > 0.")
         if self.boundary not in ("wrap", "clamp"):
-            raise ValueError("boundary must be either 'wrap' or 'clamp'.")
+            raise NeuralqxValueError("boundary must be either 'wrap' or 'clamp'.")
 
     def __hash__(self) -> int:
         """Returns a structural hash for the move descriptor."""

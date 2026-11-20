@@ -13,14 +13,19 @@
 # limitations under the License.
 
 
+"""Graph loops."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import Mapping
 from collections.abc import Sequence
-from typing import overload
 from typing import cast
+from typing import overload
+
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .dressing import DressingType
 from .dressing import EdgeDressing
@@ -61,7 +66,7 @@ class Loop:
             return value
         if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
             return cls(value)
-        raise TypeError(
+        raise NeuralqxTypeError(
             f"A loop must be a Loop or an iterable of edges; got {value!r}."
         )
 
@@ -80,16 +85,16 @@ class Loop:
     @staticmethod
     def _validate_edges(edges: tuple[Edge, ...]) -> None:
         if not edges:
-            raise ValueError("A loop must contain at least one edge.")
+            raise NeuralqxValueError("A loop must contain at least one edge.")
         for index, (edge, next_edge) in enumerate(zip(edges, edges[1:])):
             if edge.end != next_edge.start:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "Loop edges must be ordered head-to-tail; "
                     f"edge {index} ends at {edge.end!r}, but edge "
                     f"{index + 1} starts at {next_edge.start!r}."
                 )
         if edges[-1].end != edges[0].start:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Loop edges must close; the final edge ends at "
                 f"{edges[-1].end!r}, but the first edge starts at {edges[0].start!r}."
             )
@@ -186,7 +191,7 @@ class Loop:
     ) -> tuple[EdgeDressing, ...]:
         items = tuple(value)
         if len(items) != self.length:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Loop dressing has length {len(items)}, expected {self.length}."
             )
 
@@ -195,7 +200,7 @@ class Loop:
             if _is_dressed_edge(item):
                 edge, dressing = _coerce_dressed_edge(item)
                 if edge != self._edges[index]:
-                    raise ValueError(
+                    raise NeuralqxValueError(
                         "Dressed edge does not match the loop edge at index "
                         f"{index}: expected {self._edges[index]!r}, got {edge!r}."
                     )
@@ -203,7 +208,7 @@ class Loop:
                 dressing = _coerce_edge_dressing(item)
 
             if dressing["key"] != self._edges[index].key:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "Dressing key does not match the loop edge key at index "
                     f"{index}: expected {self._edges[index].key}, "
                     f"got {dressing['key']}."
@@ -253,7 +258,7 @@ def _is_dressed_edge(value: object) -> bool:
 
 def _coerce_dressed_edge(value: object) -> tuple[Edge, EdgeDressing]:
     if not _is_dressed_edge(value):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "Dressed edges must be ``(edge, dressing)`` pairs; " f"got {value!r}."
         )
     edge, dressing = cast(Sequence[object], value)
@@ -266,20 +271,24 @@ def _copy_edge_dressing(value: EdgeDressing) -> EdgeDressing:
 
 def _coerce_edge_dressing(value: object) -> EdgeDressing:
     if not isinstance(value, Mapping):
-        raise TypeError(f"Edge dressing must be a mapping; got {value!r}.")
+        raise NeuralqxTypeError(f"Edge dressing must be a mapping; got {value!r}.")
 
     edge_type = value.get("type")
     if edge_type not in ("creation", "annihilation"):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Edge dressing field 'type' must be 'creation' or 'annihilation'; "
             f"got {edge_type!r}."
         )
 
     key = value.get("key")
     if isinstance(key, bool) or not isinstance(key, int):
-        raise TypeError(f"Edge dressing field 'key' must be an integer; got {key!r}.")
+        raise NeuralqxTypeError(
+            f"Edge dressing field 'key' must be an integer; got {key!r}."
+        )
     if key < 0:
-        raise ValueError(f"Edge dressing field 'key' must be non-negative; got {key}.")
+        raise NeuralqxValueError(
+            f"Edge dressing field 'key' must be non-negative; got {key}."
+        )
 
     return {"type": cast(DressingType, edge_type), "key": key}
 

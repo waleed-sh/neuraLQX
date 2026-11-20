@@ -33,6 +33,7 @@ expansion, and Projector accepts any pure JAX implementation of a projection.
 Registration is a construction-time lookup and adds no work to a JIT kernel.
 """
 
+from neuralqx.utils.errors import NeuralqxAttributeError
 from neuralqx.utils.struct import field
 
 from .base import DiagonalProjector
@@ -52,7 +53,9 @@ def __getattr__(name):
     try:
         return _projector_decorator(name)
     except KeyError:
-        raise AttributeError(f"No projector named {name!r} is registered.") from None
+        raise NeuralqxAttributeError(
+            f"No projector named {name!r} is registered."
+        ) from None
 
 
 def __dir__():

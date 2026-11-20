@@ -31,6 +31,8 @@ from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.tree import tree_axpy
 from neuralqx.jax.tree import tree_cast_like
 from neuralqx.jax.tree import tree_size
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.frameworks import AbstractModelFramework
 from neuralqx.utils.struct import field
 from neuralqx.vqs.estimators.utils import flatten_samples
@@ -69,30 +71,32 @@ class QGTOnTheFly(LinearOperator):
             _hashable_training_kwargs(self.training_kwargs),
         )
         if self.samples is None:
-            raise ValueError("QGTOnTheFly requires samples.")
+            raise NeuralqxValueError("QGTOnTheFly requires samples.")
         if self.hilbert_size <= 0:
             object.__setattr__(
                 self, "hilbert_size", int(jnp.asarray(self.samples).shape[-1])
             )
         if self.mode not in {"real", "complex", "holomorphic"}:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"QGTOnTheFly mode must be 'real', 'complex', or 'holomorphic', got {self.mode!r}."
             )
 
         if self.sample_weights is not None:
             expected = jnp.asarray(self.samples).shape[:-1]
             if jnp.asarray(self.sample_weights).shape != expected:
-                raise ValueError(
-                    "sample_weights must match samples.shape[:-1]; "
+                raise NeuralqxValueError(
+                    "sample_weights must match samples.shape[:-1], "
                     f"got {jnp.asarray(self.sample_weights).shape} and expected {expected}."
                 )
             if not bool(jnp.all(jnp.isfinite(jnp.asarray(self.sample_weights)))):
-                raise ValueError("sample_weights must be finite.")
+                raise NeuralqxValueError("sample_weights must be finite.")
             if bool(jnp.any(jnp.asarray(self.sample_weights) < 0)):
-                raise ValueError("sample_weights must be nonnegative.")
+                raise NeuralqxValueError("sample_weights must be nonnegative.")
             total_weight = jnp.sum(jnp.asarray(self.sample_weights))
             if not bool(jnp.isfinite(total_weight)) or float(total_weight) == 0.0:
-                raise ValueError("sample_weights must have a finite nonzero sum.")
+                raise NeuralqxValueError(
+                    "sample_weights must have a finite nonzero sum."
+                )
 
     @classmethod
     def from_vstate(
@@ -109,7 +113,9 @@ class QGTOnTheFly(LinearOperator):
     ) -> QGTOnTheFly:
         """Build an on-the-fly QGT from a variational state's current samples."""
         if diag_scale is not None:
-            raise NotImplementedError("QGTOnTheFly does not support diag_scale yet.")
+            raise NeuralqxNotImplementedError(
+                "QGTOnTheFly does not support diag_scale yet."
+            )
         samples = vstate.samples if samples is None else samples
         if sample_weights is None and getattr(
             vstate, "importance_sampling_enabled", False
@@ -159,14 +165,14 @@ class QGTOnTheFly(LinearOperator):
     def __matmul__(self, vector: Any) -> Any:
         if hasattr(vector, "ndim"):
             if vector.ndim != 1:
-                raise ValueError("Dense QGT matvec expects a rank-1 vector.")
+                raise NeuralqxValueError("Dense QGT matvec expects a rank-1 vector.")
             coordinate_parameters, _ = _coordinate_parameters(
                 self.parameters,
                 self.mode,
             )
             flat_params, unravel = ravel_pytree(coordinate_parameters)
             if vector.size != flat_params.size:
-                raise ValueError(
+                raise NeuralqxValueError(
                     f"Vector size {vector.size} does not match parameter size {flat_params.size}."
                 )
             if self.mode == "holomorphic":
@@ -178,7 +184,7 @@ class QGTOnTheFly(LinearOperator):
         if jax.tree_util.tree_structure(vector) != jax.tree_util.tree_structure(
             self.parameters
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "QGT vector pytree must match the parameter pytree structure."
             )
         return _qgt_matvec_tree(self, vector)
@@ -244,7 +250,7 @@ class _LinearizedQGT(LinearOperator):
         if flat_vector:
             reference, unravel = ravel_pytree(coordinates)
             if vector.ndim != 1 or vector.size != reference.size:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "QGT vector must match the flattened parameter coordinates."
                 )
             coordinate_vector = unravel(vector)

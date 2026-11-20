@@ -13,22 +13,13 @@
 # limitations under the License.
 
 
-"""Errors raised before a checkpoint can change a live object."""
+"""Errors raised before a checkpoint can change a live object.
 
-from neuralqx.utils.errors import SerializationError
+Canonical definitions live in neuralqx.utils.errors. These imports preserve
+existing public exception paths.
+"""
 
+from neuralqx.utils.errors import CheckpointError
+from neuralqx.utils.errors import ReconstructionError
 
-class CheckpointError(SerializationError):
-    """An incomplete, incompatible, or malformed .nqx checkpoint was encountered."""
-
-    message: str
-    """Plain diagnostic text suitable for checkpoint metadata or collective errors."""
-
-    def __init__(self, message):
-        """Keep the plain reason alongside the standard package error formatting."""
-        self.message = message
-        super().__init__(message)
-
-
-class ReconstructionError(CheckpointError):
-    """A saved component needs an explicitly supplied template or registered codec."""
+__all__ = ["CheckpointError", "ReconstructionError"]

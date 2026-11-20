@@ -36,6 +36,8 @@ from urllib.parse import urlsplit
 
 import numpy as np
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from .base import Callback
 from .control import CallbackControl
 
@@ -108,9 +110,9 @@ class LiveMonitor:
         queue_size=32,
     ):
         if not 0 <= int(port) <= 65535:
-            raise ValueError("port must be between 0 and 65535.")
+            raise NeuralqxValueError("port must be between 0 and 65535.")
         if int(max_points) < 2 or int(queue_size) < 1 or int(update_interval_ms) < 50:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Require max_points >= 2, queue_size >= 1, and update_interval_ms >= 50."
             )
         self.host = str(host)
@@ -281,7 +283,7 @@ class LiveMonitor:
     def finish(self, status="completed"):
         """Flush pending updates in order and leave the final dashboard available."""
         if status not in {"completed", "stopped", "failed"}:
-            raise ValueError("Unknown monitor completion status.")
+            raise NeuralqxValueError("Unknown monitor completion status.")
         if self._status == "running" and not self._closed.is_set():
             self._finish_status = status
 
@@ -459,7 +461,7 @@ class LiveMonitoringCallback(Callback):
         close_on_finish=False,
     ):
         if int(every) < 1 or not math.isfinite(float(min_interval)) or min_interval < 0:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "every must be positive and min_interval finite and nonnegative."
             )
         self.every = int(every)

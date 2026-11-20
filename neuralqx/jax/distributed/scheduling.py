@@ -20,6 +20,7 @@ from __future__ import annotations
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def schedule_balanced_slots(
@@ -35,9 +36,9 @@ def schedule_balanced_slots(
     the sentinel index ``len(costs)`` and are expected to map to zero work.
     """
     if partitions <= 0:
-        raise ValueError("Partition count must be positive.")
+        raise NeuralqxValueError("Partition count must be positive.")
     if not costs:
-        raise ValueError("Scheduling requires at least one cost.")
+        raise NeuralqxValueError("Scheduling requires at least one cost.")
 
     n_items = len(costs)
     slots_per_partition = (n_items + int(partitions) - 1) // int(partitions)

@@ -24,9 +24,11 @@ structures to subclasses.
 from __future__ import annotations
 
 import abc
-
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxKeyError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import DressedMinimalLoop
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import EdgeLike
@@ -47,7 +49,7 @@ from .utils import validate_vertices
 class AbstractGraph(abc.ABC):
     """A canonical graph boundary shared by all graph implementations.
 
-    The base class owns only the universal graph boundary logic. Canonical edge
+    The base class owns only the universal graph boundary logic: canonical edge
     construction, vertex discovery, planarity flagging, and deterministic
     optional embeddings. Concrete subclasses provide derived graph structures
     such as edge mappings, dual graphs, loops, and signs.
@@ -113,7 +115,7 @@ class AbstractGraph(abc.ABC):
 
         if random_embedding:
             if self._is_planar:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "Random embeddings are only available for non-planar graphs."
                 )
             canonical_edges, self._embedding_map = randomize_vertices(
@@ -314,7 +316,7 @@ class AbstractGraph(abc.ABC):
         canonical_edge = Edge.from_like(edge)
         index = _edge_to_index(canonical_edge, self.mapping)
         if index is None:
-            raise KeyError(f"Unknown graph edge {canonical_edge!r}.")
+            raise NeuralqxKeyError(f"Unknown graph edge {canonical_edge!r}.")
         return index
 
     def index_to_edge(self, index: int) -> Edge:
@@ -332,7 +334,7 @@ class AbstractGraph(abc.ABC):
         try:
             return self.inverse_mapping[index]
         except KeyError as exc:
-            raise IndexError(f"Edge index {index} is out of range.") from exc
+            raise NeuralqxIndexError(f"Edge index {index} is out of range.") from exc
 
     def valence(self, vertex: VertexLike) -> int:
         """Returns the number of canonical edges incident to a vertex.

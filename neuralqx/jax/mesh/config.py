@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from neuralqx.config import config
+from neuralqx.utils.errors import NeuralqxValueError
 
 LOGICAL_AXIS_ORDER = ("samples", "parameters", "operators")
 
@@ -76,7 +77,7 @@ def logical_axis_name(axis: str) -> str:
     try:
         return names[axis]
     except KeyError as exc:
-        raise ValueError(f"Unknown logical mesh axis {axis!r}.") from exc
+        raise NeuralqxValueError(f"Unknown logical mesh axis {axis!r}.") from exc
 
 
 __all__ = [

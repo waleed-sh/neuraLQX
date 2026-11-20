@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def as_chain_matrix(values: Any, *, chain_axis: int | None = 0) -> jax.Array:
@@ -40,7 +41,9 @@ def as_chain_matrix(values: Any, *, chain_axis: int | None = 0) -> jax.Array:
     if axis < 0:
         axis += arr.ndim
     if axis < 0 or axis >= arr.ndim:
-        raise ValueError(f"chain_axis={chain_axis} is invalid for shape {arr.shape}.")
+        raise NeuralqxValueError(
+            f"chain_axis={chain_axis} is invalid for shape {arr.shape}."
+        )
     arr = jnp.moveaxis(arr, axis, 0)
     return arr.reshape((arr.shape[0], -1))
 

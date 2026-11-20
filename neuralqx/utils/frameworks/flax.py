@@ -22,6 +22,9 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .base import AbstractModelFramework
@@ -74,11 +77,13 @@ class FlaxLinenFramework(AbstractModelFramework):
 
     def split_variables(self, variables: Variables) -> tuple[Any, Any]:
         if not isinstance(variables, dict) and not hasattr(variables, "keys"):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "Flax Linen variables must be a mapping with a 'params' collection."
             )
         if "params" not in variables:
-            raise ValueError("Flax Linen variables must contain a 'params' collection.")
+            raise NeuralqxValueError(
+                "Flax Linen variables must contain a 'params' collection."
+            )
         params = variables["params"]
         state = {key: value for key, value in variables.items() if key != "params"}
         return params, state
@@ -172,7 +177,7 @@ class FlaxNNXFramework(AbstractModelFramework):
         dtype: Any,
     ) -> Variables:
         del key, input_shape, dtype
-        raise RuntimeError(
+        raise NeuralqxRuntimeError(
             "Flax NNX modules are initialized by constructing the module. "
             "Pass the initialized NNX module to as_framework(...)."
         )
@@ -223,11 +228,13 @@ class FlaxNNXFramework(AbstractModelFramework):
 
     def split_variables(self, variables: Variables) -> tuple[Any, Any]:
         if not isinstance(variables, dict):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "Flax NNX variables must be a {'params': ..., 'state': ...} dict."
             )
         if "params" not in variables:
-            raise ValueError("Flax NNX variables must contain a 'params' state.")
+            raise NeuralqxValueError(
+                "Flax NNX variables must contain a 'params' state."
+            )
         return variables["params"], variables.get("state")
 
     def merge_variables(

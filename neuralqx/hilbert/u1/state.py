@@ -24,10 +24,11 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.hilbert.layout import HilbertStateView
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 class U1StateMixin:
@@ -155,7 +156,7 @@ class U1StateMixin:
         arr = jnp.asarray(values)
         expected = (int(self.gauge_dimensions), int(self.tiny_size))
         if arr.shape[-2:] != expected:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Gauge view trailing shape does not match (gauge_dimensions, n_edges)."
             )
         return arr.reshape((*arr.shape[:-2], self.size))
@@ -177,4 +178,6 @@ class U1StateMixin:
 def _validate_trailing_size(arr: jax.Array, size: int, name: str) -> None:
     """Validates the trailing dimension of a U(1) state-like array."""
     if arr.shape[-1] != size:
-        raise ValueError(f"{name} trailing dimension {arr.shape[-1]}, expected {size}.")
+        raise NeuralqxValueError(
+            f"{name} trailing dimension {arr.shape[-1]}, expected {size}."
+        )

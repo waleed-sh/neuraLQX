@@ -26,14 +26,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.graph import AbstractGraph
 from neuralqx.hilbert.local import AbstractLocalSpace
 from neuralqx.hilbert.local import VectorRange
 from neuralqx.hilbert.local.vector import coerce_dof_space
 from neuralqx.hilbert.local.vector import dof_width
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxKeyError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 from neuralqx.utils.typing import DofSpace
@@ -57,7 +60,6 @@ class HilbertStateView(Struct):
 
     edges: Any | None = field(pytree=True, default=None)
     """Edge block or tuple of edge values from a flat state."""
-
     vertices: Any | None = field(pytree=True, default=None)
     """Vertex block or tuple of vertex values from a flat state."""
 
@@ -87,16 +89,12 @@ class GraphHilbertLayout(Struct):
 
     graph: AbstractGraph = field(pytree=False)
     """Graph whose edges and vertices define the semantic entities."""
-
     edge_space: DofSpace | None = field(static=True, default=None)
     """Default degree-of-freedom declaration for every edge."""
-
     vertex_space: DofSpace | None = field(static=True, default=None)
     """Default degree-of-freedom declaration for every vertex."""
-
     edge_spaces: tuple[DofSpace | None, ...] | None = field(static=True, default=None)
     """Per-edge degree-of-freedom declarations after normalization."""
-
     vertex_spaces: tuple[DofSpace | None, ...] | None = field(static=True, default=None)
     """Per-vertex degree-of-freedom declarations after normalization."""
 
@@ -113,7 +111,9 @@ class GraphHilbertLayout(Struct):
             self.graph.n_vertices,
         )
         if all(space is None for space in edge_spaces + vertex_spaces):
-            raise ValueError("At least one edge or vertex local space must be set.")
+            raise NeuralqxValueError(
+                "At least one edge or vertex local space must be set."
+            )
         object.__setattr__(self, "edge_spaces", edge_spaces)
         object.__setattr__(self, "vertex_spaces", vertex_spaces)
         object.__setattr__(self, "edge_space", _uniform_space(edge_spaces))
@@ -216,7 +216,7 @@ class GraphHilbertLayout(Struct):
         """
         arr = jnp.asarray(states)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]} != layout size {self.size}."
             )
         edges = self._view_entities(arr, start=0, widths=self.edge_widths)
@@ -348,7 +348,7 @@ class GraphHilbertLayout(Struct):
             IndexError: If ``site`` is not inside the edge block.
         """
         if site < 0 or site >= self.edge_size:
-            raise IndexError(f"site={site} is not an edge site.")
+            raise NeuralqxIndexError(f"site={site} is not an edge site.")
         return _entity_from_site(site, self.edge_widths, "edge")
 
     def site_to_vertex(self, site: int) -> tuple[int, int]:
@@ -365,7 +365,7 @@ class GraphHilbertLayout(Struct):
         """
         rel = site - self.edge_size
         if rel < 0 or rel >= self.vertex_size:
-            raise IndexError(f"site={site} is not a vertex site.")
+            raise NeuralqxIndexError(f"site={site} is not a vertex site.")
         return _entity_from_site(rel, self.vertex_widths, "vertex")
 
     def _view_entities(
@@ -443,12 +443,12 @@ class GraphHilbertLayout(Struct):
         """
         if not widths or all(width == 0 for width in widths):
             if values is not None:
-                raise ValueError(
+                raise NeuralqxValueError(
                     f"{name} were provided, but this layout has no {name}."
                 )
             return None
         if values is None:
-            raise ValueError(f"{name} are required by this layout.")
+            raise NeuralqxValueError(f"{name} are required by this layout.")
 
         uniform = _common_positive_width(widths)
         if uniform is not None:
@@ -476,12 +476,12 @@ class GraphHilbertLayout(Struct):
         arr = jnp.asarray(values)
         if width == 1:
             if arr.shape[-1:] != (entities,):
-                raise ValueError(
+                raise NeuralqxValueError(
                     f"{name} trailing shape {arr.shape[-1:]} != ({entities},)."
                 )
             return arr.reshape((*arr.shape[:-1], entities))
         if arr.shape[-2:] != (entities, width):
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"{name} trailing shape {arr.shape[-2:]} != ({entities}, {width})."
             )
         component_major = jnp.swapaxes(arr, -1, -2)
@@ -504,23 +504,27 @@ class GraphHilbertLayout(Struct):
             Flat component-major array containing all non-empty entity values.
         """
         if not isinstance(values, Sequence) or len(values) != len(widths):
-            raise ValueError(f"{name} must be a sequence with {len(widths)} entries.")
+            raise NeuralqxValueError(
+                f"{name} must be a sequence with {len(widths)} entries."
+            )
         parts = []
         coerced = []
         for idx, (value, width) in enumerate(zip(values, widths, strict=True)):
             if width == 0:
                 if value is not None:
-                    raise ValueError(f"{name}[{idx}] must be None.")
+                    raise NeuralqxValueError(f"{name}[{idx}] must be None.")
                 coerced.append(None)
                 continue
             if value is None:
-                raise ValueError(f"{name}[{idx}] is required.")
+                raise NeuralqxValueError(f"{name}[{idx}] is required.")
             arr = jnp.asarray(value)
             if width == 1:
                 coerced.append(jnp.expand_dims(arr, axis=-1))
                 continue
             if arr.shape[-1:] != (width,):
-                raise ValueError(f"{name}[{idx}] trailing shape must be ({width},).")
+                raise NeuralqxValueError(
+                    f"{name}[{idx}] trailing shape must be ({width},)."
+                )
             coerced.append(arr.reshape((*arr.shape[:-1], width)))
         for component in range(max(widths, default=0)):
             for value, width in zip(coerced, widths, strict=True):
@@ -551,10 +555,10 @@ class GraphHilbertLayout(Struct):
         """
         width = widths[entity_index]
         if width == 0:
-            raise ValueError(f"This layout has no DOFs for that {kind}.")
+            raise NeuralqxValueError(f"This layout has no DOFs for that {kind}.")
         arr = jnp.asarray(states)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]} != layout size {self.size}."
             )
         if width == 1:
@@ -581,7 +585,7 @@ class GraphHilbertLayout(Struct):
         """
         if isinstance(edge, int):
             if edge < 0 or edge >= self.graph.n_edges:
-                raise IndexError(f"edge index {edge} out of range.")
+                raise NeuralqxIndexError(f"edge index {edge} out of range.")
             return edge
         return self.graph.edge_to_index(Edge.from_like(edge))
 
@@ -596,13 +600,13 @@ class GraphHilbertLayout(Struct):
         """
         if isinstance(vertex, int):
             if vertex < 0 or vertex >= self.graph.n_vertices:
-                raise IndexError(f"vertex index {vertex} out of range.")
+                raise NeuralqxIndexError(f"vertex index {vertex} out of range.")
             return vertex
         canonical = Vertex.from_like(vertex)
         try:
             return self.graph.vertices.index(canonical)
         except ValueError as exc:
-            raise KeyError(f"Unknown graph vertex {canonical!r}.") from exc
+            raise NeuralqxKeyError(f"Unknown graph vertex {canonical!r}.") from exc
 
 
 def _entity_spaces(
@@ -623,7 +627,7 @@ def _entity_spaces(
     """
     if explicit_spaces is not None:
         if len(explicit_spaces) != n_entities:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Expected {n_entities} entity local spaces, got {len(explicit_spaces)}."
             )
         return tuple(coerce_dof_space(space) for space in explicit_spaces)
@@ -667,7 +671,7 @@ def _uniform_width(widths: tuple[int, ...], kind: str) -> int:
         return common
     if all(width == 0 for width in widths):
         return 0
-    raise ValueError(f"{kind} DOF widths are heterogeneous; use {kind}_widths.")
+    raise NeuralqxValueError(f"{kind} DOF widths are heterogeneous, use {kind}_widths.")
 
 
 def _common_positive_width(widths: tuple[int, ...]) -> int | None:
@@ -723,9 +727,9 @@ def _entity_component_site(
     """
     width = widths[entity_index]
     if width == 0:
-        raise ValueError(f"This layout has no DOFs for that {kind}.")
+        raise NeuralqxValueError(f"This layout has no DOFs for that {kind}.")
     if component < 0 or component >= width:
-        raise IndexError(f"component={component} out of range [0,{width}).")
+        raise NeuralqxIndexError(f"component={component} out of range [0,{width}).")
     preceding_components = sum(min(width, component) for width in widths)
     preceding_entities = sum(1 for width in widths[:entity_index] if width > component)
     return preceding_components + preceding_entities
@@ -758,7 +762,7 @@ def _entity_from_site(
             if cursor == site:
                 return entity_index, component
             cursor += 1
-    raise IndexError(f"site={site} is not a {kind} site.")
+    raise NeuralqxIndexError(f"site={site} is not a {kind} site.")
 
 
 GraphDofLayout = GraphHilbertLayout

@@ -35,6 +35,7 @@ from neuralqx.hilbert.u1.proposals import AbstractU1Move
 from neuralqx.hilbert.u1.spaces import U1Hilbert
 from neuralqx.hilbert.utils import ensure_2d_trailing
 from neuralqx.hilbert.utils import restore_trailing
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def propose(
@@ -138,7 +139,7 @@ def _chosen_sites_and_local(
         Pair containing chosen site indices and local-index states.
     """
     if n_sites > space.size:
-        raise ValueError("n_sites cannot exceed Hilbert-space size.")
+        raise NeuralqxValueError("n_sites cannot exceed Hilbert-space size.")
     keys = jax.random.split(jax.random.split(key, 2)[0], states.shape[0])
     sites = jax.vmap(
         lambda subkey: jax.random.choice(

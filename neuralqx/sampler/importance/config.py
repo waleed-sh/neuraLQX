@@ -19,6 +19,9 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
+
 
 @dataclass(frozen=True)
 class ImportanceSampling:
@@ -80,9 +83,9 @@ class ImportanceSampling:
             self.min_ess_fraction,
         )
         if not all(math.isfinite(x) for x in numbers):
-            raise ValueError("Importance-sampling controls must be finite.")
+            raise NeuralqxValueError("Importance-sampling controls must be finite.")
         if not 0 < self.min_exponent <= self.exponent <= self.max_exponent <= 2:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Require 0 < min_exponent <= exponent <= max_exponent <= 2."
             )
         if (
@@ -90,15 +93,15 @@ class ImportanceSampling:
             or self.max_change <= 0
             or not 0 < self.min_ess_fraction <= 1
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Use positive adaptation steps and an ESS fraction in (0, 1]."
             )
         for name in ("update_every", "probes"):
             value = getattr(self, name)
             if type(value) is not int or value < 1:
-                raise ValueError(f"{name} must be a positive integer.")
+                raise NeuralqxValueError(f"{name} must be a positive integer.")
         if type(self.adaptive) is not bool:
-            raise TypeError("adaptive must be a boolean.")
+            raise NeuralqxTypeError("adaptive must be a boolean.")
 
 
 @dataclass(frozen=True, eq=False)
@@ -141,8 +144,10 @@ class OperatorBlur:
     def __post_init__(self):
         """Validate a lazy blur specification without evaluating connections."""
         if not math.isfinite(self.probability) or not 0 < self.probability < 1:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Operator blur probability must lie strictly between zero and one."
             )
         if type(self.chunk_size) is not int or self.chunk_size < 1:
-            raise ValueError("Operator blur chunk_size must be a positive integer.")
+            raise NeuralqxValueError(
+                "Operator blur chunk_size must be a positive integer."
+            )

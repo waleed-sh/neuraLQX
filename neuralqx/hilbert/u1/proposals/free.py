@@ -24,12 +24,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.hilbert.u1.utils.arithmetic import modular_add
 from neuralqx.hilbert.utils import ensure_2d_trailing
 from neuralqx.hilbert.utils import restore_trailing
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .moves import FreeEdgeFlipAllGauge
 from .moves import FreeEdgeFlipSingleGauge
@@ -120,7 +121,7 @@ def update_random_sites(
     if n_sites <= 0:
         return states
     if n_sites > len(candidates):
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Cannot select {n_sites} U(1) sites from {len(candidates)} candidates."
         )
     candidate_sites = jnp.asarray(candidates, dtype=jnp.int32)

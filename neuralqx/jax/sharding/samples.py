@@ -29,6 +29,7 @@ from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 from neuralqx.jax.mesh import logical_axis_name
 from neuralqx.jax.mesh import named_sharding
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .arrays import place_global_array
 from .connected import _partition_count
@@ -54,7 +55,9 @@ def sample_mesh():
 def sample_partition_spec(ndim: int = 2) -> PartitionSpec:
     """Return the leading-sample-axis partition spec for an array rank."""
     if ndim <= 0:
-        raise ValueError("sample sharding requires an array with at least one axis.")
+        raise NeuralqxValueError(
+            "sample sharding requires an array with at least one axis."
+        )
     return PartitionSpec(sample_axis_name(), *((None,) * (int(ndim) - 1)))
 
 

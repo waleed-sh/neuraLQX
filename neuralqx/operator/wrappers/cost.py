@@ -24,6 +24,7 @@ from plum import dispatch
 
 from neuralqx.operator._algebra import is_known_real_scalar
 from neuralqx.operator.abstract import AbstractOperator
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from ._utils import canonical_scalar
@@ -135,7 +136,9 @@ class InverseExpectationCost(PenaltyCost):
         """Validate the construction arguments and prepare static kernel metadata."""
         super().__post_init__()
         if not self.operator.is_hermitian:
-            raise ValueError("InverseExpectationCost requires a Hermitian operator.")
+            raise NeuralqxValueError(
+                "InverseExpectationCost requires a Hermitian operator."
+            )
         object.__setattr__(self, "alpha", canonical_scalar(self.alpha))
 
     def is_linear_penalty(self) -> bool:

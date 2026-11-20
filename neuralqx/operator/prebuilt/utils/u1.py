@@ -23,6 +23,8 @@ import jax.numpy as jnp
 
 import jax
 from neuralqx.hilbert.u1.spaces.abstract import AbstractU1Hilbert
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .validation import validate_copy
 
@@ -69,13 +71,13 @@ def edge_index(hilbert: AbstractU1Hilbert, edge: Any) -> int:
     # Booleans must not alias base-edge indices zero and one.
     if isinstance(edge, bool):
         # Reject the ambiguous input before integer dispatch.
-        raise TypeError("Edge index must not be a bool.")
+        raise NeuralqxTypeError("Edge index must not be a bool.")
     # An integer names a base edge, not a site in a later gauge copy.
     if isinstance(edge, int):
         # Validate against the base graph size rather than the full state size.
         if not 0 <= edge < int(hilbert.tiny_size):
             # Include the valid inclusive range in the indexing error.
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Edge index must be in [0, {hilbert.tiny_size - 1}], got {edge}."
             )
         # The validated index is already in the canonical base-edge block.

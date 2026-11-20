@@ -25,6 +25,7 @@ import jax
 from neuralqx.jax.sharding import place_operator_terms
 from neuralqx.operator import ComputationalOperator
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators.operators import OperatorTerm
 
 
@@ -34,7 +35,7 @@ def flatten_samples(
     """Flatten leading sample axes while preserving the Hilbert axis."""
     arr = jnp.asarray(samples)
     if arr.ndim == 0 or arr.shape[-1] != int(hilbert_size):
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Samples must have trailing Hilbert size {hilbert_size}; got shape {arr.shape}."
         )
     return arr.reshape((-1, int(hilbert_size))), arr.shape[:-1]
@@ -179,7 +180,7 @@ def validate_operator_hilbert(vstate: Any, operator: Any) -> None:
         if not hasattr(op, "hilbert"):
             continue
         if op.hilbert != vstate.hilbert:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Operator and variational state act on different Hilbert spaces."
             )
 

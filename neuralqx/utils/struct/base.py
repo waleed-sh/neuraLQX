@@ -50,35 +50,32 @@ from __future__ import annotations
 
 import abc
 import typing
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
+from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
-
 from typing import Any
 from typing import ClassVar
 from typing import Self
 from typing import dataclass_transform
 
 import jax
+from neuralqx.utils.errors import FrozenStructError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import SerializationError
 
 from . import io as _io
-
 from ._internals.runtime import INIT_FLAG
+from ._internals.runtime import DeferredDerivedValue
 from ._internals.runtime import apply_converter
 from ._internals.runtime import assign_initial_fields
 from ._internals.runtime import finalize_instance
+from ._internals.runtime import materialize_deferred_derived_field
 from ._internals.runtime import process_struct_class
 from ._internals.runtime import safe_array_equal
 from ._internals.runtime import summarize_value
-from ._internals.runtime import DeferredDerivedValue
-from ._internals.runtime import materialize_deferred_derived_field
-
-
 from .fields import FieldSpec
 from .fields import field
-
-from neuralqx.utils.errors import FrozenStructError
-from neuralqx.utils.errors import SerializationError
 
 __all__ = [
     "Struct",
@@ -333,11 +330,11 @@ class Struct(metaclass=StructMeta):
         unknown = set(updates) - set(type(self).__struct_fields__)
         if unknown:
             msg = ", ".join(repr(x) for x in sorted(unknown))
-            raise TypeError(f"Unknown field(s) for replace: {msg}")
+            raise NeuralqxTypeError(f"Unknown field(s) for replace: {msg}")
         for name in updates:
             spec = type(self).__struct_fields__[name]
             if spec.is_derived:
-                raise TypeError(
+                raise NeuralqxTypeError(
                     f"Derived field {name!r} cannot be updated explicitly, "
                     "update its source fields instead."
                 )

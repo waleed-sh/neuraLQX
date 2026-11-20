@@ -25,6 +25,8 @@ from typing import Any
 import jax
 from neuralqx.hilbert.u1 import FreeEdgeFlipSingleGauge
 from neuralqx.hilbert.u1 import U1GaugeInvariantHilbert
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .base import AbstractTransitionRule
@@ -69,15 +71,15 @@ class U1GaugeRule(AbstractTransitionRule):
     def __post_init__(self) -> None:
         """Require a positive integer update count and a boolean move choice."""
         if isinstance(self.n_edges, bool):
-            raise TypeError("n_edges must be a positive integer.")
+            raise NeuralqxTypeError("n_edges must be a positive integer.")
         try:
             n_edges = index(self.n_edges)
         except TypeError as exc:
-            raise TypeError("n_edges must be a positive integer.") from exc
+            raise NeuralqxTypeError("n_edges must be a positive integer.") from exc
         if n_edges <= 0:
-            raise ValueError("n_edges must be positive.")
+            raise NeuralqxValueError("n_edges must be positive.")
         if not isinstance(self.adjacency, bool):
-            raise TypeError("adjacency must be a boolean.")
+            raise NeuralqxTypeError("adjacency must be a boolean.")
         object.__setattr__(self, "n_edges", n_edges)
 
     def validate_hilbert(self, hilbert: Any) -> None:
@@ -92,10 +94,10 @@ class U1GaugeRule(AbstractTransitionRule):
                 ``n_edges``.
         """
         if not isinstance(hilbert, U1GaugeInvariantHilbert):
-            raise TypeError("U1GaugeRule requires U1GaugeInvariantHilbert.")
+            raise NeuralqxTypeError("U1GaugeRule requires U1GaugeInvariantHilbert.")
         n_free = hilbert.gauge_dimensions * hilbert.topology.n_free
         if n_free and self.n_edges > n_free:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Cannot update {self.n_edges} free U(1) charges from {n_free}."
             )
 

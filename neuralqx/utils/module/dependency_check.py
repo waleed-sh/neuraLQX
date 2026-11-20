@@ -13,26 +13,19 @@
 # limitations under the License.
 
 
+import importlib
 from dataclasses import dataclass
-
 from typing import Sequence
 from typing import Union
 
-import importlib
+from neuralqx.utils.errors import DependencyViolation
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .version import InvalidVersion
 from .version import Version
 from .version import VersionInput
-from .version import parse_version
 from .version import get_module_version_string
-
-
-class DependencyViolation(RuntimeError):
-    """
-    Raised when a dependency violates an enforced compatibility policy.
-    """
-
-    pass
+from .version import parse_version
 
 
 @dataclass(frozen=True)
@@ -55,7 +48,7 @@ class DependencyPolicy:
             and max_version is not None
             and min_version > max_version
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"DependencyPolicy('{self.name}') has an invalid range: "
                 f"minimum {min_version} is greater than maximum {max_version}."
             )
@@ -200,7 +193,7 @@ def _coerce_policy_bound(
     try:
         parsed = parse_version(value)
     except (TypeError, ValueError, InvalidVersion):
-        raise ValueError(
+        raise NeuralqxValueError(
             f"DependencyPolicy.{field_name} for '{value}' is not a valid version. "
             f"Please provide a PEP 440 compliant version string or tuple."
         ) from None

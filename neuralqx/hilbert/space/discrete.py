@@ -26,15 +26,16 @@ from __future__ import annotations
 import abc
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
+import jax
 from neuralqx.hilbert.constraint import AbstractDiscreteConstraint
 from neuralqx.hilbert.constraint import IdentityConstraint
 from neuralqx.hilbert.proposal.moves import AbstractProposalMove
 from neuralqx.hilbert.utils import INDEX_LIMIT
 from neuralqx.hilbert.utils import product
+from neuralqx.utils.errors import NeuralqxRuntimeError
 
 from .abstract import AbstractHilbertSpace
 
@@ -135,7 +136,7 @@ class DiscreteHilbertSpace(AbstractHilbertSpace):
         """
         dimension = self.dimension
         if dimension is None:
-            raise RuntimeError(
+            raise NeuralqxRuntimeError(
                 "The constrained Hilbert-space dimension is not cheaply known."
             )
         return dimension
@@ -276,12 +277,12 @@ class DiscreteHilbertSpace(AbstractHilbertSpace):
                 ``max_states``.
         """
         if self.constrained:
-            raise RuntimeError(
+            raise NeuralqxRuntimeError(
                 "Generic constrained all_states would require filtering."
             )
         if self.unconstrained_dimension > max_states:
-            raise RuntimeError(
-                f"Refusing to materialize {self.unconstrained_dimension} states; "
+            raise NeuralqxRuntimeError(
+                f"Refusing to materialize {self.unconstrained_dimension} states, "
                 f"increase max_states={max_states} explicitly if this is intentional."
             )
         return self.numbers_to_states_python(

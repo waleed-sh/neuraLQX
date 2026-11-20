@@ -24,6 +24,9 @@ from dataclasses import field
 from typing import Any
 
 import numpy as np
+
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.typing import HistoryNode
 
 
@@ -41,7 +44,7 @@ class HistorySeries:
     @property
     def last(self) -> Any:
         if not self.values:
-            raise IndexError("HistorySeries is empty.")
+            raise NeuralqxIndexError("HistorySeries is empty.")
         return self.values[-1]
 
     def as_arrays(self) -> tuple[np.ndarray, np.ndarray]:
@@ -76,7 +79,7 @@ def append_to_history(
                 child = {}
                 history[key] = child
             if isinstance(child, HistorySeries):
-                raise TypeError(
+                raise NeuralqxTypeError(
                     f"Cannot log nested data under scalar history key {key!r}."
                 )
             append_to_history(child, value, step=step)
@@ -86,7 +89,7 @@ def append_to_history(
                 series = HistorySeries()
                 history[key] = series
             if not isinstance(series, HistorySeries):
-                raise TypeError(
+                raise NeuralqxTypeError(
                     f"Cannot log scalar data under nested history key {key!r}."
                 )
             series.append(step, value)

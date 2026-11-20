@@ -21,6 +21,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import DistributedPhase
 from neuralqx.utils.typing import DistributedPlan
 from neuralqx.utils.typing import DistributedWorkload
@@ -50,7 +51,7 @@ class DistributedCoordinator:
 
         def decorator(fn: Planner) -> Planner:
             if not replace and phase in self._planners:
-                raise ValueError(
+                raise NeuralqxValueError(
                     f"A distributed planner is already registered for {phase.value!r}."
                 )
             self._planners[phase] = fn

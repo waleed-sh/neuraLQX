@@ -20,6 +20,9 @@ import inspect
 from flax.core import FrozenDict
 from flax.nnx import bridge
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
+
 
 class LinenModel(bridge.ToLinen):
     """Linen facade retaining the connected-state capability of an NNX model.
@@ -56,7 +59,7 @@ def to_linen(module_class, *args, name=None, skip_rng=None, **kwargs):
     from ..models.base import LogWavefunction
 
     if "rngs" in kwargs:
-        raise ValueError("Pass RNGs to Linen init(), not to to_linen().")
+        raise NeuralqxValueError("Pass RNGs to Linen init(), not to to_linen().")
     projected = getattr(module_class, "_neuralqx_projected_constructor", None)
     if projected is not None:
         base_class, projector = projected
@@ -64,7 +67,7 @@ def to_linen(module_class, *args, name=None, skip_rng=None, **kwargs):
             to_linen(base_class, *args, name=name, skip_rng=skip_rng, **kwargs)
         )
     if not isinstance(module_class, type):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "to_linen expects an NNX module class, not an initialized instance."
         )
     if skip_rng is None:

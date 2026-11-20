@@ -16,9 +16,10 @@
 from __future__ import annotations
 
 import math
-
 from collections.abc import Iterable
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import CoordinateVertex
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import EdgeLike
@@ -39,9 +40,9 @@ def require_int(name: str, value: int, *, minimum: int) -> None:
         ValueError: If ``value`` is smaller than ``minimum``.
     """
     if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(f"{name} must be an integer; got {value!r}.")
+        raise TypeError(f"{name} must be an integer, got {value!r}.")
     if value < minimum:
-        raise ValueError(f"{name} must be at least {minimum}; got {value}.")
+        raise ValueError(f"{name} must be at least {minimum}, got {value}.")
 
 
 def vertex(x: float, y: float, z: float = 0.0) -> CoordinateVertex:

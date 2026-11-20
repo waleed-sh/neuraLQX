@@ -20,6 +20,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxTypeError
+
 from . import solver as default_solvers
 from .preconditioner import AbstractLinearPreconditioner
 from .qgt_auto import qgt_auto
@@ -65,7 +68,7 @@ class SR(AbstractLinearPreconditioner):
         diag_shift = _resolve_schedule(self.diag_shift, step, name="diag_shift")
         diag_scale = _resolve_schedule(self.diag_scale, step, name="diag_scale")
         if diag_scale is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "diag_scale is not supported by the built-in SR QGTs yet. "
                 "Use diag_shift or a custom QGT constructor exposing diagonal scaling."
             )
@@ -92,7 +95,7 @@ class SR(AbstractLinearPreconditioner):
 def _resolve_schedule(value: Any, step: Any | None, *, name: str) -> Any:
     if callable(value):
         if step is None:
-            raise TypeError(f"Scheduled {name} requires a step argument.")
+            raise NeuralqxTypeError(f"Scheduled {name} requires a step argument.")
         return value(step)
     return value
 

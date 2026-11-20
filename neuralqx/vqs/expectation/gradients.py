@@ -31,6 +31,9 @@ from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators import Stats
 from neuralqx.vqs.estimators import local_estimators
 from neuralqx.vqs.estimators import statistics
@@ -82,7 +85,7 @@ def expect_and_grad(
         if use_covariance and not can_use_covariance(
             operator, machine_pow=vstate.machine_pow
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Covariance gradients require a Hermitian linear estimator."
             )
         stats, grad = importance_expect_and_grad(vstate, operator, kwargs)
@@ -91,7 +94,7 @@ def expect_and_grad(
         if use_covariance is None:
             use_covariance = covariance_valid
         elif use_covariance and not covariance_valid:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Covariance gradients require a Hermitian linear estimator and either "
                 "machine_pow=2 or a diagonal operator. Use use_covariance=False "
                 "to include the local estimator's parameter derivative."
@@ -145,7 +148,7 @@ def _expect_and_grad_noncovariance(
         connection_deduplication=kwargs.pop("connection_deduplication", None),
     )
     if kwargs:
-        raise TypeError(
+        raise NeuralqxTypeError(
             f"Unexpected expect_and_grad keyword argument(s): {', '.join(sorted(kwargs))}."
         )
     validate_operator_hilbert(vstate, operator)
@@ -681,7 +684,7 @@ def _local_values_for_params(
             operator_streaming=operator_streaming,
             operator_streaming_chunk_size=operator_streaming_chunk_size,
         )
-    raise NotImplementedError(
+    raise NeuralqxNotImplementedError(
         f"Non-covariance gradients are not implemented for operator type {type(operator).__name__}."
     )
 

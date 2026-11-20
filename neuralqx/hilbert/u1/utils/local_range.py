@@ -25,6 +25,8 @@ from __future__ import annotations
 import numpy as np
 
 from neuralqx.hilbert.local import LocalRange
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def u1_local_range(
@@ -46,11 +48,11 @@ def u1_local_range(
         Local arithmetic range of allowed U(1) charges.
     """
     if step == 0:
-        raise ValueError("U(1) step must be non-zero.")
+        raise NeuralqxValueError("U(1) step must be non-zero.")
     raw_size = (2 * cutoff) / step
     nearest = round(raw_size)
     if not np.isclose(raw_size, nearest):
-        raise ValueError("2 * cutoff must be an integer multiple of step.")
+        raise NeuralqxValueError("2 * cutoff must be an integer multiple of step.")
     start = (
         qn_start
         if positive_qn and qn_start is not None
@@ -70,6 +72,6 @@ def validate_gauge_dimensions(gauge_dimensions: int) -> None:
         ValueError: If ``gauge_dimensions`` is not positive.
     """
     if isinstance(gauge_dimensions, bool) or not isinstance(gauge_dimensions, int):
-        raise TypeError("gauge_dimensions must be an integer.")
+        raise NeuralqxTypeError("gauge_dimensions must be an integer.")
     if gauge_dimensions <= 0:
-        raise ValueError("gauge_dimensions must be positive.")
+        raise NeuralqxValueError("gauge_dimensions must be positive.")

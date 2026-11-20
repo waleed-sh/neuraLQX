@@ -23,6 +23,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def apply_batched(
@@ -37,7 +38,7 @@ def apply_batched(
     if chunk_size is None:
         return jnp.asarray(apply_fn(parameters, arr))
     if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive.")
+        raise NeuralqxValueError("chunk_size must be positive.")
     if arr.shape[0] <= int(chunk_size):
         return jnp.asarray(apply_fn(parameters, arr))
     return _apply_batched_chunked(apply_fn, parameters, arr, int(chunk_size))

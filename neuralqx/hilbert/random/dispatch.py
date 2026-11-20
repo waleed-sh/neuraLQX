@@ -26,11 +26,11 @@ from __future__ import annotations
 from functools import partial
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 from plum import dispatch
 
+import jax
 from neuralqx.hilbert.constraint import AbstractDiscreteConstraint
 from neuralqx.hilbert.constraint import IdentityConstraint
 from neuralqx.hilbert.space import DiscreteHilbertSpace
@@ -40,6 +40,8 @@ from neuralqx.hilbert.su2.spaces import SU2GaugeInvariantHilbert
 from neuralqx.hilbert.u1.spaces import U1GaugeInvariantHilbert
 from neuralqx.hilbert.u1.spaces import U1Hilbert
 from neuralqx.hilbert.utils import batch_shape
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxTypeError
 
 
 def random_state(
@@ -162,7 +164,7 @@ def _nqx_random_state(
         space, constraint, key, size, dtype, max_trials
     )
     if not bool(jnp.all(accepted)):
-        raise RuntimeError(
+        raise NeuralqxRuntimeError(
             "Failed to sample constrained Hilbert state by rejection within "
             f"{max_trials} trials. Register a specialized random_state dispatch "
             "for this constraint."
@@ -258,7 +260,9 @@ def _random_unconstrained(
     if isinstance(space, HeterogeneousDiscreteHilbert):
         return _random_heterogeneous(space, key, size, dtype)
 
-    raise TypeError(f"Unsupported discrete Hilbert type {type(space).__name__}.")
+    raise NeuralqxTypeError(
+        f"Unsupported discrete Hilbert type {type(space).__name__}."
+    )
 
 
 def _random_heterogeneous(

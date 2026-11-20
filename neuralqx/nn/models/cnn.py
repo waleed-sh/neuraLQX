@@ -21,6 +21,8 @@ from itertools import pairwise
 import jax.numpy as jnp
 from flax import nnx
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from ..activations import activation_spec
 from ..layers import Conv
 from ..layers import Linear
@@ -101,13 +103,13 @@ class CNN(LogWavefunction):
         )
         self.lattice_shape = tuple(positive_int(n, "lattice_shape") for n in shape)
         if not shape:
-            raise ValueError("lattice_shape must have at least one dimension.")
+            raise NeuralqxValueError("lattice_shape must have at least one dimension.")
         widths = tuple(positive_int(w, "features") for w in features)
         if not widths:
-            raise ValueError("CNN requires at least one convolution.")
+            raise NeuralqxValueError("CNN requires at least one convolution.")
         kernel_size = positive_int(kernel_size, "kernel_size")
         if kernel_size % 2 == 0:
-            raise ValueError("kernel_size must be odd.")
+            raise NeuralqxValueError("kernel_size must be odd.")
         self.radius = len(widths) * (kernel_size // 2)
         self.in_features = math.prod(self.lattice_shape)
         dtype = compute_dtype(dtype, param_dtype)

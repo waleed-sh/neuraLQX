@@ -21,6 +21,7 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.typing import ControlLike
 from neuralqx.utils.typing import LegacyCallback
 
@@ -64,7 +65,7 @@ def as_callback(callback: Any) -> Callback:
         return callback
     if callable(callback):
         return LegacyCallbackWrapper(callback)
-    raise TypeError(f"Invalid callback object {callback!r}.")
+    raise NeuralqxTypeError(f"Invalid callback object {callback!r}.")
 
 
 def as_tuple(callbacks: Any) -> tuple[Any, ...]:
@@ -75,7 +76,7 @@ def as_tuple(callbacks: Any) -> tuple[Any, ...]:
         return (callbacks,)
     if isinstance(callbacks, Iterable) and not isinstance(callbacks, (str, bytes)):
         return tuple(callbacks)
-    raise TypeError(f"Invalid callbacks object {callbacks!r}.")
+    raise NeuralqxTypeError(f"Invalid callbacks object {callbacks!r}.")
 
 
 __all__ = [

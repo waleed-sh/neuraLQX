@@ -21,6 +21,7 @@ import jax
 from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 from neuralqx.jax.mesh import logical_axis_name
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import DistributedAxis
 from neuralqx.utils.typing import DistributedLayoutKind
 from neuralqx.utils.typing import DistributedPhase
@@ -80,7 +81,7 @@ def _network_apply_plan(
     _coordinator: DistributedCoordinator,
     workload: DistributedWorkload,
 ) -> DistributedPlan | None:
-    """Plan model application; parameter leaves are currently replicated."""
+    """Plan model application, parameter leaves are currently replicated."""
     if workload.request is DistributionRequest.DISABLED:
         return None
     if workload.request is DistributionRequest.CONFIG and not bool(
@@ -108,7 +109,9 @@ def _operator_local_values_plan(
     ):
         return None
     if not workload.operator_costs:
-        raise ValueError("Operator local-value planning requires operator costs.")
+        raise NeuralqxValueError(
+            "Operator local-value planning requires operator costs."
+        )
 
     device_count = int(jax.device_count())
     if device_count <= 1:
@@ -188,7 +191,7 @@ def _operator_axis_sizes(
     sample_count: int | None,
 ) -> tuple[int, int]:
     if n_terms <= 0:
-        raise ValueError("n_terms must be positive.")
+        raise NeuralqxValueError("n_terms must be positive.")
     if n_terms >= device_count:
         return device_count, 1
     if sample_count is None or int(sample_count) <= 0 or not _sample_sharding_enabled():

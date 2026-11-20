@@ -25,11 +25,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
+import jax
 from neuralqx.hilbert.utils import canonical_dtype
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .abstract import AbstractLocalSpace
@@ -54,7 +55,6 @@ class ExplicitLocalSpace(AbstractLocalSpace):
 
     values: tuple[Any, ...] | Sequence[Any] = field(static=True)
     """Allowed local quantum-number values."""
-
     dtype: np.dtype | str | Any | None = field(static=True, default=None)
     """Optional dtype used when materializing values as JAX arrays."""
 
@@ -62,7 +62,7 @@ class ExplicitLocalSpace(AbstractLocalSpace):
         """Normalizes the value table and resolves its dtype."""
         values = tuple(self.values)
         if not values:
-            raise ValueError("values must contain at least one local state.")
+            raise NeuralqxValueError("values must contain at least one local state.")
         object.__setattr__(self, "values", values)
         object.__setattr__(self, "dtype", canonical_dtype(self.dtype, *values))
 

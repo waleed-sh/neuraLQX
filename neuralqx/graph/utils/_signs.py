@@ -22,13 +22,13 @@ the 3D tangent determinant.
 """
 
 import math
-
 from collections import defaultdict
 from collections.abc import Hashable
 from itertools import combinations
 from itertools import permutations
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import GraphEdges
 from neuralqx.utils.typing import Vertex
 
@@ -234,7 +234,7 @@ def _tangent(
     elif vertex == end:
         other = start
     else:
-        raise ValueError(f"Edge {edge!r} is not incident to vertex {vertex!r}.")
+        raise NeuralqxValueError(f"Edge {edge!r} is not incident to vertex {vertex!r}.")
 
     origin = positions[vertex]
     target = positions[other]
@@ -392,7 +392,9 @@ def _perpendicular_axis(vector: tuple[float, ...]) -> tuple[float, float, float]
         norm = math.sqrt(sum(component * component for component in axis))
         if norm > _TOLERANCE:
             return tuple(component / norm for component in axis)
-    raise ValueError(f"Could not build perpendicular axis for vector {vector!r}.")
+    raise NeuralqxValueError(
+        f"Could not build perpendicular axis for vector {vector!r}."
+    )
 
 
 def _rotate_about_axis(
@@ -455,7 +457,7 @@ def _normalize(vector: tuple[float, float, float]) -> tuple[float, float, float]
     """
     norm = math.sqrt(sum(component * component for component in vector))
     if norm <= _TOLERANCE:
-        raise ValueError("Cannot normalize a zero vector.")
+        raise NeuralqxValueError("Cannot normalize a zero vector.")
     return tuple(component / norm for component in vector)  # type: ignore[return-value]
 
 

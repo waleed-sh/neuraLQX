@@ -23,6 +23,7 @@ import jax
 from neuralqx.operator.computational import ComputationalOperator
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
 from neuralqx.operator.prebuilt.utils import validate_site
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -78,7 +79,9 @@ class QRFluxOperator(ComputationalOperator):
         """Validate the construction arguments and prepare static kernel metadata."""
         hilbert = require_u1_hilbert(self.hilbert, operator=type(self).__name__)
         if hilbert.q_min < 0 and not float(self.power).is_integer():
-            raise ValueError("Fractional QR flux powers require non-negative spins.")
+            raise NeuralqxValueError(
+                "Fractional QR flux powers require non-negative spins."
+            )
         object.__setattr__(
             self,
             "_site",

@@ -27,6 +27,7 @@ from neuralqx.operator.prebuilt.utils import noncyclic_shift_site
 from neuralqx.operator.prebuilt.utils import q_bounds
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
 from neuralqx.operator.prebuilt.utils import validate_site
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -76,7 +77,7 @@ class QRCreationOperator(ComputationalOperator):
         """Validate the construction arguments and prepare static kernel metadata."""
         hilbert = require_u1_hilbert(self.hilbert, operator=type(self).__name__)
         if isinstance(self.n, bool) or not isinstance(self.n, Integral) or self.n <= 0:
-            raise ValueError("n must be a positive integer.")
+            raise NeuralqxValueError("n must be a positive integer.")
         q_min, q_max, q_step, _local_size = q_bounds(hilbert)
         object.__setattr__(
             self,

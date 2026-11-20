@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 from jax.flatten_util import ravel_pytree
 
+from neuralqx.utils.errors import NeuralqxNotImplementedError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 from neuralqx.utils.typing import Solver
@@ -38,7 +39,7 @@ class LinearOperator(Struct):
     diag_shift: Any = field(default=0.0, kw_only=True)
 
     def __matmul__(self, vector: Any) -> Any:
-        raise NotImplementedError
+        raise NeuralqxNotImplementedError
 
     def __call__(self, vector: Any) -> Any:
         return self @ vector
@@ -71,7 +72,7 @@ class LinearOperator(Struct):
 
     def to_dense(self):
         """Materialise a dense matrix representation."""
-        raise NotImplementedError
+        raise NeuralqxNotImplementedError
 
 
 class DenseLinearOperator(LinearOperator):

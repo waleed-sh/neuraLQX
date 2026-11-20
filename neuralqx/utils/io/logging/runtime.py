@@ -22,6 +22,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from .base import AbstractLogger
 from .history import HistoryNode
 from .history import append_to_history
@@ -48,7 +50,7 @@ class RuntimeLogger(AbstractLogger):
     ) -> None:
         every = int(every)
         if every <= 0:
-            raise ValueError("every must be positive.")
+            raise NeuralqxValueError("every must be positive.")
         self.every = every
         self.log_on_all_processes = bool(log_on_all_processes)
         self._data: HistoryNode = {}

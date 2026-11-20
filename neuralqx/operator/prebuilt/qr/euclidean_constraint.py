@@ -25,6 +25,7 @@ from neuralqx.operator.prebuilt.utils import noncyclic_shift_site
 from neuralqx.operator.prebuilt.utils import q_bounds
 from neuralqx.operator.prebuilt.utils import require_single_vertex_three_edges
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .flux import flux_eval
@@ -81,7 +82,7 @@ class QREuclideanConstraintOperator(ComputationalOperator):
         hilbert = require_u1_hilbert(self.hilbert, operator=type(self).__name__)
         require_single_vertex_three_edges(hilbert, operator=type(self).__name__)
         if float(self.immirzi) == 0.0:
-            raise ValueError("The Immirzi parameter must be non-zero.")
+            raise NeuralqxValueError("The Immirzi parameter must be non-zero.")
         q_min, q_max, q_step, _local_size = q_bounds(hilbert)
         object.__setattr__(self, "_q_min", q_min)
         object.__setattr__(self, "_q_max", q_max)

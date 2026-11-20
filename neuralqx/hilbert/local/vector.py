@@ -25,6 +25,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 from neuralqx.utils.typing import Edge
@@ -57,9 +59,9 @@ class VectorRange(Struct):
         """Coerces the component space and validates the component count."""
         object.__setattr__(self, "local_space", as_local_space(self.local_space))
         if isinstance(self.components, bool) or not isinstance(self.components, int):
-            raise TypeError("components must be an integer.")
+            raise NeuralqxTypeError("components must be an integer.")
         if self.components <= 0:
-            raise ValueError("components must be positive.")
+            raise NeuralqxValueError("components must be positive.")
 
     def __hash__(self) -> int:
         """Returns a structural hash for the vector range."""
@@ -90,10 +92,13 @@ class HeterogeneousLocalSpace(Struct):
 
     edge: AbstractLocalSpace | VectorRange | None = field(static=True, default=None)
     """Default space for all graph edges."""
+
     vertex: AbstractLocalSpace | VectorRange | None = field(static=True, default=None)
     """Default space for all graph vertices."""
+
     edge_spaces: EntitySpaces = field(static=True, default=None)
     """Optional per-edge overrides keyed by edge index or edge."""
+
     vertex_spaces: EntitySpaces = field(static=True, default=None)
     """Optional per-vertex overrides keyed by vertex index or vertex."""
 
@@ -113,7 +118,9 @@ class HeterogeneousLocalSpace(Struct):
             and not _has_any_space(edge_spaces)
             and not _has_any_space(vertex_spaces)
         ):
-            raise ValueError("At least one of edge or vertex local spaces must be set.")
+            raise NeuralqxValueError(
+                "At least one of edge or vertex local spaces must be set."
+            )
 
     def __hash__(self) -> int:
         """Returns a structural hash for the heterogeneous declaration."""
@@ -217,7 +224,7 @@ def _coerce_entity_key(key: Any, kind: str) -> int | Edge | Vertex:
         return Edge.from_like(key)
     if kind == "vertex":
         return Vertex.from_like(key)
-    raise ValueError(f"Unsupported entity kind {kind!r}.")
+    raise NeuralqxValueError(f"Unsupported entity kind {kind!r}.")
 
 
 def _has_any_space(

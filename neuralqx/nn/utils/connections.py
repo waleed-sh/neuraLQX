@@ -20,6 +20,7 @@ from dataclasses import dataclass
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,7 @@ class ConnectionPolicy:
         from .initialization import positive_int
 
         if self.mode not in {"auto", "on", "off"}:
-            raise ValueError("Connection mode must be 'auto', 'on' or 'off'.")
+            raise NeuralqxValueError("Connection mode must be 'auto', 'on' or 'off'.")
         positive_int(self.max_changes, "max_changes")
         positive_int(self.min_features, "min_features")
 
@@ -103,17 +104,19 @@ def validate_connections(sources, targets, owners, chunk_size):
     from .initialization import positive_int
 
     if sources.ndim != 2 or targets.ndim != 2 or sources.shape[-1] != targets.shape[-1]:
-        raise ValueError(
+        raise NeuralqxValueError(
             "Sources and targets must be matrices with the same feature dimension."
         )
     if sources.shape[-1] == 0 or (len(sources) == 0 and len(targets) != 0):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Connections require a nonempty feature axis and valid source rows."
         )
     if owners.shape != (targets.shape[0],) or not jnp.issubdtype(
         owners.dtype, jnp.integer
     ):
-        raise ValueError("owners must contain one integer source index per target.")
+        raise NeuralqxValueError(
+            "owners must contain one integer source index per target."
+        )
     return None if chunk_size is None else positive_int(chunk_size, "chunk_size")
 
 

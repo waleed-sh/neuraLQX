@@ -28,6 +28,8 @@ from neuralqx.jax.differentiation import resolve_differentiation_mode
 from neuralqx.jax.differentiation import split_tree_to_real
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.tree import tree_any_complex
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 from neuralqx.vqs.estimators.utils import flatten_samples
 
@@ -50,11 +52,11 @@ class QGTJacobianDense(LinearOperator):
     def __post_init__(self) -> None:
         jacobian = jnp.asarray(self.jacobian)
         if jacobian.ndim != 2:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "QGTJacobianDense expects a rank-2 Jacobian with shape (n_samples, n_parameters)."
             )
         if self.mode not in {"real", "complex", "holomorphic"}:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "QGTJacobianDense mode must be 'real', 'complex', or "
                 f"'holomorphic', got {self.mode!r}."
             )
@@ -74,7 +76,7 @@ class QGTJacobianDense(LinearOperator):
     ) -> QGTJacobianDense:
         """Build a dense-Jacobian QGT from a variational state."""
         if diag_scale is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "QGTJacobianDense does not support diag_scale yet."
             )
         samples = vstate.samples if samples is None else samples
@@ -127,9 +129,9 @@ class QGTJacobianDense(LinearOperator):
     def __matmul__(self, vector: Any) -> Any:
         if hasattr(vector, "ndim"):
             if vector.ndim != 1:
-                raise ValueError("Dense QGT matvec expects a rank-1 vector.")
+                raise NeuralqxValueError("Dense QGT matvec expects a rank-1 vector.")
             if vector.size != self.n_parameters:
-                raise ValueError(
+                raise NeuralqxValueError(
                     f"Vector size {vector.size} does not match parameter size {self.n_parameters}."
                 )
             return _dense_jacobian_matvec(
@@ -324,18 +326,18 @@ def _flatten_weights(sample_weights: Any | None, samples: Any) -> jax.Array | No
     expected = jnp.asarray(samples).shape[:-1]
     weights = jnp.asarray(sample_weights)
     if weights.shape != expected:
-        raise ValueError(
-            "sample_weights must match samples.shape[:-1]; "
+        raise NeuralqxValueError(
+            "sample_weights must match samples.shape[:-1], "
             f"got {weights.shape} and expected {expected}."
         )
     if not bool(jnp.all(jnp.isfinite(weights))):
-        raise ValueError("sample_weights must be finite.")
+        raise NeuralqxValueError("sample_weights must be finite.")
     if bool(jnp.any(weights < 0)):
-        raise ValueError("sample_weights must be nonnegative.")
+        raise NeuralqxValueError("sample_weights must be nonnegative.")
     flat = weights.reshape((-1,))
     total = jnp.sum(flat)
     if not bool(jnp.isfinite(total)) or float(total) == 0.0:
-        raise ValueError("sample_weights must have a finite nonzero sum.")
+        raise NeuralqxValueError("sample_weights must have a finite nonzero sum.")
     return flat / total
 
 

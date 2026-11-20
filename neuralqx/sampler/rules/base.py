@@ -26,6 +26,7 @@ import jax.numpy as jnp
 
 import jax
 from neuralqx.jax.sharding import place_sample_batch
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import StructABCMeta
 
@@ -149,7 +150,7 @@ def normalize_transition_output(
             log_correction=log_correction,
             rule_state=previous_rule_state if rule_state is None else rule_state,
         )
-    raise TypeError(
+    raise NeuralqxTypeError(
         "Transition rules must return sigma, (sigma, correction), or a TransitionOutput."
     )
 

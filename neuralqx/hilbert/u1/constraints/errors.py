@@ -15,35 +15,11 @@
 
 """Errors raised by U(1) gauge-fixing code.
 
-The exceptions in this module distinguish invalid user-facing gauge-fixing
-specifications from dependency cycles discovered while ordering constructive
-relations. They are public so callers can report configuration errors without
-matching error-message strings.
+Canonical definitions live in neuralqx.utils.errors. These imports preserve
+existing public exception paths.
 """
 
-# TODO: maybe move to main errors?
+from neuralqx.utils.errors import U1CyclicGaugeFixingError
+from neuralqx.utils.errors import U1GaugeFixingError
 
-from __future__ import annotations
-
-
-class U1GaugeFixingError(ValueError):
-    """Base error for malformed U(1) gauge-fixing input.
-
-    This exception covers invalid edge references, duplicate or inconsistent
-    relation data, and topology metadata that cannot define a constructive
-    gauge-fixing slice. It subclasses :class:`ValueError` because these
-    failures indicate invalid user configuration rather than numerical
-    execution failure. Catch this base class when all U(1) gauge-fixing
-    configuration problems should be handled in the same way.
-    """
-
-
-class U1CyclicGaugeFixingError(U1GaugeFixingError):
-    """Gauge-fixing relations cannot be ordered constructively.
-
-    A constructive U(1) gauge fixing requires every slave edge to be
-    reconstructible from free edges or from earlier slave edges. This exception
-    is raised when the dependency graph contains a cycle, meaning no
-    topological reconstruction order exists. The caller must change at least
-    one relation to break the cycle.
-    """
+__all__ = ["U1CyclicGaugeFixingError", "U1GaugeFixingError"]

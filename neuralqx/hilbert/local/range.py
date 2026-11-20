@@ -25,11 +25,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
+import jax
 from neuralqx.hilbert.utils import canonical_dtype
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .abstract import AbstractLocalSpace
@@ -66,11 +68,13 @@ class LocalRange(AbstractLocalSpace):
     def __post_init__(self) -> None:
         """Validates the arithmetic range and resolves its dtype."""
         if isinstance(self.size, bool) or not isinstance(self.size, int):
-            raise TypeError(f"size must be an int, got {type(self.size).__name__}.")
+            raise NeuralqxTypeError(
+                f"size must be an int, got {type(self.size).__name__}."
+            )
         if self.size <= 0:
-            raise ValueError(f"size must be positive, got {self.size}.")
+            raise NeuralqxValueError(f"size must be positive, got {self.size}.")
         if self.step == 0:
-            raise ValueError("step must be non-zero.")
+            raise NeuralqxValueError("step must be non-zero.")
         object.__setattr__(
             self, "dtype", canonical_dtype(self.dtype, self.start, self.step)
         )

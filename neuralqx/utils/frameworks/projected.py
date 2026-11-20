@@ -17,6 +17,7 @@
 
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxNotImplementedError
 from neuralqx.utils.struct import field
 
 from .base import AbstractModelFramework
@@ -90,7 +91,7 @@ class ProjectedFramework(AbstractModelFramework):
         evaluation and update model state explicitly outside this call.
         """
         if mutable is not False and mutable is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "Projected framework evaluation requires immutable collections."
             )
 

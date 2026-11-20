@@ -23,7 +23,6 @@ inspection during examples and debugging.
 
 import math
 import random
-
 from collections import defaultdict
 from typing import Any
 
@@ -31,11 +30,11 @@ import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as patheffects
-
 from matplotlib import pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import PlottableGraph
 from neuralqx.utils.typing import Vertex
@@ -660,7 +659,7 @@ def _plot_positions(
     if layout == "coordinates":
         return {vertex: graph.graph_positions[vertex] for vertex in graph.vertices}
     if layout != "spring":
-        raise ValueError("layout must be either 'spring' or 'coordinates'.")
+        raise NeuralqxValueError("layout must be either 'spring' or 'coordinates'.")
     dimensions = 3 if is_3d else 2
     return _spring_layout(graph, dimensions=dimensions, seed=seed)
 

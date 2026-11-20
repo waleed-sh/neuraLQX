@@ -30,6 +30,7 @@ import numpy as np
 
 import jax
 from neuralqx.hilbert.su2.recoupling import coupling_ok
+from neuralqx.utils.errors import NeuralqxTypeError
 
 DEFAULT_WEIGHTS = (0.45, 0.2, 0.25, 0.1)
 DEFAULT_STAY_PROBABILITY = 0.05
@@ -41,7 +42,7 @@ def _cycle_geometry(space):
     from neuralqx.hilbert.su2.spaces import SU2GaugeInvariantHilbert
 
     if not isinstance(space, SU2GaugeInvariantHilbert):
-        raise TypeError("SU2MetropolisRule requires SU2GaugeInvariantHilbert.")
+        raise NeuralqxTypeError("SU2MetropolisRule requires SU2GaugeInvariantHilbert.")
     parent = list(range(space.n_vertices))
     tree = [[] for _ in parent]
     chords = []

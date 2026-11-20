@@ -18,6 +18,8 @@
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from ..utils.connections import map_connections
 
@@ -34,11 +36,11 @@ def log_values(values, states):
     """Require one scalar log amplitude per configuration."""
     values = jnp.asarray(values)
     if values.shape != states.shape[:-1]:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Expected log amplitudes of shape {states.shape[:-1]}, got {values.shape}."
         )
     if not jnp.issubdtype(values.dtype, jnp.inexact):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "A wavefunction must return floating or complex log amplitudes."
         )
     return values
@@ -48,7 +50,7 @@ def mask_log_values(values, mask):
     """Set excluded amplitudes to exact zero without differentiating log(0)."""
     mask = jnp.asarray(mask)
     if mask.dtype != jnp.bool_ or mask.shape != values.shape:
-        raise ValueError(
+        raise NeuralqxValueError(
             "A diagonal projector must return a boolean mask with one entry per state."
         )
     return jnp.where(mask, values, jnp.asarray(-jnp.inf, dtype=values.dtype))

@@ -21,10 +21,11 @@ from functools import partial
 from math import prod
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.jax.streaming import apply_batched
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def flatten_state_batch(
@@ -33,9 +34,9 @@ def flatten_state_batch(
     """Flatten state leading axes while preserving one trailing Hilbert axis."""
     arr = jnp.asarray(states)
     if arr.ndim == 0:
-        raise ValueError("states must have a trailing Hilbert dimension.")
+        raise NeuralqxValueError("states must have a trailing Hilbert dimension.")
     if arr.shape[-1] != int(hilbert_size):
-        raise ValueError(
+        raise NeuralqxValueError(
             f"states must have trailing Hilbert size {hilbert_size}; got shape {arr.shape}."
         )
     return arr.reshape((-1, int(hilbert_size))), arr.shape[:-1]
@@ -62,7 +63,9 @@ def restore_log_values(values: Any, state_shape: tuple[int, ...]) -> jax.Array:
     """Restore log values to the input state's leading shape."""
     arr = jnp.asarray(values)
     if arr.shape[0] != prod(state_shape or (1,)):
-        raise ValueError("Model output leading dimension does not match input states.")
+        raise NeuralqxValueError(
+            "Model output leading dimension does not match input states."
+        )
     return arr.reshape((*state_shape, *arr.shape[1:]))
 
 

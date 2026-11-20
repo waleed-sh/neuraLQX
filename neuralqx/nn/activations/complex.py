@@ -18,6 +18,8 @@
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from . import functions
 from .registry import _checked_activation
@@ -74,18 +76,18 @@ def reim(function, **options):
         arguments = bound_options | kwargs
         real = jnp.asarray(spec.function(x.real, *args, **arguments))
         if jnp.iscomplexobj(real):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "reim requires an activation with real outputs for real inputs."
             )
         if not jnp.iscomplexobj(x):
             return real
         imaginary = jnp.asarray(spec.function(x.imag, *args, **arguments))
         if jnp.iscomplexobj(imaginary):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "reim requires an activation with real outputs for real inputs."
             )
         if real.shape != imaginary.shape:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "The real and imaginary activation outputs must have the same shape."
             )
         dtype = jnp.result_type(real, imaginary, x.real)
@@ -102,9 +104,11 @@ def reim(function, **options):
         "Both channels are differentiated by ordinary JAX autodiff.\n"
         "See reim for the input-domain and locality contracts."
     )
-    return _checked_activation(
+    result = _checked_activation(
         split, name=name, elementwise=spec.elementwise, supports_complex=True
     )
+    result._neuralqx_reim_config = (spec.function, bound_options)
+    return result
 
 
 def _named_reim(function):

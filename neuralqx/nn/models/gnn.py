@@ -18,6 +18,9 @@
 import jax.numpy as jnp
 from flax import nnx
 
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxValueError
+
 from ..activations import activation_spec
 from ..layers import GraphConv
 from ..layers import Linear
@@ -136,7 +139,7 @@ class GNN(LogWavefunction):
         depth = positive_int(depth, "depth")
         self.input_scale = float(input_scale)
         if not 0 < self.input_scale < float("inf"):
-            raise ValueError("input_scale must be finite and positive.")
+            raise NeuralqxValueError("input_scale must be finite and positive.")
         dtype = compute_dtype(dtype, param_dtype)
         self.dtype = dtype
         self.complex_output = bool(complex_output)
@@ -247,7 +250,7 @@ class GNN(LogWavefunction):
         nonlinear readout used by full evaluation.
         """
         if self.connection_nodes is None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "This graph does not have a bounded local-reuse plan."
             )
         inputs, features, means, pooled = cache

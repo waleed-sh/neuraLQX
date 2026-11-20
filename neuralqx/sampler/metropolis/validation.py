@@ -24,12 +24,14 @@ import jax.numpy as jnp
 from neuralqx.sampler.rules import AbstractTransitionRule
 from neuralqx.sampler.state import AbstractSamplerState
 from neuralqx.sampler.state import MetropolisSamplerState
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def ensure_metropolis_state(state: AbstractSamplerState) -> MetropolisSamplerState:
     """Return ``state`` as a Metropolis state or raise a helpful error."""
     if not isinstance(state, MetropolisSamplerState):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "MetropolisSampler expects MetropolisSamplerState; "
             f"got {type(state).__name__}."
         )
@@ -45,7 +47,7 @@ def validate_rule_for_hilbert(rule: AbstractTransitionRule, hilbert_size: int) -
     if arr.size == 0:
         return
     if bool(jnp.any(arr < 0)) or bool(jnp.any(arr >= int(hilbert_size))):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Exchange clusters must reference flat Hilbert sites in "
             f"[0, {int(hilbert_size)})."
         )
@@ -56,7 +58,7 @@ def assert_sample_shape(samples: Any, n_batches: int, hilbert_size: int) -> None
     arr = jnp.asarray(samples)
     expected = (int(n_batches), int(hilbert_size))
     if arr.shape != expected:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"sample shape {arr.shape} does not match expected {expected}."
         )
 

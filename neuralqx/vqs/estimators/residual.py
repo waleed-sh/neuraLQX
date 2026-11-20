@@ -43,6 +43,7 @@ from neuralqx.hilbert.local import LocalRange
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator.connectivity import coalesce_connections
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .connectivity import _capacity
 from .connectivity import prepare_connections
@@ -515,7 +516,9 @@ def prepare_residual(vstate, spec, samples):
 
     flat = samples.reshape((-1, spec.hilbert.size))
     if not len(flat):
-        raise ValueError("Residual estimation requires a nonempty sample batch.")
+        raise NeuralqxValueError(
+            "Residual estimation requires a nonempty sample batch."
+        )
     key = vstate._estimator_key
     if spec.n_probes is not None:
         vstate._estimator_key, key = jax.random.split(key)

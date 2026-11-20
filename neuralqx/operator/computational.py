@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import abc
+from typing import TYPE_CHECKING
 from typing import Any
 
 import jax.numpy as jnp
@@ -28,6 +29,7 @@ from neuralqx.jax.sharding.connected import place_operator_batch
 from neuralqx.jax.vectorization import vmap_connected_kernel
 from neuralqx.operator._algebra import is_scalar_like
 from neuralqx.operator._algebra import is_zero_scalar_like
+from neuralqx.utils.errors import NeuralqxValueError
 
 from ._batching import flatten_states
 from ._batching import restore_connected
@@ -36,18 +38,30 @@ from ._connect import streamed_connected_components
 from ._policy import resolve_streaming_policy
 from .discrete import DiscreteOperator
 
+if TYPE_CHECKING:
+    from .wrappers import Squared
+
 
 class ComputationalOperator(DiscreteOperator):
-    """Discrete operator defined by a JAX connected-component kernel.
+    r"""A discrete operator evaluated from a JAX kernel instead of a stored matrix.
 
-    Subclasses implement :meth:`_get_conn_padded_kernel` for one basis state.
-    The kernel receives a rank-1 state with shape ``(hilbert.size,)`` and must
-    return connected states with shape ``(max_conn_size, hilbert.size)`` and
-    matrix elements with shape ``(max_conn_size,)``. neuraLQX supplies the
-    batched implementation by vectorizing this single-state kernel.
+    Implement `_get_conn_padded_kernel` for one configuration of shape
+    `(hilbert.size,)`. It must return targets of shape
+    `(max_conn_size, hilbert.size)` and row matrix elements of shape
+    `(max_conn_size,)`. Zero amplitudes mark unused slots. Repeated targets are
+    allowed and their amplitudes are summed when connections are coalesced.
+
+    The base class supplies batching, optional streaming, and lazy operator
+    algebra. In particular, `A @ B` represents matrix multiplication and
+    `A.squared()` represents the positive operator $A^\dagger A$.
+    The latter is an estimator marker rather than an expanded connectivity kernel.
+
+    Attributes:
+        hilbert (AbstractHilbertSpace): Discrete Hilbert space shared by all connected configurations.
     """
 
     def __add__(self, other: Any) -> ComputationalOperator:
+        """Return the lazy sum of this operator and another computational operator."""
         if isinstance(other, ComputationalOperator):
             from .wrappers import SumOperator
 
@@ -55,6 +69,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __radd__(self, other: Any) -> ComputationalOperator:
+        """Return the reversed lazy sum, accepting zero as the start value of `sum`."""
         if is_zero_scalar_like(other):
             return self
         if isinstance(other, ComputationalOperator):
@@ -64,6 +79,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __sub__(self, other: Any) -> ComputationalOperator:
+        """Return the lazy difference from another computational operator."""
         if isinstance(other, ComputationalOperator):
             from .wrappers import SumOperator
 
@@ -71,6 +87,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __rsub__(self, other: Any) -> ComputationalOperator:
+        """Return the other operator minus this one, or the negative for scalar zero."""
         if is_zero_scalar_like(other):
             return -self
         if isinstance(other, ComputationalOperator):
@@ -80,11 +97,13 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __neg__(self) -> ComputationalOperator:
+        """Return this operator multiplied by minus one."""
         from .wrappers import ScaledOperator
 
         return ScaledOperator(self, -1.0)
 
     def __mul__(self, other: Any) -> ComputationalOperator:
+        """Return a lazy scalar multiple, or `NotImplemented` for a nonscalar operand."""
         if is_scalar_like(other):
             from .wrappers import ScaledOperator
 
@@ -92,6 +111,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __rmul__(self, other: Any) -> ComputationalOperator:
+        """Return a lazy scalar multiple with the coefficient on the left."""
         if is_scalar_like(other):
             from .wrappers import ScaledOperator
 
@@ -99,6 +119,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __matmul__(self, other: Any) -> ComputationalOperator:
+        """Return the matrix product with this operator as the left factor."""
         if isinstance(other, ComputationalOperator):
             from .wrappers import ProductOperator
 
@@ -106,6 +127,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __rmatmul__(self, other: Any) -> ComputationalOperator:
+        """Return the matrix product with this operator as the right factor."""
         if isinstance(other, ComputationalOperator):
             from .wrappers import ProductOperator
 
@@ -113,6 +135,7 @@ class ComputationalOperator(DiscreteOperator):
         return NotImplemented
 
     def __pow__(self, power: int) -> ComputationalOperator:
+        """Return the repeated matrix product for a positive integer exponent."""
         if not isinstance(power, int) or power < 1:
             return NotImplemented
         result: ComputationalOperator = self
@@ -120,8 +143,13 @@ class ComputationalOperator(DiscreteOperator):
             result = result @ self
         return result
 
-    def squared(self) -> ComputationalOperator:
-        """Return the positive wrapper ``self.adjoint @ self``."""
+    def squared(self) -> Squared:
+        r"""Return a lazy marker for the positive operator $A^\dagger A$.
+
+        The VQS layer can evaluate this object without materializing product
+        connections. To construct those connections explicitly, use
+        `self.adjoint @ self`.
+        """
         from .wrappers import Squared
 
         return Squared(self)
@@ -134,14 +162,32 @@ class ComputationalOperator(DiscreteOperator):
         use_sharding: bool | None = None,
         chunk_size: int | None = None,
     ) -> tuple[jax.Array, jax.Array]:
-        """Return padded connected states and matrix elements.
+        r"""Evaluate matrix rows for one configuration or a batch.
 
-        ``use_streaming`` controls connected-component streaming/chunking inside
-        this one operator. ``use_sharding`` is kept as a compatibility alias for
-        older code that used that name for streaming.
+        The last input axis contains the flat configuration. Any preceding axes
+        are preserved. Amplitudes are $\langle q|A|q'\rangle$, so a local
+        estimator multiplies them by $\psi(q')/\psi(q)$.
+
+        Args:
+            states: Array with shape `(..., hilbert.size)`.
+            use_streaming: Evaluate the flattened batch in fixed-size chunks.
+                `None` uses the configured operator-streaming policy.
+            use_sharding: Compatibility alias for `use_streaming`. Supply only
+                one of these two options.
+            chunk_size: Positive number of configurations in a streaming chunk.
+                `None` uses the configured chunk size.
+
+        Returns:
+            result (tuple[jax.Array, jax.Array]): Connected states of shape `(..., max_conn_size, hilbert.size)` and
+                matrix elements of shape `(..., max_conn_size)`.
+        Raises:
+            ValueError: If the input shape, kernel output shapes, or execution
+                options are inconsistent.
         """
         if use_streaming is not None and use_sharding is not None:
-            raise ValueError("Pass either use_streaming or use_sharding, not both.")
+            raise NeuralqxValueError(
+                "Pass either use_streaming or use_sharding, not both."
+            )
         if use_streaming is None:
             use_streaming = use_sharding
         flat, single, batch_shape = flatten_states(states, self.hilbert.size)
@@ -179,7 +225,7 @@ class ComputationalOperator(DiscreteOperator):
     def _get_conn_padded_direct(
         self, states_2d: jax.Array
     ) -> tuple[jax.Array, jax.Array]:
-        """Direct dispatch, subclasses may share independently jitted stages.
+        """Direct dispatch. Subclasses may share independently jitted stages.
 
         The default fuses the complete operator. A staged implementation must
         remain JAX-transformable and obey the same padded batch contract.
@@ -210,17 +256,18 @@ def _validate_connected_shapes(
     n_states: int,
     hilbert_size: int,
 ) -> None:
+    """Raise `ValueError` if a kernel violates the padded batch-shape contract."""
     xp = jnp.asarray(x_primes)
     mel = jnp.asarray(mels)
     expected_xp = (n_states, int(operator.max_conn_size), hilbert_size)
     expected_mel = (n_states, int(operator.max_conn_size))
     if xp.shape != expected_xp:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{type(operator).__name__} kernel returned connected states with "
             f"shape {xp.shape}, expected {expected_xp}."
         )
     if mel.shape != expected_mel:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{type(operator).__name__} kernel returned matrix elements with "
             f"shape {mel.shape}, expected {expected_mel}."
         )

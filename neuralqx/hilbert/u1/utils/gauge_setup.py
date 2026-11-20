@@ -27,6 +27,8 @@ from neuralqx.hilbert.u1.constraints import GaugeRelation
 from neuralqx.hilbert.u1.constraints import U1GaugeConstraint
 from neuralqx.hilbert.u1.constraints import auto_gauge_fixing
 from neuralqx.hilbert.u1.constraints import parse_gauge_fixing
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def validate_integer_constraint_range(cutoff: int | float, step: int | float) -> None:
@@ -40,7 +42,7 @@ def validate_integer_constraint_range(cutoff: int | float, step: int | float) ->
         TypeError: If either value is floating point.
     """
     if isinstance(cutoff, float) or isinstance(step, float):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "Constrained U(1) Hilbert spaces require integer cutoff and step."
         )
 
@@ -59,7 +61,9 @@ def relations_from_inputs(space: object) -> tuple[GaugeRelation, ...]:
             together.
     """
     if space.auto_constraint and space.gauge_fixing is not None:
-        raise ValueError("Pass either gauge_fixing or auto_constraint=True, not both.")
+        raise NeuralqxValueError(
+            "Pass either gauge_fixing or auto_constraint=True, not both."
+        )
     if space.auto_constraint:
         return auto_gauge_fixing(space.graph)
     return parse_gauge_fixing(space.graph, space.gauge_fixing)

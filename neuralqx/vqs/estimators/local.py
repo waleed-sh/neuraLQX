@@ -27,6 +27,7 @@ from neuralqx.operator import Squared
 from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
+from neuralqx.utils.errors import NeuralqxNotImplementedError
 from neuralqx.utils.typing import EstimatorRule
 
 from .connectivity import prepare_estimator
@@ -210,7 +211,7 @@ def local_estimator_kernel_fallback(
     options: LocalEstimatorOptions,
 ) -> LocalEstimators:
     del vstate, samples, options
-    raise NotImplementedError(
+    raise NeuralqxNotImplementedError(
         f"local_estimators is not implemented for operator type {type(operator).__name__}."
     )
 

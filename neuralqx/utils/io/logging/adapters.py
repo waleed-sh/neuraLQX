@@ -22,6 +22,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.typing import LoggerCallable
 
 from .base import AbstractLogger
@@ -109,7 +110,7 @@ def as_logger(logger: Any) -> AbstractLogger | None:
         return logger_list if logger_list else None
     if callable(logger):
         return CallableLogger(logger)
-    raise TypeError(f"Invalid logger object {logger!r}.")
+    raise NeuralqxTypeError(f"Invalid logger object {logger!r}.")
 
 
 def _accepts_driver_keyword(fn: LoggerCallable) -> bool:

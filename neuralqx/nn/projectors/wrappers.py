@@ -22,6 +22,8 @@ from typing import Any
 from flax import linen
 from flax import nnx
 
+from neuralqx.utils.errors import NeuralqxTypeError
+
 from .base import Projector
 from .utils import connected_evaluator
 from .utils import projector_state
@@ -46,7 +48,9 @@ class ProjectedNNX(nnx.Module):
     def __init__(self, model, projector):
         """Wrap an initialized NNX model with a Projector instance."""
         if not isinstance(model, nnx.Module) or not isinstance(projector, Projector):
-            raise TypeError("ProjectedNNX requires an NNX module and a Projector.")
+            raise NeuralqxTypeError(
+                "ProjectedNNX requires an NNX module and a Projector."
+            )
         self.model = model
         self.projection = nnx.Variable(projector_state(projector))
 
@@ -93,7 +97,9 @@ class ProjectedLinen(linen.Module):
         if not isinstance(self.model, linen.Module) or not isinstance(
             self.projector, Projector
         ):
-            raise TypeError("ProjectedLinen requires a Linen module and a Projector.")
+            raise NeuralqxTypeError(
+                "ProjectedLinen requires a Linen module and a Projector."
+            )
         self._projection = self.variable(
             "projection", "data", lambda: projector_state(self.projector)
         )
@@ -188,4 +194,6 @@ def wrap_model(model, projector):
         return ProjectedFramework(model, projector)
     if callable(model):
         return ProjectedCallable(model, projector)
-    raise TypeError(f"Cannot project unsupported model type {type(model).__name__}.")
+    raise NeuralqxTypeError(
+        f"Cannot project unsupported model type {type(model).__name__}."
+    )

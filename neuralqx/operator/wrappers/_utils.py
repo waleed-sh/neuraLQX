@@ -24,6 +24,8 @@ import jax.numpy as jnp
 
 from neuralqx.operator.abstract import AbstractOperator
 from neuralqx.operator.computational import ComputationalOperator
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def as_operator_tuple(
@@ -36,28 +38,32 @@ def as_operator_tuple(
 def validate_operator_tuple(operators: tuple[ComputationalOperator, ...]) -> None:
     """Validate non-empty, same-Hilbert computational operator tuples."""
     if not operators:
-        raise ValueError("At least one operator is required.")
+        raise NeuralqxValueError("At least one operator is required.")
     if not all(isinstance(operator, ComputationalOperator) for operator in operators):
         types = ", ".join(type(operator).__name__ for operator in operators)
-        raise TypeError(f"Expected ComputationalOperator instances; got {types}.")
+        raise NeuralqxTypeError(
+            f"Expected ComputationalOperator instances, got {types}."
+        )
     hilbert = operators[0].hilbert
     if any(operator.hilbert != hilbert for operator in operators[1:]):
-        raise ValueError("All wrapped operators must act on the same Hilbert space.")
+        raise NeuralqxValueError(
+            "All wrapped operators must act on the same Hilbert space."
+        )
 
 
 def validate_computational_operator(operator: ComputationalOperator) -> None:
     """Validate one wrapped computational operator."""
     if not isinstance(operator, ComputationalOperator):
-        raise TypeError(
-            "Expected a ComputationalOperator; " f"got {type(operator).__name__}."
+        raise NeuralqxTypeError(
+            f"Expected a ComputationalOperator, got {type(operator).__name__}."
         )
 
 
 def validate_wrapped_operator(operator: AbstractOperator) -> None:
     """Validate one wrapped operator."""
     if not isinstance(operator, AbstractOperator):
-        raise TypeError(
-            "Expected an AbstractOperator; " f"got {type(operator).__name__}."
+        raise NeuralqxTypeError(
+            f"Expected an AbstractOperator, got {type(operator).__name__}."
         )
 
 
@@ -67,9 +73,8 @@ def canonical_coefficients(coefficients: Any, n_operators: int) -> jnp.ndarray:
     if coeffs.ndim == 0:
         return jnp.broadcast_to(coeffs, (int(n_operators),))
     if coeffs.shape != (int(n_operators),):
-        raise ValueError(
-            f"Expected coefficients with shape {(int(n_operators),)}, "
-            f"got {coeffs.shape}."
+        raise NeuralqxValueError(
+            f"Expected coefficients with shape {(int(n_operators),)}, got {coeffs.shape}."
         )
     return coeffs
 
@@ -78,7 +83,9 @@ def canonical_scalar(value: Any) -> jnp.ndarray:
     """Return a rank-0 JAX scalar."""
     scalar = jnp.asarray(value)
     if scalar.shape != ():
-        raise ValueError(f"Expected a scalar coefficient, got shape {scalar.shape}.")
+        raise NeuralqxValueError(
+            f"Expected a scalar coefficient, got shape {scalar.shape}."
+        )
     return scalar
 
 

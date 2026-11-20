@@ -12,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-from typing import FrozenSet
 from typing import Dict
+from typing import FrozenSet
+
+from neuralqx.utils.errors import NeuralqxAttributeError
 
 
 class _Citation:
@@ -88,7 +91,7 @@ class _Citation:
         "netket": frozenset({"netket2", "netket3"}),
         "jax": frozenset({"jax"}),
         "flax": frozenset({"flax"}),
-        "all": frozenset({"neuralqx", "netket2", "netket3", "jax", "flax"}),
+        "all": frozenset({"neuralqx", "netket2", "netket3", "mpi", "jax", "flax"}),
     }
 
     def __init__(self, keys: FrozenSet[str] | None = None):
@@ -98,7 +101,7 @@ class _Citation:
     def __getattr__(self, name: str) -> "_Citation":
         """Attribute chaining adds citation groups."""
         if name not in self._GROUPS:
-            raise AttributeError(f"No such citation group: '{name}'")
+            raise NeuralqxAttributeError(f"No such citation group: '{name}'")
 
         new_keys = self._keys | self._GROUPS[name]
         return _Citation(new_keys)

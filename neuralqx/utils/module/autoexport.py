@@ -13,14 +13,16 @@
 # limitations under the License.
 
 
+from __future__ import annotations
+
 import importlib
 import pkgutil
-
 from collections.abc import Iterable
 from collections.abc import MutableMapping
-
 from types import ModuleType
 from typing import Any
+
+from neuralqx.utils.errors import NeuralqxRuntimeError
 
 
 def auto_export(
@@ -89,7 +91,9 @@ def _export_name(
 ) -> None:
     existing = namespace.get(name)
     if name in namespace and existing is not value:
-        raise RuntimeError(f"Cannot auto-export duplicate public name {name!r}.")
+        raise NeuralqxRuntimeError(
+            f"Cannot auto-export duplicate public name {name!r}."
+        )
 
     namespace[name] = value
     if name not in seen:

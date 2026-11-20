@@ -29,6 +29,7 @@ from . import callbacks
 from . import driver
 from . import lqx
 from . import nn
+from . import profile
 
 #
 #
@@ -73,4 +74,5 @@ __all__ = [
     "driver",
     "lqx",
     "nn",
+    "profile",
 ]

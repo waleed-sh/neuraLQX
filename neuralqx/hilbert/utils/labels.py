@@ -18,6 +18,8 @@ from __future__ import annotations
 from collections.abc import Hashable
 from collections.abc import Iterable
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 
 def normalize_labels(
     labels: Iterable[Hashable] | Hashable | int | None,
@@ -38,7 +40,7 @@ def normalize_labels(
         return ()
     if isinstance(labels, int):
         if labels < 0:
-            raise ValueError("label multiplicity must be non-negative.")
+            raise NeuralqxValueError("label multiplicity must be non-negative.")
         return tuple(range(labels))
     if isinstance(labels, str | bytes):
         return (labels,)

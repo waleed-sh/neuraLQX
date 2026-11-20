@@ -27,6 +27,8 @@ from typing import TypeAlias
 
 import jax
 from jax.sharding import Mesh
+from neuralqx.utils.errors import NeuralqxKeyError
+from neuralqx.utils.errors import NeuralqxValueError
 
 if TYPE_CHECKING:
     from neuralqx.jax.distributed.coordinator import DistributedCoordinator
@@ -231,7 +233,9 @@ class DistributedPlan:
         """
         value = self.axis_name_or_none(axis)
         if value is None:
-            raise KeyError(f"Plan {self.phase.value!r} has no {axis.value!r} axis.")
+            raise NeuralqxKeyError(
+                f"Plan {self.phase.value!r} has no {axis.value!r} axis."
+            )
         return value
 
     def axis_name_or_none(self, axis: DistributedAxis) -> str | None:
@@ -276,7 +280,9 @@ class DistributedPlan:
             ValueError: If this plan has no executable mesh.
         """
         if self.mesh is None:
-            raise ValueError(f"Distributed plan {self.phase.value!r} has no mesh.")
+            raise NeuralqxValueError(
+                f"Distributed plan {self.phase.value!r} has no mesh."
+            )
         return self.mesh
 
     def metadata(self) -> dict[str, Any]:

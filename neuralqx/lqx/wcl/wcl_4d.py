@@ -25,6 +25,8 @@ from neuralqx.operator.prebuilt.utils import graph_vertex
 from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_nonplanar_graph
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .wcl_1d import LqxWCL1D
 
@@ -116,7 +118,7 @@ class LqxWCL4D(LqxWCL1D):
                 self.hilbert, edge, adjoint_flag=adjoint, copy=copy
             )
         if int(dimension) != 3:
-            raise ValueError("LqxWCL4D supports dimension=1 or dimension=3.")
+            raise NeuralqxValueError("LqxWCL4D supports dimension=1 or dimension=3.")
         return wcl.NDU1HolonomyOperator(self.hilbert, edge, adjoint_flag=adjoint)
 
     def minimal_loop_holonomy(
@@ -148,7 +150,7 @@ class LqxWCL4D(LqxWCL1D):
                 adjoint_flag=adjoint,
             )
         if int(dimension) != 3:
-            raise ValueError("LqxWCL4D supports dimension=1 or dimension=3.")
+            raise NeuralqxValueError("LqxWCL4D supports dimension=1 or dimension=3.")
         return wcl.NDMinimalLoopHolonomyOperator(
             self.hilbert,
             loop,
@@ -314,7 +316,7 @@ class LqxWCL4D(LqxWCL1D):
             result (list[Squared]): One `Squared` constraint per admissible vertex.
         """
         if not lazy:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "Only lazy squared WCL Thiemann constraints are currently exposed."
             )
         return [

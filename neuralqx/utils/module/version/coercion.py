@@ -13,38 +13,51 @@
 # limitations under the License.
 
 
+"""
+Low-level coercion helpers used by version classes.
+"""
+
+from __future__ import annotations
+
 from collections.abc import Sequence
 
 from packaging.version import Version as PackagingVersion
+
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import ModuleReference
 from neuralqx.utils.typing import VersionInput
 
 
 def _coerce_sequence_to_text(parts: Sequence[object]) -> str:
     if len(parts) == 0:
-        raise ValueError("Version sequences must contain at least one component.")
+        raise NeuralqxValueError(
+            "Version sequences must contain at least one component."
+        )
 
     tokens: list[str] = []
     for item in parts:
         if isinstance(item, bool):
-            raise TypeError("Boolean values are not valid version components.")
+            raise NeuralqxTypeError("Boolean values are not valid version components.")
 
         if isinstance(item, int):
             if item < 0:
-                raise ValueError("Version components must be non-negative integers.")
+                raise NeuralqxValueError(
+                    "Version components must be non-negative integers."
+                )
             tokens.append(str(item))
             continue
 
         if isinstance(item, str):
             token = item.strip()
             if token == "":
-                raise ValueError(
+                raise NeuralqxValueError(
                     "Empty string components are not valid version components."
                 )
             tokens.append(token)
             continue
 
-        raise TypeError(
+        raise NeuralqxTypeError(
             f"Unsupported version component type {type(item)!r}. "
             "Expected int or str components."
         )
@@ -71,21 +84,21 @@ def coerce_version_text(value: object) -> str:
     if isinstance(value, str):
         text = value.strip()
         if text == "":
-            raise ValueError("Version strings must not be empty.")
+            raise NeuralqxValueError("Version strings must not be empty.")
         return text
 
     if isinstance(value, bool):
-        raise TypeError("Boolean values are not valid versions.")
+        raise NeuralqxTypeError("Boolean values are not valid versions.")
 
     if isinstance(value, int):
         if value < 0:
-            raise ValueError("Version integers must be non-negative.")
+            raise NeuralqxValueError("Version integers must be non-negative.")
         return str(value)
 
     if isinstance(value, Sequence):
         return _coerce_sequence_to_text(value)
 
-    raise TypeError(
+    raise NeuralqxTypeError(
         f"Unsupported version value {value!r} (type {type(value)!r}). "
         "Expected str, int, sequence, Version, or NeuralqxVersion."
     )

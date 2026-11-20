@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+"""Graph edges."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -20,6 +22,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 from typing import overload
+
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .vertex import Vertex
 
@@ -62,7 +67,7 @@ class Edge:
             return cls(value.start, value.end, key)
 
         if not _is_edge_sequence(value):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "An edge must be an Edge, ``(start, end)``, or "
                 f"``(start, end, key)``; got {value!r}."
             )
@@ -77,9 +82,9 @@ class Edge:
     @staticmethod
     def _coerce_key(value: object) -> int:
         if isinstance(value, bool) or not isinstance(value, int):
-            raise TypeError(f"Edge key must be an integer; got {value!r}.")
+            raise NeuralqxTypeError(f"Edge key must be an integer; got {value!r}.")
         if value < 0:
-            raise ValueError(f"Edge key must be non-negative; got {value}.")
+            raise NeuralqxValueError(f"Edge key must be non-negative; got {value}.")
         return value
 
     @property

@@ -25,6 +25,7 @@ from neuralqx.operator.prebuilt.utils import q_bounds
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
 from neuralqx.operator.prebuilt.utils import site_index
 from neuralqx.operator.prebuilt.utils import wrap_add_value
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -84,7 +85,7 @@ class GaussConstraintOperator(ComputationalOperator):
         q_min, _q_max, q_step, local_size = q_bounds(hilbert)
         connectivity = getattr(hilbert.graph, "connectivity", None)
         if connectivity is None:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"{type(self).__name__} requires graph connectivity metadata."
             )
 

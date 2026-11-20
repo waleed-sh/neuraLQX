@@ -20,6 +20,8 @@ from itertools import pairwise
 import jax.numpy as jnp
 from flax import nnx
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from ..activations import get_activation
 from ..layers import Linear
 from ..utils import ConnectionPolicy
@@ -105,10 +107,10 @@ class MLP(LogWavefunction):
         self.in_features = positive_int(in_features, "in_features")
         widths = tuple(positive_int(w, "hidden_features") for w in hidden_features)
         if not widths:
-            raise ValueError("MLP requires at least one hidden layer.")
+            raise NeuralqxValueError("MLP requires at least one hidden layer.")
         self.input_scale = float(input_scale)
         if not 0 < self.input_scale < float("inf"):
-            raise ValueError("input_scale must be finite and positive.")
+            raise NeuralqxValueError("input_scale must be finite and positive.")
         dtype = compute_dtype(dtype, param_dtype)
         self.dtype = dtype
         self.complex_output = bool(complex_output)

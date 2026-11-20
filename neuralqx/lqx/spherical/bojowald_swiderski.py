@@ -25,6 +25,7 @@ from neuralqx.lqx.base import LQXModel
 from neuralqx.operator.prebuilt import bojowald_swiderski as bosw
 from neuralqx.operator.prebuilt import wcl
 from neuralqx.operator.prebuilt.utils import k_vertex
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 class LqxSphericalBojowaldSwiderski(LQXModel):
@@ -74,7 +75,7 @@ class LqxSphericalBojowaldSwiderski(LQXModel):
         """
         super().__init__(hilbert, graph)
         if not isinstance(self.graph, HalfLadderGraph):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "LqxSphericalBojowaldSwiderski requires HalfLadderGraph, "
                 f"got {type(self.graph).__name__}."
             )
@@ -84,9 +85,9 @@ class LqxSphericalBojowaldSwiderski(LQXModel):
             or delta <= 0
             or delta % 2 != 0
         ):
-            raise ValueError("delta must be a positive even integer.")
+            raise NeuralqxValueError("delta must be a positive even integer.")
         if float(immirzi) == 0.0:
-            raise ValueError("immirzi must be non-zero.")
+            raise NeuralqxValueError("immirzi must be non-zero.")
         self.immirzi = float(immirzi)
         self.delta = int(delta)
 

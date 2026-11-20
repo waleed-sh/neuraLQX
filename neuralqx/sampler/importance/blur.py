@@ -26,6 +26,8 @@ from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.connectivity import coalesce_connections
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators.operators import linear_operator_terms
 
 
@@ -48,14 +50,18 @@ def blur_operators(spec, hilbert):
     terms = []
     for op in factors(spec.operator):
         if not isinstance(op, DiscreteOperator):
-            raise TypeError("OperatorBlur requires discrete matrix-row operators.")
+            raise NeuralqxTypeError(
+                "OperatorBlur requires discrete matrix-row operators."
+            )
         if op.hilbert != hilbert:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "The blur operator and sampler have different Hilbert spaces."
             )
         adjoint = op.adjoint
         if not isinstance(adjoint, DiscreteOperator):
-            raise TypeError("OperatorBlur requires an explicit discrete adjoint.")
+            raise NeuralqxTypeError(
+                "OperatorBlur requires an explicit discrete adjoint."
+            )
         terms.append((op, adjoint))
     return tuple(terms)
 

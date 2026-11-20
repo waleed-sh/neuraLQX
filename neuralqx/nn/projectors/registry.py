@@ -21,6 +21,9 @@ import re
 from functools import wraps
 from threading import RLock
 
+from neuralqx.utils.errors import NeuralqxKeyError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import StructABCMeta
 
 _REGISTRY = {}
@@ -66,9 +69,9 @@ def register_projector(cls=None, *, name=None, replace=False):
         if not isinstance(projector_cls, type) or not issubclass(
             projector_cls, Projector
         ):
-            raise TypeError("Only Projector subclasses can be registered.")
+            raise NeuralqxTypeError("Only Projector subclasses can be registered.")
         if inspect.isabstract(projector_cls):
-            raise TypeError("An abstract projector cannot be registered.")
+            raise NeuralqxTypeError("An abstract projector cannot be registered.")
         key = _default_name(projector_cls) if name is None else name
         if (
             not isinstance(key, str)
@@ -77,11 +80,11 @@ def register_projector(cls=None, *, name=None, replace=False):
             or key.startswith("_")
             or key in _RESERVED
         ):
-            raise ValueError(f"Invalid or reserved projector name {key!r}.")
+            raise NeuralqxValueError(f"Invalid or reserved projector name {key!r}.")
         with _LOCK:
             old = _REGISTRY.get(key)
             if old is not None and old is not projector_cls and not replace:
-                raise ValueError(f"Projector {key!r} is already registered.")
+                raise NeuralqxValueError(f"Projector {key!r} is already registered.")
             _REGISTRY[key] = projector_cls
         return projector_cls
 
@@ -94,7 +97,7 @@ def get_projector(name, **kwargs):
         try:
             cls = _REGISTRY[name]
         except KeyError:
-            raise KeyError(
+            raise NeuralqxKeyError(
                 f"Unknown projector {name!r}. Available: {available_projectors()}"
             ) from None
     return cls(**kwargs)

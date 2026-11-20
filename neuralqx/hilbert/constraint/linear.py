@@ -27,6 +27,8 @@ from typing import Any
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .abstract import AbstractDiscreteConstraint
@@ -65,18 +67,18 @@ class LinearConstraint(AbstractDiscreteConstraint):
         weights = tuple(tuple(weight for weight in row) for row in self.weights)
         targets = tuple(self.targets)
         if not sites:
-            raise ValueError("LinearConstraint needs at least one row.")
+            raise NeuralqxValueError("LinearConstraint needs at least one row.")
         if len(sites) != len(weights) or len(sites) != len(targets):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "sites, weights, and targets must have the same row count."
             )
         for site_row, weight_row in zip(sites, weights, strict=True):
             if not site_row:
-                raise ValueError("LinearConstraint rows may not be empty.")
+                raise NeuralqxValueError("LinearConstraint rows may not be empty.")
             if len(site_row) != len(weight_row):
-                raise ValueError("Every row needs matching sites and weights.")
+                raise NeuralqxValueError("Every row needs matching sites and weights.")
             if any(site < 0 for site in site_row):
-                raise ValueError("LinearConstraint sites must be non-negative.")
+                raise NeuralqxValueError("LinearConstraint sites must be non-negative.")
         object.__setattr__(self, "sites", sites)
         object.__setattr__(self, "weights", weights)
         object.__setattr__(self, "targets", targets)
@@ -112,7 +114,7 @@ class LinearConstraint(AbstractDiscreteConstraint):
         size = hilbert.size
         for row in self.sites:
             if any(site >= size for site in row):
-                raise IndexError(
+                raise NeuralqxIndexError(
                     f"Constraint site out of range for Hilbert size {size}."
                 )
 

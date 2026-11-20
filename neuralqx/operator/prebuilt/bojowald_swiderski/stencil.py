@@ -27,6 +27,8 @@ from neuralqx.operator.prebuilt.utils import other_endpoint
 from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_half_ladder_graph
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import Vertex
 
 
@@ -142,7 +144,7 @@ def spherical_stencil(graph: HalfLadderGraph, vertex: Any) -> SphericalStencil:
     # The Hamiltonian needs one immediate radial neighbor on either side.
     if idx < 1 or idx > len(graph.vertices_k) - 2:
         # Reject an endpoint before looking up its missing central radial link.
-        raise ValueError(
+        raise NeuralqxValueError(
             "Spherical vertex operators require a k-vertex with left and right neighbours."
         )
 
@@ -153,7 +155,9 @@ def spherical_stencil(graph: HalfLadderGraph, vertex: Any) -> SphericalStencil:
     # Each required central label must correspond to exactly one edge.
     if len(mu_edges) != 1 or len(left_edges) != 1 or len(right_edges) != 1:
         # Fail on ambiguous central incidence instead of choosing an arbitrary edge.
-        raise RuntimeError(f"Could not resolve spherical stencil at vertex {k_v!r}.")
+        raise NeuralqxRuntimeError(
+            f"Could not resolve spherical stencil at vertex {k_v!r}."
+        )
 
     # Follow the adjacent left link regardless of its stored edge direction.
     left_v = other_endpoint(left_edges[0], k_v)

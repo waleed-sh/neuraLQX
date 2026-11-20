@@ -20,6 +20,8 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from .base import Callback
 from .context import CallbackContext
 
@@ -40,7 +42,7 @@ class ProgressBar(Callback):
         self.total = int(total)
         self.every = int(every)
         if self.every <= 0:
-            raise ValueError("every must be positive.")
+            raise NeuralqxValueError("every must be positive.")
         self.min_interval = min_interval
         self.leave = bool(leave)
         self._bar: Any | None = None

@@ -20,6 +20,7 @@ import numpy as np
 from flax import nnx
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 from ..layers import Embed
 from ..layers import Linear
@@ -95,7 +96,7 @@ class AutoregressiveRNN(LogWavefunction):
             or len(labels) < 2
             or not np.issubdtype(labels.dtype, np.number)
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "local_states must be a one-dimensional numeric alphabet of size at least two."
             )
         if (
@@ -103,11 +104,13 @@ class AutoregressiveRNN(LogWavefunction):
             or not np.all(np.isfinite(labels))
             or len(np.unique(labels)) != len(labels)
         ):
-            raise ValueError("local_states must contain distinct finite real labels.")
+            raise NeuralqxValueError(
+                "local_states must contain distinct finite real labels."
+            )
         if jnp.issubdtype(
             compute_dtype(dtype, param_dtype), jnp.complexfloating
         ) or jnp.issubdtype(jnp.dtype(param_dtype), jnp.complexfloating):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Autoregressive logits and parameters must use real dtypes."
             )
         self.local_states = nnx.Variable(jnp.asarray(np.sort(labels)))

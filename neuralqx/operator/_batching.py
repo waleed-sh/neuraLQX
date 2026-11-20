@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def flatten_states(
@@ -30,9 +31,9 @@ def flatten_states(
     """Flatten leading state axes into a rank-2 batch."""
     arr = jnp.asarray(states)
     if arr.ndim == 0:
-        raise ValueError("Operator states must have a trailing Hilbert axis.")
+        raise NeuralqxValueError("Operator states must have a trailing Hilbert axis.")
     if arr.shape[-1] != hilbert_size:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"State trailing dimension {arr.shape[-1]} != Hilbert size {hilbert_size}."
         )
     single = arr.ndim == 1
@@ -52,13 +53,13 @@ def restore_connected(
     xp = jnp.asarray(x_primes)
     mel = jnp.asarray(mels)
     if xp.ndim != 3:
-        raise ValueError(
+        raise NeuralqxValueError(
             "Connected states must have shape (batch, max_conn, hilbert_size)."
         )
     if mel.ndim != 2:
-        raise ValueError("Matrix elements must have shape (batch, max_conn).")
+        raise NeuralqxValueError("Matrix elements must have shape (batch, max_conn).")
     if xp.shape[:2] != mel.shape:
-        raise ValueError(
+        raise NeuralqxValueError(
             "Connected state and matrix-element leading shapes disagree: "
             f"{xp.shape[:2]} != {mel.shape}."
         )

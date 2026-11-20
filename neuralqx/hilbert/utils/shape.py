@@ -17,8 +17,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
+
+import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def batch_shape(size: int | tuple[int, ...] | None) -> tuple[int, ...]:
@@ -38,7 +40,7 @@ def batch_shape(size: int | tuple[int, ...] | None) -> tuple[int, ...]:
         return ()
     if isinstance(size, int):
         if size < 0:
-            raise ValueError("size must be non-negative.")
+            raise NeuralqxValueError("size must be non-negative.")
         return (size,)
     return tuple(int(dim) for dim in size)
 
@@ -62,12 +64,12 @@ def ensure_2d_trailing(
     arr = jnp.asarray(values)
     if arr.ndim == 1:
         if arr.shape[0] != trailing:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Trailing dimension {arr.shape[0]} does not match {trailing}."
             )
         return arr[None, :], True, ()
     if arr.shape[-1] != trailing:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Trailing dimension {arr.shape[-1]} does not match {trailing}."
         )
     return arr.reshape((-1, trailing)), False, arr.shape[:-1]

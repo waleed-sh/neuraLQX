@@ -28,6 +28,7 @@ from typing import Any
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .abstract import AbstractDiscreteConstraint
@@ -58,7 +59,9 @@ class AndConstraint(AbstractDiscreteConstraint):
         """Normalizes and validates the child constraint sequence."""
         constraints = tuple(self.constraints)
         if not constraints:
-            raise ValueError("AndConstraint needs at least one child constraint.")
+            raise NeuralqxValueError(
+                "AndConstraint needs at least one child constraint."
+            )
         object.__setattr__(self, "constraints", constraints)
 
     def __hash__(self) -> int:
@@ -106,7 +109,9 @@ class OrConstraint(AbstractDiscreteConstraint):
         """Normalizes and validates the child constraint sequence."""
         constraints = tuple(self.constraints)
         if not constraints:
-            raise ValueError("OrConstraint needs at least one child constraint.")
+            raise NeuralqxValueError(
+                "OrConstraint needs at least one child constraint."
+            )
         object.__setattr__(self, "constraints", constraints)
 
     def __hash__(self) -> int:

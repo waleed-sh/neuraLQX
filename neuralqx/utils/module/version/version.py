@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+"""
+Strict semantic version abstraction.
+"""
+
 from __future__ import annotations
 
 from functools import total_ordering
 
 from packaging.version import InvalidVersion
 from packaging.version import Version as PackagingVersion
+
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .coercion import VersionInput
 from .coercion import coerce_version_text
@@ -108,7 +115,7 @@ class Version:
         Return release components padded/truncated to ``width``.
         """
         if width < 0:
-            raise ValueError("width must be >= 0")
+            raise NeuralqxValueError("width must be >= 0")
 
         rel = self.release
         if len(rel) >= width:
@@ -185,6 +192,6 @@ def normalize_version(
     parsed = try_parse_version(value)
     if parsed is None:
         if width < 0:
-            raise ValueError("width must be >= 0")
+            raise NeuralqxValueError("width must be >= 0")
         return (0,) * width
     return parsed.as_tuple(width=width)

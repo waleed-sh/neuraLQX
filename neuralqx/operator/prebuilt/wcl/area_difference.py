@@ -26,6 +26,7 @@ from neuralqx.operator.computational import ComputationalOperator
 from neuralqx.operator.prebuilt.utils import copy_sites
 from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -64,7 +65,9 @@ class AreaDifferenceSquaredOperator(ComputationalOperator):
     def __post_init__(self) -> None:
         """Validate the construction arguments and prepare static kernel metadata."""
         if not isinstance(self.edges, tuple) or len(self.edges) != 2:
-            raise ValueError("AreaDifferenceSquaredOperator expects exactly two edges.")
+            raise NeuralqxValueError(
+                "AreaDifferenceSquaredOperator expects exactly two edges."
+            )
         hilbert = require_u1_hilbert(self.hilbert, operator=type(self).__name__)
         require_gauge_dimensions(hilbert, 3, operator=type(self).__name__)
         object.__setattr__(self, "_sites_1", tuple(copy_sites(hilbert, self.edges[0])))
@@ -145,7 +148,7 @@ class AreaDifferenceSquaredSurfacesOperator(ComputationalOperator):
     def __post_init__(self) -> None:
         """Validate the construction arguments and prepare static kernel metadata."""
         if not isinstance(self.surfaces, tuple) or len(self.surfaces) != 2:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "AreaDifferenceSquaredSurfacesOperator expects two surfaces."
             )
         hilbert = require_u1_hilbert(self.hilbert, operator=type(self).__name__)

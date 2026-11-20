@@ -32,6 +32,7 @@ from neuralqx.jax.streaming import apply_connected
 from neuralqx.jax.streaming import stream_flattened_kernel
 from neuralqx.operator import ComputationalOperator
 from neuralqx.operator._policy import resolve_streaming_policy
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import DistributedPhase
 from neuralqx.utils.typing import DistributedPlan
 from neuralqx.utils.typing import DistributedWorkload
@@ -72,7 +73,9 @@ def sharded_operator_term_values(
     if enabled is False:
         return None
     if not terms:
-        raise ValueError("Operator-term buckets must contain at least one term.")
+        raise NeuralqxValueError(
+            "Operator-term buckets must contain at least one term."
+        )
     if not all(isinstance(term.operator, ComputationalOperator) for term in terms):
         return None
 

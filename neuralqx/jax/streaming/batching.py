@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import ConnectedKernel
 
 
@@ -43,13 +44,15 @@ def stream_flattened_kernel(
     special invalid-state branch.
     """
     if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive.")
+        raise NeuralqxValueError("chunk_size must be positive.")
     if max_conn_size <= 0:
-        raise ValueError("max_conn_size must be positive.")
+        raise NeuralqxValueError("max_conn_size must be positive.")
 
     flat = jnp.asarray(states)
     if flat.ndim != 2:
-        raise ValueError("stream_flattened_kernel expects a rank-2 state batch.")
+        raise NeuralqxValueError(
+            "stream_flattened_kernel expects a rank-2 state batch."
+        )
 
     n_states = int(flat.shape[0])
     hilbert_size = int(flat.shape[1])

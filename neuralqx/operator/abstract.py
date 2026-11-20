@@ -23,20 +23,34 @@ from typing import Any
 import numpy as np
 
 from neuralqx.hilbert import AbstractHilbertSpace
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import StructABCMeta
 from neuralqx.utils.struct import field
 
 
 class AbstractOperator(Struct, metaclass=StructABCMeta):
-    """Base class for all neuraLQX operators."""
+    r"""An operator tied to a neuraLQX Hilbert space.
+
+    Operators are immutable structs that can participate in JAX transformations.
+    Subclasses specify the matrix-element dtype and whether Hermiticity is known.
+    The `adjoint` property represents the conjugate transpose, $A^\dagger$.
+    Concrete operators must implement it when they are used in products or
+    quadratic constraints.
+
+    Attributes:
+        hilbert (AbstractHilbertSpace): Hilbert space on which the operator acts.
+    """
 
     hilbert: AbstractHilbertSpace = field(static=True)
+    """Hilbert space defining the operator basis."""
 
     def __post_init__(self) -> None:
+        """Validate the construction arguments and prepare static kernel metadata."""
         if not isinstance(self.hilbert, AbstractHilbertSpace):
-            raise TypeError(
-                "Operators must act on a neuraLQX Hilbert space; "
+            raise NeuralqxTypeError(
+                "Operators must act on a neuraLQX Hilbert space, "
                 f"got {type(self.hilbert).__name__}."
             )
 
@@ -53,7 +67,7 @@ class AbstractOperator(Struct, metaclass=StructABCMeta):
     @property
     def adjoint(self) -> AbstractOperator:
         """Return the Hermitian adjoint operator."""
-        raise NotImplementedError(
+        raise NeuralqxNotImplementedError(
             f"{type(self).__name__} does not implement the adjoint property."
         )
 

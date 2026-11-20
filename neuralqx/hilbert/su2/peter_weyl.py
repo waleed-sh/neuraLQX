@@ -23,6 +23,8 @@ import numpy as np
 from neuralqx.hilbert.constraint import IdentityConstraint
 from neuralqx.hilbert.local import LocalRange
 from neuralqx.hilbert.space import HomogeneousDiscreteHilbert
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .utils import validate_two_j_max
@@ -54,12 +56,14 @@ class SU2PeterWeylHilbert(HomogeneousDiscreteHilbert):
                 and not isinstance(self.constraint, IdentityConstraint)
             )
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Peter-Weyl coordinates require unconstrained edge sites only."
             )
         dimension = (cutoff + 1) * (cutoff + 2) * (2 * cutoff + 3) // 6
         if dimension > np.iinfo(np.int32).max:
-            raise ValueError("The local Peter-Weyl dimension exceeds int32 indexing.")
+            raise NeuralqxValueError(
+                "The local Peter-Weyl dimension exceeds int32 indexing."
+            )
         object.__setattr__(
             self, "local_space", LocalRange(0, 1, dimension, dtype=np.int32)
         )
@@ -73,7 +77,7 @@ class SU2PeterWeylHilbert(HomogeneousDiscreteHilbert):
             if spec.init
         }
         if set(updates) - parameters.keys():
-            raise TypeError("Only constructor parameters can be replaced.")
+            raise NeuralqxTypeError("Only constructor parameters can be replaced.")
         parameters.update(updates)
         return type(self)(**parameters)
 

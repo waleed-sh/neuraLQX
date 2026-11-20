@@ -33,6 +33,8 @@ from neuralqx.operator import Squared
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
 from neuralqx.sampler.importance import WeightedLocalEstimators
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .connectivity import ConnectionPlan
 from .connectivity import _apply_active
@@ -58,7 +60,7 @@ def prepare_importance(vstate, operator, samples, options):
         from neuralqx.sampler.importance import SamplingMeasure
 
         if vstate.machine_pow != 2:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Embedded residuals require Born sampling or an explicit importance sampling measure."
             )
         logs = apply_batched(
@@ -122,7 +124,7 @@ def prepare_importance(vstate, operator, samples, options):
         square = isinstance(term.operator, Squared)
         op = term.operator.operator if square else term.operator
         if not isinstance(op, DiscreteOperator):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "Importance estimators require discrete operators or their squared markers."
             )
         connections.append(

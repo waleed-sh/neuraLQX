@@ -26,6 +26,7 @@ from neuralqx.sampler.rules import LocalRule
 from neuralqx.sampler.rules import NeighborRule
 from neuralqx.sampler.rules import SU2MetropolisRule
 from neuralqx.sampler.rules import U1GaugeRule
+from neuralqx.utils.errors import NeuralqxTypeError
 
 
 def MetropolisLocal(hilbert, **kwargs: Any) -> MetropolisSampler:
@@ -110,7 +111,7 @@ def MetropolisSU2(
     from neuralqx.hilbert.su2 import SU2GaugeInvariantHilbert
 
     if not isinstance(hilbert, SU2GaugeInvariantHilbert):
-        raise TypeError("MetropolisSU2 requires SU2GaugeInvariantHilbert.")
+        raise NeuralqxTypeError("MetropolisSU2 requires SU2GaugeInvariantHilbert.")
     return MetropolisSampler(
         hilbert=hilbert,
         rule=SU2MetropolisRule(

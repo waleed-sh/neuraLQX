@@ -22,6 +22,7 @@ or plaquette proposal kernel to use.
 
 from __future__ import annotations
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import StructABCMeta
 from neuralqx.utils.struct import field
@@ -73,7 +74,7 @@ class FreeEdgeFlipSingleGauge(AbstractU1Move):
     def __post_init__(self) -> None:
         """Validates the requested number of free-edge updates."""
         if self.n_edges < 0:
-            raise ValueError("n_edges must be non-negative.")
+            raise NeuralqxValueError("n_edges must be non-negative.")
 
     def __hash__(self) -> int:
         """Returns a structural hash for the move descriptor."""
@@ -110,7 +111,7 @@ class FreeEdgeFlipAllGauge(AbstractU1Move):
     def __post_init__(self) -> None:
         """Validates the requested number of free-edge updates."""
         if self.n_edges < 0:
-            raise ValueError("n_edges must be non-negative.")
+            raise NeuralqxValueError("n_edges must be non-negative.")
 
     def __hash__(self) -> int:
         """Returns a structural hash for the move descriptor."""

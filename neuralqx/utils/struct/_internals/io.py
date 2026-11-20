@@ -47,6 +47,8 @@ Known limitations
   type (e.g. a NumPy ``uint8`` array) before storing in a Struct field.
 """
 
+from __future__ import annotations
+
 import io
 import json
 import shutil
@@ -56,17 +58,21 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import jax
 import numpy as np
+
+import jax
+from neuralqx.utils.errors import NeuralqxFileExistsError
+from neuralqx.utils.errors import NeuralqxFileNotFoundError
+from neuralqx.utils.errors import NeuralqxOSError
+from neuralqx.utils.errors import NeuralqxPermissionError
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxValueError
+from neuralqx.utils.errors import SerializationError
 
 from ..fields import FieldKind
 from ..pytree import resolve_pytree_spec
-
 from ..registry import class_ref
 from ..registry import resolve_class
-
-from neuralqx.utils.errors import SerializationError
-
 from ._types import Array
 
 
@@ -94,7 +100,7 @@ def _reraise_dist_error(payload: Mapping[str, Any], *, context: str) -> None:
     if err is None:
         return
     if not isinstance(err, Mapping):
-        raise RuntimeError(
+        raise NeuralqxRuntimeError(
             f"{context} failed with malformed distributed error payload: {err!r}"
         )
 
@@ -102,17 +108,18 @@ def _reraise_dist_error(payload: Mapping[str, Any], *, context: str) -> None:
     message = str(err.get("message", ""))
     known: dict[str, type[Exception]] = {
         "SerializationError": SerializationError,
-        "FileExistsError": FileExistsError,
-        "FileNotFoundError": FileNotFoundError,
-        "PermissionError": PermissionError,
-        "ValueError": ValueError,
-        "RuntimeError": RuntimeError,
-        "OSError": OSError,
+        "FileExistsError": NeuralqxFileExistsError,
+        "FileNotFoundError": NeuralqxFileNotFoundError,
+        "PermissionError": NeuralqxPermissionError,
+        "ValueError": NeuralqxValueError,
+        "RuntimeError": NeuralqxRuntimeError,
+        "OSError": NeuralqxOSError,
     }
+    known.update({kind.__name__: kind for kind in tuple(known.values())})
     exc_type = known.get(name)
     if exc_type is not None:
         raise exc_type(message)
-    raise RuntimeError(f"{context} failed on master rank ({name}): {message}")
+    raise NeuralqxRuntimeError(f"{context} failed on master rank ({name}): {message}")
 
 
 def to_python_value(value: Any, *, include_opaque: bool = True) -> Any:
@@ -491,7 +498,7 @@ def export_impl(obj: Any, path: str | Path, *, overwrite: bool = False) -> Path:
     if dist.is_global_master():
         try:
             if path.exists() and not overwrite:
-                raise FileExistsError(f"Path already exists: {path}")
+                raise NeuralqxFileExistsError(f"Path already exists: {path}")
 
             state = to_state_dict_impl(prepared)
             arrays = state.pop("array_data")
@@ -551,7 +558,7 @@ def load_impl(path: str | Path, *, expected_cls: type[Any] | None = None) -> Any
     if dist.is_global_master():
         try:
             if not path.exists():
-                raise FileNotFoundError(path)
+                raise NeuralqxFileNotFoundError(path)
 
             if path.is_file() and path.suffix == ".zip":
                 with zipfile.ZipFile(path, "r") as zf:

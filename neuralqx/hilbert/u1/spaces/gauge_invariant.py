@@ -83,10 +83,8 @@ class U1GaugeInvariantHilbert(U1Hilbert):
 
     gauge_fixing: GaugeFixingSpec | None = field(static=True, default=None)
     """Frozen user-facing gauge-fixing specification."""
-
     auto_constraint: bool = field(static=True, default=False)
     """Whether spanning-tree gauge fixing is generated."""
-
     relations: tuple[GaugeRelation, ...] = field(
         static=True,
         init=False,
@@ -94,7 +92,6 @@ class U1GaugeInvariantHilbert(U1Hilbert):
         repr=False,
     )
     """Resolved constructive gauge relations."""
-
     topology: GaugeFixingTopology = field(static=True, init=False, default=None)
     """Dependency topology for free and slave edges."""
 

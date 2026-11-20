@@ -15,11 +15,6 @@
 
 """Callback exceptions."""
 
-from __future__ import annotations
-
-
-class StopRun(Exception):
-    """Raised internally to finish a driver run without an error traceback."""
-
+from neuralqx.utils.errors import StopRun
 
 __all__ = ["StopRun"]

@@ -19,6 +19,8 @@ from typing import Any
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 
@@ -65,26 +67,30 @@ class BasisEmbedding(Struct):
         if not isinstance(self.source, DiscreteHilbertSpace) or not isinstance(
             self.target, DiscreteHilbertSpace
         ):
-            raise TypeError("BasisEmbedding requires two discrete Hilbert spaces.")
+            raise NeuralqxTypeError(
+                "BasisEmbedding requires two discrete Hilbert spaces."
+            )
         if (self.encode is None) != (self.decode is None):
-            raise ValueError("Supply both encode and decode, or neither.")
+            raise NeuralqxValueError("Supply both encode and decode, or neither.")
         if self.encode is None and self.source.size != self.target.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Different configuration widths require encode and decode."
             )
         if self.encode is not None and not (
             callable(self.encode) and callable(self.decode)
         ):
-            raise TypeError("encode and decode must be callable.")
+            raise NeuralqxTypeError("encode and decode must be callable.")
 
     def embed(self, states: Any):
         """Map configurations with final axis ``source.size`` into the target."""
         states = jnp.asarray(states)
         if states.shape[-1] != self.source.size:
-            raise ValueError("Source configuration width does not match the embedding.")
+            raise NeuralqxValueError(
+                "Source configuration width does not match the embedding."
+            )
         result = states if self.encode is None else jnp.asarray(self.encode(states))
         if result.shape != (*states.shape[:-1], self.target.size):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "encode must preserve batch dimensions and return target labels."
             )
         return result
@@ -98,10 +104,12 @@ class BasisEmbedding(Struct):
         """
         states = jnp.asarray(states)
         if states.shape[-1] != self.target.size:
-            raise ValueError("Target configuration width does not match the embedding.")
+            raise NeuralqxValueError(
+                "Target configuration width does not match the embedding."
+            )
         result = states if self.decode is None else jnp.asarray(self.decode(states))
         if result.shape != (*states.shape[:-1], self.source.size):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "decode must preserve batch dimensions and return source labels."
             )
         valid = self.source.is_valid(result)

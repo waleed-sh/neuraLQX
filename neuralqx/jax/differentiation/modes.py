@@ -17,18 +17,16 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from typing import Any
-import warnings
 
 import jax.numpy as jnp
 
 import jax
 from neuralqx.jax.tree import tree_any_complex
-
-
-class HolomorphicUndeclaredWarning(UserWarning):
-    """Warning emitted when complex holomorphicity must be declared explicitly."""
+from neuralqx.utils.errors import HolomorphicUndeclaredWarning
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def resolve_differentiation_mode(
@@ -48,11 +46,11 @@ def resolve_differentiation_mode(
     the model output to be complex.
     """
     if mode is not None and holomorphic is not None:
-        raise ValueError("Pass either mode or holomorphic, not both.")
+        raise NeuralqxValueError("Pass either mode or holomorphic, not both.")
     if mode is not None:
         mode = str(mode)
         if mode not in {"real", "complex", "holomorphic"}:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Differentiation mode must be 'real', 'complex', or "
                 f"'holomorphic', got {mode!r}."
             )
@@ -71,7 +69,7 @@ def resolve_differentiation_mode(
         if params_are_complex and holomorphic is None and warn:
             warnings.warn(
                 "Complex-output model with complex parameters was not declared "
-                "holomorphic; using non-holomorphic real-coordinate mode. Pass "
+                "holomorphic, using non-holomorphic real-coordinate mode. Pass "
                 "holomorphic=True to use holomorphic calculus, or mode='complex' "
                 "to silence this warning.",
                 HolomorphicUndeclaredWarning,
@@ -83,12 +81,12 @@ def resolve_differentiation_mode(
 
 def _validate_holomorphic(parameters: Any, apply: Callable[[Any], Any]) -> None:
     if not tree_any_complex(parameters):
-        raise ValueError(
+        raise NeuralqxValueError(
             "holomorphic=True/mode='holomorphic' requires complex parameters."
         )
     output_shape = jax.eval_shape(apply, parameters)
     if not bool(jnp.iscomplexobj(output_shape)):
-        raise ValueError(
+        raise NeuralqxValueError(
             "holomorphic=True/mode='holomorphic' requires complex model output."
         )
 

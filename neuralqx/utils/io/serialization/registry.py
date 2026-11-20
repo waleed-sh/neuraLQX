@@ -25,6 +25,8 @@ from threading import RLock
 import numpy as np
 
 import jax
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .errors import ReconstructionError
 
@@ -78,19 +80,21 @@ def register_codec(cls, *, name, encode, decode, version=1, replace=False):
 
 def _register_codec(cls, *, name, encode, decode, version=1, replace=False):
     if not isinstance(cls, type) or not isinstance(name, str) or not name:
-        raise TypeError("A component codec requires a Python type and a nonempty name.")
+        raise NeuralqxTypeError(
+            "A component codec requires a Python type and a nonempty name."
+        )
     if (
         not callable(encode)
         or not callable(decode)
         or type(version) is not int
         or version < 1
     ):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "Codec functions must be callable and its version a positive integer."
         )
     with _LOCK:
         if not replace and (name in _BY_NAME or cls in _BY_TYPE):
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"A component codec already exists for {name!r} or {cls.__name__}."
             )
         old = _BY_TYPE.get(cls)

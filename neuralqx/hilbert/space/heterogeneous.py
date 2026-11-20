@@ -24,10 +24,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
+import jax
 from neuralqx.graph import AbstractGraph
 from neuralqx.hilbert.constraint import AbstractDiscreteConstraint
 from neuralqx.hilbert.constraint import IdentityConstraint
@@ -39,6 +39,9 @@ from neuralqx.hilbert.local import VectorRange
 from neuralqx.hilbert.local.vector import scalar_space
 from neuralqx.hilbert.utils import ensure_2d_trailing
 from neuralqx.hilbert.utils import restore_trailing
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxKeyError
+from neuralqx.utils.errors import NeuralqxRuntimeError
 from neuralqx.utils.struct import field
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import Vertex
@@ -374,7 +377,9 @@ def _expand_layout_spaces(layout: GraphHilbertLayout) -> tuple[AbstractLocalSpac
         spaces = layout.edge_spaces if dof.kind == "edge" else layout.vertex_spaces
         space = spaces[dof.entity_index]
         if space is None:
-            raise RuntimeError("layout.dofs cannot reference an empty local space.")
+            raise NeuralqxRuntimeError(
+                "layout.dofs cannot reference an empty local space."
+            )
         out.append(scalar_space(space))
     return tuple(out)
 
@@ -429,7 +434,7 @@ def _edge_index(graph: AbstractGraph, edge: int | Edge) -> int:
     """
     if isinstance(edge, int):
         if edge < 0 or edge >= graph.n_edges:
-            raise IndexError(f"edge index {edge} out of range.")
+            raise NeuralqxIndexError(f"edge index {edge} out of range.")
         return edge
     return graph.edge_to_index(edge)
 
@@ -446,12 +451,12 @@ def _vertex_index(graph: AbstractGraph, vertex: int | Vertex) -> int:
     """
     if isinstance(vertex, int):
         if vertex < 0 or vertex >= graph.n_vertices:
-            raise IndexError(f"vertex index {vertex} out of range.")
+            raise NeuralqxIndexError(f"vertex index {vertex} out of range.")
         return vertex
     try:
         return graph.vertices.index(vertex)
     except ValueError as exc:
-        raise KeyError(f"Unknown graph vertex {vertex!r}.") from exc
+        raise NeuralqxKeyError(f"Unknown graph vertex {vertex!r}.") from exc
 
 
 __all__ = ["HeterogeneousDiscreteHilbert"]

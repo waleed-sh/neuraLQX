@@ -16,7 +16,7 @@
 """Exact, shape-preserving reduction of discrete operator connections.
 
 These routines never use a floating point tolerance or a probabilistic hash.
-They simplify *computed* rows; they cannot prove that an opaque operator kernel
+They simplify *computed* rows. They cannot prove that an opaque operator kernel
 has a zero branch before evaluating that kernel.
 """
 
@@ -25,6 +25,7 @@ from functools import partial
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 @jax.jit
@@ -35,16 +36,19 @@ def coalesce_connections(states, mels):
     amplitudes. Shapes are unchanged, including inside JIT. Zero slots remain
     padding. NaNs and arbitrarily small nonzero amplitudes are retained. The
     order of nonzero targets is lexicographic, not the input branch order.
-    Support selection assumes fixed operator coefficients; use raw padded
+    Support selection assumes fixed operator coefficients. use raw padded
     rows when differentiating coefficients through a cancellation point.
     """
     states, mels = jnp.asarray(states), jnp.asarray(mels)
     if states.shape[:-1] != mels.shape or mels.ndim < 1:
-        raise ValueError("Expected states (..., connections, sites) and matching mels.")
+        raise NeuralqxValueError(
+            "Expected states (..., connections, sites) and matching mels."
+        )
     if mels.shape[-1] == 0:
         return states, mels
 
     def row(x, m):
+        """Sort one row, sum equal targets, and pack nonzero amplitudes first."""
         order = jnp.lexsort(tuple(x[:, i] for i in range(x.shape[-1] - 1, -1, -1)))
         x, m = x[order], m[order]
         starts = jnp.concatenate((jnp.ones(1, bool), jnp.any(x[1:] != x[:-1], axis=-1)))

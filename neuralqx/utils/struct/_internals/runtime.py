@@ -27,6 +27,8 @@ Responsibilities:
     - Static-field validation helpers.
 """
 
+from __future__ import annotations
+
 import dataclasses
 import inspect
 import threading
@@ -40,6 +42,8 @@ from typing import Any
 import numpy as np
 
 import jax
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import ValidationError
 
 from ..fields import FieldKind
@@ -211,13 +215,17 @@ def call_configured_callable(
             return fn()
         if count == 1 or has_varargs:
             return fn(obj)
-        raise TypeError(f"Callable {fn!r} must accept 0 or 1 positional argument(s).")
+        raise NeuralqxTypeError(
+            f"Callable {fn!r} must accept 0 or 1 positional argument(s)."
+        )
 
     if count == 1:
         return fn(value)
     if count == 2 or has_varargs:
         return fn(obj, value)
-    raise TypeError(f"Callable {fn!r} must accept 1 or 2 positional argument(s).")
+    raise NeuralqxTypeError(
+        f"Callable {fn!r} must accept 1 or 2 positional argument(s)."
+    )
 
 
 def apply_converter(spec: FieldSpec, obj: Any, value: Any) -> Any:
@@ -292,7 +300,7 @@ def assign_initial_fields(
     for spec in cls.__struct_fields__.values():
         if spec.is_derived:
             if reject_derived_inputs and spec.name in bound:
-                raise TypeError(
+                raise NeuralqxTypeError(
                     f"Field {spec.name!r} is derived and cannot be supplied explicitly."
                 )
             continue
@@ -301,9 +309,9 @@ def assign_initial_fields(
         elif spec.has_default:
             value = spec.make_default()
         elif spec.init:
-            raise TypeError(f"Missing required field {spec.name!r}.")
+            raise NeuralqxTypeError(f"Missing required field {spec.name!r}.")
         else:
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"Field {spec.name!r} has init=False and no default/default_factory."
             )
         object.__setattr__(obj, spec.name, apply_converter(spec, obj, value))
@@ -349,7 +357,7 @@ def materialize_deferred_derived_field(cls: type[Any], obj: Any, name: str) -> A
     key = (id(obj), name)
     active: set[tuple[int, str]] = _materializing.__dict__.setdefault("active", set())
     if key in active:
-        raise RuntimeError(
+        raise NeuralqxRuntimeError(
             f"Cycle detected while materializing derived field {name!r} on "
             f"{cls.__name__}: the derivation callable reads its own output."
         )
@@ -407,14 +415,14 @@ def build_init(
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         object.__setattr__(self, INIT_FLAG, True)
         if len(args) > len(pos_specs):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"{type(self).__name__}() takes at most {len(pos_specs)} positional argument(s) "
                 f"but {len(args)} were given"
             )
         bound: dict[str, Any] = {}
         for spec, arg in zip(pos_specs, args, strict=False):
             if spec.name in kwargs:
-                raise TypeError(
+                raise NeuralqxTypeError(
                     f"{type(self).__name__}() got multiple values for '{spec.name}'"
                 )
             bound[spec.name] = arg
@@ -422,7 +430,7 @@ def build_init(
         unknown = set(bound) - {spec.name for spec in init_fields}
         if unknown:
             unexpected = ", ".join(repr(k) for k in sorted(unknown))
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"{type(self).__name__}() got unexpected keyword argument(s): {unexpected}"
             )
         assign_initial_fields(type(self), self, bound=bound, reject_derived_inputs=True)

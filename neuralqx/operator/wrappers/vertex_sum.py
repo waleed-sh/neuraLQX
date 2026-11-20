@@ -21,6 +21,7 @@ from typing import Any
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .sum import SumOperator
@@ -52,11 +53,13 @@ class VertexSum(SumOperator):
         """Validate the linear sum and its one-to-one vertex assignment."""
         super().__post_init__()
         if len(self.vertices) != len(self.operators):
-            raise ValueError("Supply one vertex label per operator.")
+            raise NeuralqxValueError("Supply one vertex label per operator.")
         if None in self.vertices:
-            raise ValueError("None is reserved for a constraint without vertex labels.")
+            raise NeuralqxValueError(
+                "None is reserved for a constraint without vertex labels."
+            )
         if len(set(self.vertices)) != len(self.vertices):
-            raise ValueError("Vertex labels must be unique within a VertexSum.")
+            raise NeuralqxValueError("Vertex labels must be unique within a VertexSum.")
 
     @property
     def adjoint(self) -> VertexSum:

@@ -25,8 +25,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import jax
 import jax.numpy as jnp
+
+import jax
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def channel_max_label(two_j_max: int, valence: int, channel_index: int) -> int:
@@ -44,11 +47,13 @@ def channel_max_label(two_j_max: int, valence: int, channel_index: int) -> int:
     degree = int(valence)
     slot = int(channel_index)
     if cutoff < 0:
-        raise ValueError("two_j_max must be non-negative.")
+        raise NeuralqxValueError("two_j_max must be non-negative.")
     if degree < 0:
-        raise ValueError("valence must be non-negative.")
+        raise NeuralqxValueError("valence must be non-negative.")
     if slot < 0 or slot >= max(degree - 3, 0):
-        raise IndexError(f"channel_index={slot} out of range for valence {degree}.")
+        raise NeuralqxIndexError(
+            f"channel_index={slot} out of range for valence {degree}."
+        )
     left_legs = slot + 2
     right_legs = degree - slot - 2
     return min(left_legs, right_legs) * cutoff
@@ -227,11 +232,11 @@ class SpinNetworkLayout:
             ValueError: If edge count, cutoff, or vertex metadata are invalid.
         """
         if isinstance(n_edges, bool) or int(n_edges) < 0:
-            raise ValueError("n_edges must be a non-negative integer.")
+            raise NeuralqxValueError("n_edges must be a non-negative integer.")
         if isinstance(two_j_max, bool) or int(two_j_max) < 0:
-            raise ValueError("two_j_max must be a non-negative integer.")
+            raise NeuralqxValueError("two_j_max must be a non-negative integer.")
         if len(vertex_ids) != len(valence_by_vertex):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "vertex_ids and valence_by_vertex must have matching length."
             )
 
@@ -346,7 +351,7 @@ class SpinNetworkLayout:
         """
         site_i = int(site)
         if site_i < 0 or site_i >= self.size:
-            raise IndexError(f"site={site_i} out of range [0,{self.size}).")
+            raise NeuralqxIndexError(f"site={site_i} out of range [0,{self.size}).")
 
     def coord_of(self, site: int) -> SpinNetworkCoord:
         """Decodes a flat site index into a semantic coordinate.
@@ -375,7 +380,9 @@ class SpinNetworkLayout:
         """
         edge_i = int(edge_index)
         if edge_i < 0 or edge_i >= self.n_edges:
-            raise IndexError(f"edge_index={edge_i} out of range [0,{self.n_edges}).")
+            raise NeuralqxIndexError(
+                f"edge_index={edge_i} out of range [0,{self.n_edges})."
+            )
         return edge_i
 
     def channel_site(self, vertex: int | Any, channel_index: int) -> int:
@@ -396,7 +403,7 @@ class SpinNetworkLayout:
         slot = int(channel_index)
         channels = self.vertex_channel_sites[vertex_index]
         if slot < 0 or slot >= len(channels):
-            raise IndexError(
+            raise NeuralqxIndexError(
                 f"channel_index={slot} out of range [0,{len(channels)}) "
                 f"for vertex {self.vertex_ids[vertex_index]!r}."
             )
@@ -421,7 +428,7 @@ class SpinNetworkLayout:
             vertex_i = int(vertex)
             if 0 <= vertex_i < self.n_vertices:
                 return vertex_i
-        raise IndexError(f"Unknown SU(2) vertex {vertex!r}.")
+        raise NeuralqxIndexError(f"Unknown SU(2) vertex {vertex!r}.")
 
     def site_info(self, site: int) -> SU2SiteInfo:
         """Returns rich semantic metadata for one flat site.

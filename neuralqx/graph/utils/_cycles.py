@@ -34,6 +34,8 @@ from typing import Any
 
 import networkx as nx
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import GraphEdges
 from neuralqx.utils.typing import Loop
@@ -73,9 +75,9 @@ def all_cycles(edges: GraphEdges, length: int | None = None) -> list[Loop]:
     # Validate before building a graph or starting an unbounded enumeration.
     if length is not None:
         if isinstance(length, bool) or not isinstance(length, Integral):
-            raise TypeError("length must be a non-negative integer or None.")
+            raise NeuralqxTypeError("length must be a non-negative integer or None.")
         if length < 0:
-            raise ValueError("length must be non-negative.")
+            raise NeuralqxValueError("length must be non-negative.")
         length = int(length)
         if length == 0:
             return []
@@ -386,7 +388,7 @@ def _pick_key(
     try:
         return segment_keys[unordered_pair_key(start, end)][0]
     except (KeyError, IndexError) as exc:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Undirected segment {{{start!r}, {end!r}}} not found."
         ) from exc
 

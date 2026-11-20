@@ -23,12 +23,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.hilbert.constraint import AbstractDiscreteConstraint
 from neuralqx.hilbert.su2.recoupling import left_comb_valid
 from neuralqx.hilbert.utils import ensure_2d_trailing
+from neuralqx.utils.errors import NeuralqxIndexError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -68,7 +70,7 @@ class SU2GaugeConstraint(AbstractDiscreteConstraint):
     def __post_init__(self) -> None:
         """Normalizes static site metadata and validates recoupling scheme."""
         if self.recoupling != "left_comb":
-            raise ValueError(
+            raise NeuralqxValueError(
                 "SU2GaugeConstraint currently supports recoupling='left_comb'."
             )
         object.__setattr__(
@@ -119,7 +121,7 @@ class SU2GaugeConstraint(AbstractDiscreteConstraint):
         """
         size = int(hilbert.size)
         if len(self.site_max_label) != size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "SU2GaugeConstraint site_max_label length does not match Hilbert size."
             )
         for edge_sites, channel_sites in zip(
@@ -129,7 +131,7 @@ class SU2GaugeConstraint(AbstractDiscreteConstraint):
         ):
             for site in (*edge_sites, *channel_sites):
                 if site < 0 or site >= size:
-                    raise IndexError(
+                    raise NeuralqxIndexError(
                         f"SU2GaugeConstraint site {site} out of range [0,{size})."
                     )
 

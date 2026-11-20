@@ -30,6 +30,7 @@ from neuralqx.hilbert.su2.proposals.metropolis import _edge_log_prob
 from neuralqx.hilbert.su2.proposals.metropolis import _vertex_channels
 from neuralqx.hilbert.su2.proposals.metropolis import _vertex_groups as _vertex_groups
 from neuralqx.hilbert.su2.proposals.metropolis import propose_metropolis
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .base import AbstractTransitionRule
@@ -38,7 +39,7 @@ from .base import AbstractTransitionRule
 class SU2MetropolisRule(AbstractTransitionRule):
     r"""SU(2) MH mixture with detailed balance and full finite-cutoff support.
 
-    ``weights`` selects (loop, edge, vertex, global) moves, weights are
+    ``weights`` selects (loop, edge, vertex, global) moves; weights are
     constant in the state. A separate ``stay_probability`` makes the kernel
     lazy. The global weight must be positive to guarantee irreducibility.
 
@@ -46,7 +47,7 @@ class SU2MetropolisRule(AbstractTransitionRule):
     ``coherent_loop_probability`` they instead use one common sign for the
     selected loop, which helps long cycles leave the vacuum. Both choices have
     symmetric reverse shifts. The default zero preserves independent signs.
-    Edge moves redraw a spin of the same parity, vertex moves redraw channels.
+    Edge moves redraw a spin of the same parity; vertex moves redraw channels.
     Changed endpoints draw admissible channels with sequential feasible draws.
     Every branch returns log q(reverse) - log q(forward). Invalid attempts
     stay put, with no retry-until-valid conditioning.
@@ -80,19 +81,23 @@ class SU2MetropolisRule(AbstractTransitionRule):
             or not all(np.isfinite(w) and w >= 0 for w in weights)
             or weights[3] <= 0
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "weights must be four finite nonnegative values with positive global weight."
             )
         total = sum(weights)
         if not np.isfinite(total):
-            raise ValueError("The sum of weights must be finite.")
+            raise NeuralqxValueError("The sum of weights must be finite.")
         if not np.isfinite(self.stay_probability) or not 0 < self.stay_probability < 1:
-            raise ValueError("stay_probability must be strictly between zero and one.")
+            raise NeuralqxValueError(
+                "stay_probability must be strictly between zero and one."
+            )
         if (
             not np.isfinite(self.coherent_loop_probability)
             or not 0 <= self.coherent_loop_probability <= 1
         ):
-            raise ValueError("coherent_loop_probability must be between zero and one.")
+            raise NeuralqxValueError(
+                "coherent_loop_probability must be between zero and one."
+            )
         object.__setattr__(self, "weights", tuple(w / total for w in weights))
 
     def __hash__(self):

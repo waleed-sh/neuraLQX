@@ -1,4 +1,3 @@
-
 [build-system]
 requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
@@ -53,6 +52,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+profile-nvidia = [
+    "nvidia-ml-py>=12.560.30",
+    "nvtx>=0.2.10",
+]
 dev = [
     "build>=1.2.2",
     "coverage[toml]>=7.6",
@@ -72,7 +75,7 @@ docs = [
     "mkdocstrings[python]>=0.29,<2.0",
 ]
 cuda = [
-    "jax[cuda12]>=0.9.0; platform_system == 'Linux'",
+    "jax[cuda]>=0.9.0; platform_system == 'Linux'",
 ]
 tpu = [
     "jax[tpu]>=0.9.0; platform_system == 'Linux'",

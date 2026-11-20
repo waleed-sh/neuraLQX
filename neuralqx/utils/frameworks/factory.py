@@ -20,6 +20,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
+
 from .base import AbstractModelFramework
 from .callable import CallableFramework
 from .flax import FlaxLinenFramework
@@ -38,7 +41,7 @@ def as_framework(
         return model, None
 
     if model is not None and apply_fn is not None:
-        raise ValueError("Pass either model or apply_fn, not both.")
+        raise NeuralqxValueError("Pass either model or apply_fn, not both.")
 
     from neuralqx.nn.projectors import ProjectedCallable
 
@@ -65,10 +68,10 @@ def as_framework(
                 ),
                 None,
             )
-        raise TypeError(f"Unsupported model type {type(model).__name__}.")
+        raise NeuralqxTypeError(f"Unsupported model type {type(model).__name__}.")
 
     if apply_fn is None:
-        raise ValueError("Pass a Flax model, a callable model, or apply_fn.")
+        raise NeuralqxValueError("Pass a Flax model, a callable model, or apply_fn.")
     return (
         CallableFramework(
             apply_fn,

@@ -19,6 +19,7 @@ from abc import abstractmethod
 
 import jax.numpy as jnp
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 
@@ -168,7 +169,7 @@ class RowProjector(Projector):
             type(self.evaluation_chunk_size) is not int
             or self.evaluation_chunk_size < 1
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "evaluation_chunk_size must be a positive integer or None."
             )
 
@@ -193,7 +194,7 @@ class RowProjector(Projector):
             or points.shape[-2] == 0
             or coefficients.shape != points.shape[:-1]
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Projector connections must have shapes (*batch, K, features) and (*batch, K)."
             )
         points = jnp.where((coefficients != 0)[..., None], points, states[..., None, :])

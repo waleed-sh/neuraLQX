@@ -25,6 +25,7 @@ import numpy as np
 
 import jax
 from jax.sharding import Mesh
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .config import active_logical_axes
 from .config import configured_axis_names
@@ -79,7 +80,7 @@ def infer_axis_sizes(
     """
     axes = tuple(active_axes)
     if device_count <= 0:
-        raise ValueError("device_count must be positive.")
+        raise NeuralqxValueError("device_count must be positive.")
     if not axes:
         return {}
 
@@ -93,12 +94,12 @@ def infer_axis_sizes(
             continue
         size = int(value)
         if size <= 0:
-            raise ValueError(f"Mesh axis size for {axis!r} must be positive.")
+            raise NeuralqxValueError(f"Mesh axis size for {axis!r} must be positive.")
         resolved[axis] = size
         explicit_product *= size
 
     if device_count % explicit_product != 0:
-        raise ValueError(
+        raise NeuralqxValueError(
             "Explicit mesh axis sizes must divide the available device count."
         )
     remaining = device_count // explicit_product
@@ -120,7 +121,7 @@ def infer_axis_sizes(
     for axis in axes:
         product *= resolved[axis]
     if product != device_count:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"Inferred mesh shape product {product} does not match device count {device_count}."
         )
     return resolved

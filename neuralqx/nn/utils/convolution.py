@@ -18,6 +18,7 @@
 import jax.numpy as jnp
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def conv1d(inputs, kernel, bias, *, padding, precision=None):
@@ -33,7 +34,7 @@ def conv1d(inputs, kernel, bias, *, padding, precision=None):
     JAX differentiation. Only floating-point accumulation order can differ.
     """
     if padding not in {"CIRCULAR", "VALID"}:
-        raise ValueError("conv1d supports CIRCULAR and VALID padding.")
+        raise NeuralqxValueError("conv1d supports CIRCULAR and VALID padding.")
     leading = inputs.shape[:-2]
     x = inputs.reshape((-1, *inputs.shape[-2:]))
     width = kernel.shape[0]

@@ -23,6 +23,7 @@ models.
 
 from __future__ import annotations
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import Vertex
 from neuralqx.utils.typing import VertexLike
@@ -204,7 +205,9 @@ class HalfLadderGraph(Graph):
         """
         target = Vertex.from_like(vertex_value)
         if target not in self.vertices_k:
-            raise ValueError(f"The requested vertex {target!r} is not a k-vertex.")
+            raise NeuralqxValueError(
+                f"The requested vertex {target!r} is not a k-vertex."
+            )
 
         k_edges = [edge for edge in self.edges_k if target in edge.vertices]
         mu_edges = [edge for edge in self.edges_mu if target in edge.vertices]
@@ -233,9 +236,11 @@ class HalfLadderGraph(Graph):
         """
         target = Vertex.from_like(vertex_value)
         if direction not in {"left", "right"}:
-            raise ValueError("direction must be 'left' or 'right'.")
+            raise NeuralqxValueError("direction must be 'left' or 'right'.")
         if target not in self.vertices_k:
-            raise ValueError(f"The requested vertex {target!r} is not a k-vertex.")
+            raise NeuralqxValueError(
+                f"The requested vertex {target!r} is not a k-vertex."
+            )
         index = self.vertices_k.index(target)
         if direction == "left":
             return index > 0 or self.is_connected

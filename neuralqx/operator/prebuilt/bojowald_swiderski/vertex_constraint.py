@@ -27,6 +27,7 @@ import jax
 from jax import lax
 from neuralqx.operator.computational import ComputationalOperator
 from neuralqx.operator.prebuilt.utils import q_bounds
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .stencil import SphericalStencil
@@ -458,12 +459,12 @@ class BojowaldSwiderskiVertexConstraintOperator(ComputationalOperator):
             or self.delta <= 0
             or self.delta % 2 != 0
         ):
-            raise ValueError("delta must be a positive even integer.")
+            raise NeuralqxValueError("delta must be a positive even integer.")
         if float(self.immirzi) == 0.0:
-            raise ValueError("immirzi must be non-zero.")
+            raise NeuralqxValueError("immirzi must be non-zero.")
         q_min, _q_max, q_step, local_size = q_bounds(hilbert)
         if q_step != 1 or not float(q_min).is_integer():
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Bojowald-Swiderski operators require integer charges with U(1) step=1."
             )
         object.__setattr__(

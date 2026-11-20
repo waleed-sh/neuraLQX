@@ -23,6 +23,8 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import jax
+from neuralqx.utils.errors import NeuralqxFileExistsError
+from neuralqx.utils.errors import NeuralqxIsADirectoryError
 
 from .archive import snapshot_directory
 from .archive import write_archive
@@ -105,9 +107,9 @@ def save_pytree(path, tree, *, metadata=None, overwrite=False):
             with os.fdopen(fd, "w") as stream:
                 stream.write(str(os.getpid()))
             if os.path.lexists(path) and not overwrite:
-                raise FileExistsError(path)
+                raise NeuralqxFileExistsError(path)
             if path.is_dir():
-                raise IsADirectoryError(
+                raise NeuralqxIsADirectoryError(
                     f"{path} is a legacy directory checkpoint. Load it and save to a new filename."
                 )
             directory = Path(

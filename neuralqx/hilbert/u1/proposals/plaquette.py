@@ -24,12 +24,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.hilbert.u1.utils.arithmetic import modular_add
 from neuralqx.hilbert.utils import ensure_2d_trailing
 from neuralqx.hilbert.utils import restore_trailing
+from neuralqx.utils.errors import NeuralqxNotImplementedError
 
 
 def propose_plaquette_single(space: Any, key: jax.Array, states: Any) -> jax.Array:
@@ -196,4 +197,4 @@ def _set_modular_site(
 def _ensure_plaquettes(space: Any) -> None:
     """Validates that the space exposes at least one plaquette."""
     if not space._plaquettes:
-        raise NotImplementedError("No plaquettes available for this graph.")
+        raise NeuralqxNotImplementedError("No plaquettes available for this graph.")

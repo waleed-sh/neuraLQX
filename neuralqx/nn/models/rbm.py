@@ -18,6 +18,8 @@
 import jax.numpy as jnp
 from flax import nnx
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from ..activations import logcosh
 from ..layers import Linear
 from ..utils import ConnectionPolicy
@@ -84,7 +86,7 @@ class RBM(LogWavefunction):
         self.complex_output = bool(complex_output)
         self.input_scale = float(input_scale)
         if not 0 < self.input_scale < float("inf"):
-            raise ValueError("input_scale must be finite and positive.")
+            raise NeuralqxValueError("input_scale must be finite and positive.")
         dtype = compute_dtype(dtype, param_dtype)
         self.dtype = dtype
         self.connection_policy = connection_policy or ConnectionPolicy()

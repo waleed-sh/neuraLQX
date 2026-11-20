@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from neuralqx.config import config
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 
@@ -29,7 +30,7 @@ class LocalEstimatorOptions(Struct):
 
     The object is intentionally small and static so it can be passed through
     Plum-dispatched estimator kernels without growing a long positional
-    signature. ``None`` means "use the subsystem default", for model chunking
+    signature. ``None`` means "use the subsystem default"; for model chunking
     this is resolved from the variational state before dispatch.
 
     ``connection_deduplication=None`` follows the opt-in config flag
@@ -47,12 +48,12 @@ class LocalEstimatorOptions(Struct):
 
     def __post_init__(self) -> None:
         if self.chunk_size is not None and int(self.chunk_size) <= 0:
-            raise ValueError("chunk_size must be positive when provided.")
+            raise NeuralqxValueError("chunk_size must be positive when provided.")
         if (
             self.operator_streaming_chunk_size is not None
             and int(self.operator_streaming_chunk_size) <= 0
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "operator_streaming_chunk_size must be positive when provided."
             )
 
@@ -74,7 +75,7 @@ class LocalEstimatorOptions(Struct):
             operator_streaming_chunk_size is not None
             and operator_chunk_size is not None
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Pass either operator_streaming_chunk_size or operator_chunk_size, not both."
             )
         if operator_streaming_chunk_size is None:
@@ -88,7 +89,7 @@ class LocalEstimatorOptions(Struct):
                 or operator_streaming_chunk_size is not None
                 or connection_deduplication is not None
             ):
-                raise ValueError(
+                raise NeuralqxValueError(
                     "Pass either options or individual local-estimator options, not both."
                 )
             return options.replace(

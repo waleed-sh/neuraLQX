@@ -23,13 +23,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.hilbert.constraint import AbstractDiscreteConstraint
-from neuralqx.utils.struct import field
-
 from neuralqx.hilbert.u1.utils.arithmetic import signed_modular_sum
+from neuralqx.utils.errors import NeuralqxValueError
+from neuralqx.utils.struct import field
 
 from .relation import GaugeRelation
 
@@ -112,7 +112,7 @@ class U1GaugeConstraint(AbstractDiscreteConstraint):
         """
         expected = self.gauge_dimensions * self.n_edges
         if hilbert.size != expected:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"U1GaugeConstraint expected Hilbert size {expected}, got {hilbert.size}."
             )
 

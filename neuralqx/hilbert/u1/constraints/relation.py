@@ -21,6 +21,7 @@ expresses it as a signed modular sum of one or more independent edges.
 
 from __future__ import annotations
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 
@@ -53,7 +54,7 @@ class GaugeRelation(Struct):
         lhs = int(self.lhs)
         rhs = tuple((int(edge), int(sign)) for edge, sign in self.rhs)
         if any(sign not in (-1, 1) for _, sign in rhs):
-            raise ValueError("Gauge relation signs must be +/-1.")
+            raise NeuralqxValueError("Gauge relation signs must be +/-1.")
         object.__setattr__(self, "lhs", lhs)
         object.__setattr__(self, "rhs", rhs)
 

@@ -23,6 +23,8 @@ from typing import Any
 
 from neuralqx.graph import AbstractGraph
 from neuralqx.graph import HalfLadderGraph
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import Vertex
 
@@ -48,7 +50,7 @@ def graph_vertex(graph: AbstractGraph, vertex: Any) -> Vertex:
     # Reject bool explicitly because it otherwise behaves as an integer index.
     if isinstance(vertex, bool):
         # Report an ambiguous vertex argument before indexing the graph.
-        raise TypeError("Vertex index must not be a bool.")
+        raise NeuralqxTypeError("Vertex index must not be a bool.")
     # Integers in range select the graph vertex sequence.
     if isinstance(vertex, int):
         # Freeze the sequence for a consistent bounds check and lookup.
@@ -169,7 +171,7 @@ def edge_emanates_from(edge: Edge, vertex: Vertex) -> bool:
     # Direction at an unrelated vertex is undefined.
     if vertex not in edge.vertices:
         # Reject invalid incidence rather than silently treating it as incoming.
-        raise ValueError(f"Edge {edge!r} is not incident to vertex {vertex!r}.")
+        raise NeuralqxValueError(f"Edge {edge!r} is not incident to vertex {vertex!r}.")
     # The stored start endpoint defines the outgoing direction.
     return edge.start == vertex
 
@@ -252,13 +254,13 @@ def k_vertex(graph: HalfLadderGraph, vertex: Any) -> tuple[Vertex, int]:
     # A boolean must not select the first or second radial vertex accidentally.
     if isinstance(vertex, bool):
         # Keep the invalid index diagnosis separate from graph membership errors.
-        raise TypeError("k-vertex index must not be a bool.")
+        raise NeuralqxTypeError("k-vertex index must not be a bool.")
     # Interpret integers only as positions in the radial chain.
     if isinstance(vertex, int):
         # Reject both negative indexing and positions beyond the chain.
         if not 0 <= vertex < len(graph.vertices_k):
             # Report the supplied index before any stencil access.
-            raise ValueError(f"k-vertex index {vertex} is out of range.")
+            raise NeuralqxValueError(f"k-vertex index {vertex} is out of range.")
         # Return the graph object and the already validated chain position.
         return graph.vertices_k[vertex], int(vertex)
     # Normalize coordinate input to the vertex type used by the graph.
@@ -266,7 +268,9 @@ def k_vertex(graph: HalfLadderGraph, vertex: Any) -> tuple[Vertex, int]:
     # Transverse endpoints are not valid centers of a radial stencil.
     if candidate not in graph.vertices_k:
         # Explain which resolved vertex failed radial membership.
-        raise ValueError(f"{candidate!r} is not a k-vertex of this HalfLadderGraph.")
+        raise NeuralqxValueError(
+            f"{candidate!r} is not a k-vertex of this HalfLadderGraph."
+        )
     # Locate the radial position needed for neighboring stencil sites.
     return candidate, graph.vertices_k.index(candidate)
 
@@ -297,7 +301,7 @@ def other_endpoint(edge: Edge, vertex: Vertex) -> Vertex:
         # Traversal direction does not alter the neighboring Vertex object.
         return edge.start
     # No opposite endpoint exists when the starting vertex is unrelated.
-    raise ValueError(f"Edge {edge!r} is not incident to vertex {vertex!r}.")
+    raise NeuralqxValueError(f"Edge {edge!r} is not incident to vertex {vertex!r}.")
 
 
 __all__ = [

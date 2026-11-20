@@ -24,10 +24,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
+import jax
 from neuralqx.graph import AbstractGraph
 from neuralqx.hilbert.constraint import AbstractDiscreteConstraint
 from neuralqx.hilbert.constraint import IdentityConstraint
@@ -37,6 +37,9 @@ from neuralqx.hilbert.local import AbstractLocalSpace
 from neuralqx.hilbert.local import VectorRange
 from neuralqx.hilbert.local.vector import coerce_dof_space
 from neuralqx.hilbert.local.vector import scalar_space
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .discrete import DiscreteHilbertSpace
@@ -103,9 +106,11 @@ class HomogeneousDiscreteHilbert(DiscreteHilbertSpace):
     def __post_init__(self) -> None:
         """Builds the graph layout, scalar site spaces, and constraint."""
         if not isinstance(self.edges, bool) or not isinstance(self.vertices, bool):
-            raise TypeError("edges and vertices must be booleans.")
+            raise NeuralqxTypeError("edges and vertices must be booleans.")
         if not self.edges and not self.vertices:
-            raise ValueError("At least one of edges or vertices must be enabled.")
+            raise NeuralqxValueError(
+                "At least one of edges or vertices must be enabled."
+            )
         local_space = coerce_dof_space(self.local_space)
         edge_space = local_space if self.edges else None
         vertex_space = local_space if self.vertices else None
@@ -188,7 +193,7 @@ class HomogeneousDiscreteHilbert(DiscreteHilbertSpace):
         """
         arr = jnp.asarray(states)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]}, expected {self.size}."
             )
         out = jnp.empty(arr.shape, dtype=jnp.int32)
@@ -211,7 +216,7 @@ class HomogeneousDiscreteHilbert(DiscreteHilbertSpace):
         """
         idx = jnp.asarray(indices)
         if idx.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Index trailing dimension {idx.shape[-1]}, expected {self.size}."
             )
         out_dtype = self.dtype if dtype is None else np.dtype(dtype)
@@ -235,7 +240,7 @@ class HomogeneousDiscreteHilbert(DiscreteHilbertSpace):
         """
         arr = jnp.asarray(states, dtype=self.dtype)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]}, expected {self.size}."
             )
         ok = jnp.ones(arr.shape, dtype=jnp.bool_)
@@ -308,7 +313,9 @@ def _expand_layout_spaces(layout: GraphHilbertLayout) -> tuple[AbstractLocalSpac
         spaces = layout.edge_spaces if dof.kind == "edge" else layout.vertex_spaces
         space = spaces[dof.entity_index]
         if space is None:
-            raise RuntimeError("layout.dofs cannot reference an empty local space.")
+            raise NeuralqxRuntimeError(
+                "layout.dofs cannot reference an empty local space."
+            )
         out.append(scalar_space(space))
     return tuple(out)
 

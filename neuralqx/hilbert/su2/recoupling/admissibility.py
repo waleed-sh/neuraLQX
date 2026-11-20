@@ -26,8 +26,10 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Iterable
 
-import jax
 import jax.numpy as jnp
+
+import jax
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def coupling_ok_py(a: int, b: int, c: int) -> bool:
@@ -82,7 +84,7 @@ def expected_channel_count(valence: int) -> int:
     """
     valence_i = int(valence)
     if valence_i < 0:
-        raise ValueError("valence must be non-negative.")
+        raise NeuralqxValueError("valence must be non-negative.")
     return max(valence_i - 3, 0)
 
 

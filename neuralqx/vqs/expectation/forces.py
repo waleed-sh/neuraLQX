@@ -31,6 +31,8 @@ from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators import LocalEstimatorOptions
 from neuralqx.vqs.estimators import Stats
 from neuralqx.vqs.estimators import local_estimators
@@ -52,14 +54,14 @@ def expect_and_forces(
 ) -> tuple[Stats, Any]:
     """Estimate expectation statistics and covariance forces."""
     if contains_residual(operator):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Embedded residuals require expect_and_grad, including the estimator derivative."
         )
     if getattr(vstate, "importance_sampling_enabled", False) and not isinstance(
         operator, PenaltyCost
     ):
         if not can_use_covariance(operator):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Covariance forces require a Hermitian linear estimator. Use expect_and_grad."
             )
         samples = kwargs.pop("samples", None)
@@ -80,9 +82,9 @@ def _expect_and_forces_sequence(
     kwargs: dict[str, Any],
 ) -> tuple[Stats, Any]:
     if not sequence_is_hermitian(operator):
-        raise ValueError("Forces are only defined for Hermitian operators.")
+        raise NeuralqxValueError("Forces are only defined for Hermitian operators.")
     if not can_use_covariance(operator):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Covariance forces are not valid for Squared operators in a sequence. "
             "Use expect_and_grad to include the estimator's parameter derivative."
         )
@@ -108,7 +110,7 @@ def _expect_and_forces_discrete(
     vstate: Any, operator: DiscreteOperator, kwargs: dict[str, Any]
 ):
     if not getattr(operator, "is_hermitian", False):
-        raise ValueError("Forces are only defined for Hermitian operators.")
+        raise NeuralqxValueError("Forces are only defined for Hermitian operators.")
     terms = discrete_linear_terms(operator)
     if terms is not None and len(terms) > 1:
         return _expect_and_forces_sequence(vstate, (operator,), kwargs)
@@ -129,7 +131,9 @@ def _expect_and_forces_discrete(
     )
     if kwargs:
         unknown = ", ".join(sorted(kwargs))
-        raise TypeError(f"Unexpected expect_and_forces keyword argument(s): {unknown}.")
+        raise NeuralqxTypeError(
+            f"Unexpected expect_and_forces keyword argument(s): {unknown}."
+        )
     validate_operator_hilbert(vstate, operator)
     flat_samples, _sample_shape = flatten_samples(samples, operator.hilbert.size)
     estimators = local_estimators(vstate, operator, samples=samples, options=options)
@@ -150,13 +154,13 @@ def _expect_and_forces_discrete(
 @dispatch
 def _expect_and_forces(vstate: Any, operator: Any, kwargs: dict[str, Any]):
     if isinstance(operator, Squared):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Covariance forces are not valid for Squared operators because "
             "their positive local estimator depends on the variational "
             "parameters. Use expect_and_grad instead."
         )
     if not getattr(operator, "is_hermitian", False):
-        raise ValueError("Forces are only defined for Hermitian operators.")
+        raise NeuralqxValueError("Forces are only defined for Hermitian operators.")
     samples = kwargs.pop("samples", None)
     if samples is None:
         samples = vstate.samples

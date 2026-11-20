@@ -25,6 +25,8 @@ matplotlib unless plotting is actually requested.
 from typing import TYPE_CHECKING
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxAttributeError
+
 from ._cycles import all_cycles
 from ._cycles import canonical_rotate
 from ._cycles import minimal_cycles
@@ -57,7 +59,7 @@ def __getattr__(name: str) -> Any:
         from ._plotting import plot_graph
 
         return plot_graph
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    raise NeuralqxAttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

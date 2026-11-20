@@ -26,6 +26,7 @@ import jax
 from neuralqx.sampler.metropolis.validation import assert_sample_shape
 from neuralqx.sampler.rules import normalize_transition_output
 from neuralqx.sampler.state import MetropolisSamplerState
+from neuralqx.utils.errors import NeuralqxRuntimeError
 
 
 def metropolis_sweep(
@@ -123,7 +124,7 @@ def ensure_finite_support(sampler, apply_fn, parameters, state):
 
     def fail(_):
         def report():
-            raise RuntimeError(
+            raise NeuralqxRuntimeError(
                 "Metropolis could not initialize every chain at finite wavefunction density "
                 "within 1024 proposals. The projected state may be zero, or the proposal "
                 "rule cannot reach its support. Initialize chains in support or change the rule."

@@ -19,6 +19,8 @@ from collections.abc import Sequence
 import jax.numpy as jnp
 
 from neuralqx.hilbert.embedding import BasisEmbedding
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .abstract import AbstractOperator
@@ -38,13 +40,13 @@ def _action(operator):
 
 def _validate(operator, embedding):
     if not isinstance(embedding, BasisEmbedding):
-        raise TypeError("embedding must be a BasisEmbedding.")
+        raise NeuralqxTypeError("embedding must be a BasisEmbedding.")
     if not isinstance(operator, DiscreteOperator):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "The action must be a discrete operator with matrix-row connectivity."
         )
     if operator.hilbert != embedding.target:
-        raise ValueError(
+        raise NeuralqxValueError(
             "The action must be defined on the embedding's target Hilbert space."
         )
 
@@ -186,16 +188,16 @@ class FullResidual(AbstractOperator):
         """Require a compatible action, a valid region, and positive capacities."""
         _validate(self.operator, self.embedding)
         if self.part not in ("all", "retained", "outgoing"):
-            raise ValueError("part must be 'all', 'retained', or 'outgoing'.")
+            raise NeuralqxValueError("part must be 'all', 'retained', or 'outgoing'.")
         if self.n_probes is not None and (
             type(self.n_probes) is not int or self.n_probes < 1
         ):
-            raise ValueError("n_probes must be a positive integer or None.")
+            raise NeuralqxValueError("n_probes must be a positive integer or None.")
         if self.connection_chunk_size is not None and (
             type(self.connection_chunk_size) is not int
             or self.connection_chunk_size < 1
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "connection_chunk_size must be a positive integer or None."
             )
         _validate(self.operator.adjoint, self.embedding)
@@ -237,7 +239,7 @@ def embed_operator(operator, embedding, **residual_options):
         ``full = embed_operator(large_quadratic, embedding, n_probes=2)``
     """
     if "part" in residual_options:
-        raise TypeError(
+        raise NeuralqxTypeError(
             "embed_operator includes the full objective. Use outgoing_residual for leakage."
         )
     if isinstance(operator, SumOfSquares) or isinstance(operator, (tuple, list)):
@@ -256,7 +258,7 @@ def embed_operator(operator, embedding, **residual_options):
             return Squared(EmbeddedOperator(operator.operator, embedding))
         return FullResidual(operator, embedding, **residual_options)
     if residual_options:
-        raise TypeError(
+        raise NeuralqxTypeError(
             "Residual options require a Squared objective or a sum of squares."
         )
     return EmbeddedOperator(operator, embedding)
@@ -287,7 +289,7 @@ def outgoing_residual(operator, embedding, **options):
     if isinstance(operator, SumOfSquares) or isinstance(operator, (tuple, list)):
         return tuple(outgoing_residual(op, embedding, **options) for op in operator)
     if not isinstance(operator, Squared):
-        raise TypeError(
+        raise NeuralqxTypeError(
             "outgoing_residual requires a Squared objective or a sum of squared objectives. "
             "Keep the original factorization. For a linear action A use "
             "FullResidual(A, embedding, part='outgoing')."

@@ -48,6 +48,8 @@ from neuralqx.sampler.rules import SU2MetropolisRule
 from neuralqx.sampler.rules import U1GaugeRule
 from neuralqx.sampler.state import AbstractSamplerState
 from neuralqx.sampler.state import MetropolisSamplerState
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -92,20 +94,20 @@ class MetropolisSampler(AbstractSampler):
                 rule = LocalRule()
             object.__setattr__(self, "rule", rule)
         if not isinstance(self.rule, AbstractTransitionRule):
-            raise TypeError(
-                f"rule must be an AbstractTransitionRule, got {type(self.rule).__name__}."
+            raise NeuralqxTypeError(
+                f"rule must be an AbstractTransitionRule; got {type(self.rule).__name__}."
             )
         validate_rule_for_hilbert(self.rule, self.hilbert.size)
         if isinstance(self.rule, U1GaugeRule):
             self.rule.validate_hilbert(self.hilbert)
         if not isinstance(self.reset_chains, bool):
-            raise TypeError("reset_chains must be a boolean.")
+            raise NeuralqxTypeError("reset_chains must be a boolean.")
 
         sweep_size = (
             self.hilbert.size if self.sweep_size is None else int(self.sweep_size)
         )
         if sweep_size <= 0:
-            raise ValueError("sweep_size must be positive.")
+            raise NeuralqxValueError("sweep_size must be positive.")
 
         n_chains = resolve_n_chains(
             n_chains=self.n_chains,
@@ -319,8 +321,8 @@ class MetropolisSampler(AbstractSampler):
         out = self.log_probability(apply_fn, parameters, sigma)
         expected = (int(sigma.shape[0]),)
         if out.shape != expected:
-            raise ValueError(
-                "apply_fn must return one scalar per chain, "
+            raise NeuralqxValueError(
+                "apply_fn must return one scalar per chain; "
                 f"got shape {out.shape}, expected {expected}."
             )
         return out

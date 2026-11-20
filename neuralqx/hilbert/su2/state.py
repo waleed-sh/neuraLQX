@@ -24,11 +24,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 
+import jax
 from neuralqx.hilbert.su2.layout import SpinNetworkView
 from neuralqx.hilbert.utils import ensure_2d_trailing
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 class SU2StateMixin:
@@ -112,7 +113,7 @@ class SU2StateMixin:
         """
         arr = jnp.asarray(states)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]}, expected {self.size}."
             )
         return SpinNetworkView(
@@ -139,7 +140,7 @@ class SU2StateMixin:
             edge_spins = blocks.get("edge_spins")
             vertex_channels = blocks.get("vertex_channels")
         if edge_spins is None or vertex_channels is None:
-            raise ValueError("edge_spins and vertex_channels are required.")
+            raise NeuralqxValueError("edge_spins and vertex_channels are required.")
         return jnp.concatenate(
             [jnp.asarray(edge_spins), jnp.asarray(vertex_channels)], axis=-1
         )
@@ -156,7 +157,7 @@ class SU2StateMixin:
         """
         arr = jnp.asarray(states)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]}, expected {self.size}."
             )
         return arr[..., : self.n_edges]
@@ -175,7 +176,7 @@ class SU2StateMixin:
         """
         arr = jnp.asarray(states)
         if arr.shape[-1] != self.size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"State trailing dimension {arr.shape[-1]}, expected {self.size}."
             )
         if vertex is None:

@@ -26,6 +26,7 @@ from neuralqx.operator.computational import ComputationalOperator
 from neuralqx.operator.prebuilt.utils import copy_sites
 from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.struct import field
 
 
@@ -66,7 +67,9 @@ class AreaOperator(ComputationalOperator):
         hilbert = require_u1_hilbert(self.hilbert, operator=type(self).__name__)
         require_gauge_dimensions(hilbert, 3, operator=type(self).__name__)
         if not isinstance(self.surface, tuple):
-            raise TypeError("surface must be a tuple of graph edges or edge indices.")
+            raise NeuralqxTypeError(
+                "surface must be a tuple of graph edges or edge indices."
+            )
         object.__setattr__(
             self,
             "_sites_by_edge",

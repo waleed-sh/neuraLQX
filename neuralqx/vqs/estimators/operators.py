@@ -30,6 +30,7 @@ from neuralqx.operator import SumOfSquares
 from neuralqx.operator import SumOperator
 from neuralqx.operator._algebra import is_known_real_scalar
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +54,9 @@ def as_operator_sequence(operator: Any) -> tuple[Any, ...]:
     if is_operator_sequence(operator):
         operators = tuple(operator)
         if not operators:
-            raise ValueError("Operator sequences must contain at least one operator.")
+            raise NeuralqxValueError(
+                "Operator sequences must contain at least one operator."
+            )
         return operators
     return (operator,)
 

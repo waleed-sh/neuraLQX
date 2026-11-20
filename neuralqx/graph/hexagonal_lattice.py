@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import math
 
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+
 from ._families import FamilyEdge
 from ._families import graph_repr
 from ._families import maybe_relabel_nonplanar
@@ -102,7 +104,7 @@ class HexagonalLatticeGraph(Graph):
         require_int("m", m, minimum=1)
         require_int("n", n, minimum=1)
         if periodic:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "Periodic hexagonal lattices need exact boundary "
                 "identification and are not implemented yet."
             )

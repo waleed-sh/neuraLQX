@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.typing import ControlLike
 
 
@@ -64,7 +65,7 @@ def as_control(value: ControlLike) -> CallbackControl:
         return CallbackControl.stop_run()
     if isinstance(value, CallbackControl):
         return value
-    raise TypeError(f"Invalid callback control value {value!r}.")
+    raise NeuralqxTypeError(f"Invalid callback control value {value!r}.")
 
 
 __all__ = ["CallbackControl", "ControlLike", "as_control"]

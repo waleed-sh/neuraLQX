@@ -22,6 +22,7 @@ into the exact flat ordering expected by state arrays.
 
 from __future__ import annotations
 
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import field
 from neuralqx.utils.typing import DofKind
@@ -58,13 +59,13 @@ class SiteDof(Struct):
     def __post_init__(self) -> None:
         """Validates the site metadata fields."""
         if self.kind not in ("edge", "vertex"):
-            raise ValueError(f"Unsupported DOF kind {self.kind!r}.")
+            raise NeuralqxValueError(f"Unsupported DOF kind {self.kind!r}.")
         if self.site < 0:
-            raise ValueError("site must be non-negative.")
+            raise NeuralqxValueError("site must be non-negative.")
         if self.entity_index < 0:
-            raise ValueError("entity_index must be non-negative.")
+            raise NeuralqxValueError("entity_index must be non-negative.")
         if self.component < 0:
-            raise ValueError("component must be non-negative.")
+            raise NeuralqxValueError("component must be non-negative.")
 
     def __hash__(self) -> int:
         """Returns a structural hash for the site metadata."""

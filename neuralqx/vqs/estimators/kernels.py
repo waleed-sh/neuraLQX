@@ -28,6 +28,8 @@ from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators.operators import OperatorTerm
 
 from .sharded import local_model_layout
@@ -54,7 +56,7 @@ def local_values_from_connections(
         xp = xp.reshape((samples_2d.shape[0], -1, samples_2d.shape[-1]))
         mel = mel.reshape(xp.shape[:-1])
     if xp.shape[0] != samples_2d.shape[0]:
-        raise ValueError("Connected-state batch and sample batch disagree.")
+        raise NeuralqxValueError("Connected-state batch and sample batch disagree.")
 
     logpsi = apply_batched(
         apply_variables, variables, samples_2d, chunk_size=chunk_size
@@ -243,7 +245,7 @@ def _local_values_from_operator_terms_with_logpsi(
         xp = xp.reshape((xp.shape[0], samples_2d.shape[0], -1, samples_2d.shape[-1]))
         mel = mel.reshape(xp.shape[:-1])
     if xp.shape[1] != samples_2d.shape[0]:
-        raise ValueError("Operator-term connections and sample batch disagree.")
+        raise NeuralqxValueError("Operator-term connections and sample batch disagree.")
 
     xp = jnp.where((mel != 0)[..., None], xp, samples_2d[None, :, None, :])
     connected = xp.reshape((-1, samples_2d.shape[-1]))
@@ -422,7 +424,9 @@ def squared_operator_local_values(
     """Local values for the semantic ``A.adjoint @ A`` wrapper."""
     parent = operator.operator
     if not isinstance(parent, DiscreteOperator):
-        raise TypeError("Squared currently requires a discrete parent operator.")
+        raise NeuralqxTypeError(
+            "Squared currently requires a discrete parent operator."
+        )
     parent_values = discrete_operator_local_values(
         apply_variables,
         variables,

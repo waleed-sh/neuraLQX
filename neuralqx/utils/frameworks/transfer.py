@@ -21,6 +21,8 @@ import numpy as np
 import jax
 from neuralqx.jax.sharding.arrays import place_global_array
 from neuralqx.jax.sharding.arrays import with_weak_type
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from .factory import as_framework
 
@@ -33,7 +35,7 @@ def model_parameters(source, *, variables=None, parameters=None):
     tree. Bound Linen modules expose the variables held by their scope.
     """
     if parameters is not None and variables is not None:
-        raise ValueError("Pass either parameters or variables, not both.")
+        raise NeuralqxValueError("Pass either parameters or variables, not both.")
     if parameters is not None:
         return parameters
 
@@ -56,7 +58,7 @@ def model_parameters(source, *, variables=None, parameters=None):
         variables = source.variables
     framework, _ = as_framework(source)
     if variables is None:
-        raise ValueError(
+        raise NeuralqxValueError(
             "This model does not own initialized weights. Pass variables=... or "
             "parameters=..., or pass a variational state containing its trained weights."
         )
@@ -146,7 +148,7 @@ def transfer_parameter_tree(source, target):
             if missing or extra
             else ""
         )
-        raise ValueError(
+        raise NeuralqxValueError(
             "Source and destination parameter structures do not match." + detail
         )
 
@@ -154,23 +156,23 @@ def transfer_parameter_tree(source, target):
         target_paths, source_pairs, target_pairs, strict=True
     ):
         if isinstance(value, (jax.ShapeDtypeStruct, jax.core.Tracer)):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"Source parameter {path} must contain concrete array values."
             )
         value_spec = value if hasattr(value, "dtype") else np.asarray(value)
         target_spec = template if hasattr(template, "dtype") else np.asarray(template)
         if value_spec.shape != target_spec.shape:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Parameter {path} has source shape {value_spec.shape}, "
                 f"expected {target_spec.shape}."
             )
         if value_spec.dtype != target_spec.dtype:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Parameter {path} has source dtype {value_spec.dtype}, "
                 f"expected {target_spec.dtype}. No implicit casting is performed."
             )
         if jax.dtypes.canonicalize_dtype(value_spec.dtype) != value_spec.dtype:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Transferring parameter {path} with dtype {value_spec.dtype} would lose "
                 "precision. Enable JAX 64-bit support before transferring these weights."
             )

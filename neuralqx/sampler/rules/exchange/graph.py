@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections import deque
 
 from neuralqx.graph import AbstractGraph
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import ExchangeEntity
 
 
@@ -30,7 +31,7 @@ def clusters_from_graph(
 ) -> tuple[tuple[int, int], ...]:
     """Derive flat exchange clusters from a graph-distance cutoff."""
     if graph is None:
-        raise ValueError("graph is required to derive exchange clusters.")
+        raise NeuralqxValueError("graph is required to derive exchange clusters.")
     if entity == "vertex":
         adjacency = vertex_adjacency(graph)
         n_sites = graph.n_vertices
@@ -38,7 +39,7 @@ def clusters_from_graph(
         adjacency = edge_adjacency(graph)
         n_sites = graph.n_edges
     else:
-        raise ValueError("entity must be 'vertex' or 'edge'.")
+        raise NeuralqxValueError("entity must be 'vertex' or 'edge'.")
 
     clusters: list[tuple[int, int]] = []
     for source in range(n_sites):

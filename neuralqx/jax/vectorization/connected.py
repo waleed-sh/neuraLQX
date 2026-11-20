@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 import jax
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import ConnectedStateKernel
 
 
@@ -29,7 +30,7 @@ def vmap_connected_kernel(
 ) -> tuple[jax.Array, jax.Array]:
     """Vectorize a single-state connected-component kernel over states."""
     if states.ndim != 2:
-        raise ValueError("vmap_connected_kernel expects a rank-2 state batch.")
+        raise NeuralqxValueError("vmap_connected_kernel expects a rank-2 state batch.")
     return jax.vmap(kernel, in_axes=0, out_axes=0)(states)
 
 

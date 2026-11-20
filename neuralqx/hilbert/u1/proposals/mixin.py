@@ -25,7 +25,6 @@ from __future__ import annotations
 from typing import Any
 
 import jax
-
 from neuralqx.hilbert.proposal.moves import AbstractProposalMove
 from neuralqx.hilbert.u1.proposals import AbstractU1Move
 from neuralqx.hilbert.u1.proposals import FreeEdgeFlipAllGauge
@@ -37,6 +36,7 @@ from neuralqx.hilbert.u1.proposals import propose_free_all
 from neuralqx.hilbert.u1.proposals import propose_free_single
 from neuralqx.hilbert.u1.proposals import propose_plaquette_all
 from neuralqx.hilbert.u1.proposals import propose_plaquette_single
+from neuralqx.utils.errors import NeuralqxTypeError
 
 
 class U1ProposalMixin:
@@ -71,7 +71,9 @@ class U1ProposalMixin:
             from neuralqx.hilbert.proposal import propose as generic_propose
 
             return generic_propose(self, move, key, states)
-        raise TypeError(f"Unsupported U(1) proposal move {type(move).__name__}.")
+        raise NeuralqxTypeError(
+            f"Unsupported U(1) proposal move {type(move).__name__}."
+        )
 
     def flip_state(
         self,
@@ -138,4 +140,6 @@ class U1ProposalMixin:
             return propose_plaquette_single(self, key, states)
         if isinstance(move, PlaquetteFlipAllGauge):
             return propose_plaquette_all(self, key, states)
-        raise TypeError(f"Unsupported U(1) proposal move {type(move).__name__}.")
+        raise NeuralqxTypeError(
+            f"Unsupported U(1) proposal move {type(move).__name__}."
+        )

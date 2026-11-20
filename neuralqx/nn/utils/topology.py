@@ -20,6 +20,8 @@ from itertools import pairwise
 import jax.numpy as jnp
 import numpy as np
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from .initialization import positive_int
 
 
@@ -34,12 +36,12 @@ def graph_edges(n_nodes, edges, *, directed=False):
     pairs = set()
     for edge in edges:
         if len(edge) != 2:
-            raise ValueError("Each edge must contain two integer node indices.")
+            raise NeuralqxValueError("Each edge must contain two integer node indices.")
         a, b = edge
         if not isinstance(a, (int, np.integer)) or not isinstance(b, (int, np.integer)):
-            raise ValueError("Node indices must be integers.")
+            raise NeuralqxValueError("Node indices must be integers.")
         if not (0 <= a < n_nodes and 0 <= b < n_nodes):
-            raise ValueError("Node index lies outside [0, n_nodes).")
+            raise NeuralqxValueError("Node index lies outside [0, n_nodes).")
         pairs.add((int(a), int(b)))
         if not directed:
             pairs.add((int(b), int(a)))

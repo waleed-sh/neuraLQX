@@ -82,35 +82,26 @@ class AbstractU1Hilbert(
 
     graph: AbstractGraph = field(pytree=False)
     """Graph whose edges carry U(1) degrees of freedom."""
-
     cutoff: int | float = field(static=True)
     """Charge cutoff used to construct the local range."""
-
     step: int | float = field(static=True, default=1)
     """Charge spacing between adjacent local values."""
-
     gauge_dimensions: int = field(static=True, default=1)
     """Number of independent U(1) components per edge."""
-
     positive_qn: bool = field(static=True, default=False)
     """Whether to use a non-negative charge range."""
-
     qn_start: int | float | None = field(static=True, default=None)
     """Optional explicit start value for the charge range."""
-
     constraint: AbstractDiscreteConstraint = field(
         static=True,
         init=False,
         default_factory=IdentityConstraint,
     )
     """Constraint applied to U(1) states."""
-
     local_space: LocalRange = field(static=True, init=False, default=None)
     """Scalar local charge range."""
-
     layout: GraphHilbertLayout = field(pytree=False, init=False, default=None)
     """Graph layout mapping edge components to flat sites."""
-
     _local_spaces: tuple[AbstractLocalSpace, ...] = field(
         static=True,
         init=False,
@@ -119,13 +110,10 @@ class AbstractU1Hilbert(
         compare=False,
     )
     """Scalar local charge range for every flat site."""
-
     _dimension: int = field(static=True, init=False, default=0, repr=False)
     """Exact Hilbert-space dimension."""
-
     _dimension_pretty: str = field(static=True, init=False, default="", repr=False)
     """Scientific-notation dimension string."""
-
     _plaquettes: tuple[tuple[int, ...], ...] = field(
         static=True,
         init=False,
@@ -133,10 +121,8 @@ class AbstractU1Hilbert(
         repr=False,
     )
     """Minimal graph loops represented by edge indices."""
-
     _plaquette_lmax: int = field(static=True, init=False, default=0, repr=False)
     """Maximum plaquette length."""
-
     _plaquette_idx: Any = field(
         pytree=True,
         init=False,
@@ -145,7 +131,6 @@ class AbstractU1Hilbert(
         compare=False,
     )
     """Padded plaquette edge-index array."""
-
     _plaquette_mask: Any = field(
         pytree=True,
         init=False,

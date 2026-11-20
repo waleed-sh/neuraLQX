@@ -26,6 +26,7 @@ import jax.numpy as jnp
 from jax.flatten_util import ravel_pytree
 
 import jax
+from neuralqx.utils.errors import NeuralqxTypeError
 
 
 def solver_with_kwargs(fn: Callable[..., tuple[Any, Any]]) -> Callable[..., Any]:
@@ -42,7 +43,9 @@ def solver_with_kwargs(fn: Callable[..., tuple[Any, Any]]) -> Callable[..., Any]
             configured._neuralqx_solver_kwargs = dict(kwargs)
             return configured
         if operator is None or rhs is None:
-            raise TypeError("Pass both operator and rhs, or only keyword options.")
+            raise NeuralqxTypeError(
+                "Pass both operator and rhs, or only keyword options."
+            )
         return fn(operator, rhs, **kwargs)
 
     return wrapped

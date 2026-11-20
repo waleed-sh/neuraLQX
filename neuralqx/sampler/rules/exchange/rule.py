@@ -24,13 +24,14 @@ import numpy as np
 
 import jax
 from neuralqx.graph import AbstractGraph
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
+from neuralqx.utils.typing import ExchangeEntity
 
 from ..base import AbstractTransitionRule
 from .graph import clusters_from_graph
 from .incidence import incident_cluster_table
 from .kernel import exchange_batch
-from neuralqx.utils.typing import ExchangeEntity
 
 
 class ExchangeRule(AbstractTransitionRule):
@@ -98,11 +99,11 @@ def _resolve_clusters(
     entity: ExchangeEntity,
 ) -> tuple[tuple[int, int], ...]:
     if clusters is None and graph is None:
-        raise ValueError("ExchangeRule needs explicit clusters or a graph.")
+        raise NeuralqxValueError("ExchangeRule needs explicit clusters or a graph.")
     if clusters is not None and graph is not None:
-        raise ValueError("Specify either clusters or graph, not both.")
+        raise NeuralqxValueError("Specify either clusters or graph, not both.")
     if d_max <= 0:
-        raise ValueError("d_max must be positive.")
+        raise NeuralqxValueError("d_max must be positive.")
     if clusters is None:
         return clusters_from_graph(graph, d_max, entity)
     return tuple((int(i), int(j)) for i, j in clusters)
@@ -110,12 +111,12 @@ def _resolve_clusters(
 
 def _validate_clusters(clusters: tuple[tuple[int, int], ...]) -> np.ndarray:
     if not clusters:
-        raise ValueError("ExchangeRule requires at least one exchange cluster.")
+        raise NeuralqxValueError("ExchangeRule requires at least one exchange cluster.")
     cluster_array = np.asarray(clusters, dtype=np.int32)
     if cluster_array.ndim != 2 or cluster_array.shape[1] != 2:
-        raise ValueError("clusters must have shape (n_clusters, 2).")
+        raise NeuralqxValueError("clusters must have shape (n_clusters, 2).")
     if bool(np.any(cluster_array[:, 0] == cluster_array[:, 1])):
-        raise ValueError("Exchange clusters must contain two distinct sites.")
+        raise NeuralqxValueError("Exchange clusters must contain two distinct sites.")
     return cluster_array
 
 
@@ -126,9 +127,11 @@ def _validate_probabilities(
         return None
     out = np.asarray(probabilities)
     if out.shape != (int(n_clusters),):
-        raise ValueError("probabilities must have one entry per exchange cluster.")
+        raise NeuralqxValueError(
+            "probabilities must have one entry per exchange cluster."
+        )
     if bool(np.any(out <= 0)):
-        raise ValueError("probabilities must be positive.")
+        raise NeuralqxValueError("probabilities must be positive.")
     return out
 
 

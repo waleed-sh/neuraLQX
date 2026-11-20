@@ -33,25 +33,9 @@ from neuralqx.operator import SumOperator
 from neuralqx.operator import VertexSum
 from neuralqx.operator._algebra import is_zero_scalar_like
 from neuralqx.operator.prebuilt.wcl import IdentityOperator
-
-
-class _UnavailableOperator(NotImplementedError):
-    """An intentionally absent model operation, distinct from a failed construction.
-
-    The total constraint may omit an absent Euclidean or Lorentzian component.
-    It must still propagate errors raised inside an implemented component,
-    including ordinary NotImplementedError exceptions from an unavailable
-    backend. This exception identifies only the model's declared absence.
-    """
-
-    name: str
-    """Property whose default implementation is unavailable."""
-
-    def __init__(self, model: str, name: str, detail: str = "") -> None:
-        """Record the absent operation and name the concrete requesting model."""
-        self.name = name
-        message = f"{model} does not implement a default for {name}."
-        super().__init__(f"{message} {detail}" if detail else message)
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
+from neuralqx.utils.errors import UnavailableOperatorError as _UnavailableOperator
 
 
 class LQXModel:
@@ -138,11 +122,13 @@ class LQXModel:
             ValueError: If an explicit graph is not the Hilbert space's graph.
         """
         if not isinstance(hilbert, DiscreteHilbertSpace):
-            raise TypeError(f"{type(self).__name__} requires a DiscreteHilbertSpace.")
+            raise NeuralqxTypeError(
+                f"{type(self).__name__} requires a DiscreteHilbertSpace."
+            )
         self.hilbert = hilbert
         self.graph = hilbert.graph if graph is None else graph
         if self.graph is not hilbert.graph:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "The supplied graph must be the graph attached to the Hilbert space."
             )
         self._euclidean_constraint = None
@@ -343,7 +329,7 @@ class LQXModel:
             ValueError: If labelled and unlabelled contributions are mixed.
         """
         if not isinstance(alternative, bool):
-            raise TypeError("alternative must be a bool.")
+            raise NeuralqxTypeError("alternative must be a bool.")
         terms = tuple(self.get_constraint_terms().values())
         if not terms:
             return self._quadratic_of(IdentityOperator(self.hilbert, 0.0))
@@ -439,7 +425,7 @@ class LQXModel:
         collect(total)
         if None in grouped:
             if len(grouped) > 1:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "Cannot combine vertex-labelled and unlabelled constraints. "
                     "Use sum_constraint_terms({vertex: operator}) for custom contributions."
                 )
@@ -478,11 +464,11 @@ class LQXModel:
             else AbstractOperator
         )
         if not isinstance(operator, expected):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"{type(self).__name__}.{name} requires an {expected.__name__}."
             )
         if operator.hilbert != self.hilbert:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"{type(self).__name__}.{name} must act on the model's Hilbert space."
             )
 
@@ -503,7 +489,7 @@ class LQXModel:
     ) -> Squared:
         r"""Represent $AA^\dagger$ by default, or $A^\dagger A$ for the alternative ordering."""
         if not isinstance(alternative, bool):
-            raise TypeError("alternative must be a bool.")
+            raise NeuralqxTypeError("alternative must be a bool.")
         return Squared(operator if alternative else operator.adjoint)
 
 

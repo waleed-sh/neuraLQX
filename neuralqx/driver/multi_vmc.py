@@ -25,6 +25,7 @@ import jax.numpy as jnp
 import jax
 from neuralqx.jax.differentiation import vjp as neuralqx_vjp
 from neuralqx.jax.streaming import apply_batched
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.stats import Stats
 from neuralqx.utils.stats import statistics
 from neuralqx.vqs.estimators.utils import flatten_samples
@@ -51,11 +52,13 @@ class MultiVMCDriver(AbstractVariationalDriver):
     ) -> None:
         states = tuple(variational_states)
         if not states:
-            raise ValueError("MultiVMCDriver requires at least one variational state.")
+            raise NeuralqxValueError(
+                "MultiVMCDriver requires at least one variational state."
+            )
         for state in states:
             validate_operator_hilbert(state, hamiltonian)
             if state.hilbert != states[0].hilbert:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "All variational states must use the same Hilbert space."
                 )
 
@@ -168,7 +171,9 @@ class MultiVMCDriver(AbstractVariationalDriver):
 def fidelity_expect_and_grad_joint(state_i: Any, state_j: Any) -> tuple[Stats, Any]:
     """Estimate the pair overlap penalty and gradients for two states."""
     if state_i.hilbert != state_j.hilbert:
-        raise ValueError("Orthogonality penalties require matching Hilbert spaces.")
+        raise NeuralqxValueError(
+            "Orthogonality penalties require matching Hilbert spaces."
+        )
     sigma_i = state_i.samples
     sigma_j = state_j.samples
     return _fidelity_expect_and_grad_joint_kernel(

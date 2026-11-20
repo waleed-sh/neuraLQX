@@ -24,6 +24,7 @@ from neuralqx.jax.random import as_prng_key
 from neuralqx.jax.sharding import sample_batch_sharding
 from neuralqx.jax.sharding import sample_partition_count
 from neuralqx.jax.sharding.arrays import place_global_array
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.frameworks import FrameworkApply
 from neuralqx.utils.frameworks import static_training_kwargs
 
@@ -353,13 +354,15 @@ def load_variational_state(
 
     def validate():
         if sampler_mode not in ("continue", "restart"):
-            raise ValueError("sampler_mode must be 'continue' or 'restart'.")
+            raise NeuralqxValueError("sampler_mode must be 'continue' or 'restart'.")
         if sampler_mode == "restart" and sampler_seed is None:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "sampler_mode='restart' requires an explicit sampler_seed."
             )
         if sampler_mode == "continue" and sampler_seed is not None:
-            raise ValueError("sampler_seed is only used with sampler_mode='restart'.")
+            raise NeuralqxValueError(
+                "sampler_seed is only used with sampler_mode='restart'."
+            )
         if state.framework.name != description["framework"]:
             raise CheckpointError("The saved and target model frameworks differ.")
         if not _model_from_recipe:

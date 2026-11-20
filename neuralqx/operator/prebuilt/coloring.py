@@ -1,17 +1,6 @@
 # Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# Licensed under the Apache License, Version 2.0.
+# https://www.apache.org/licenses/LICENSE-2.0
 
 r"""Charge-label projectors and their products on U(1)^N Hilbert spaces.
 
@@ -42,6 +31,8 @@ from neuralqx.operator.prebuilt.utils import copy_sites
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
 from neuralqx.operator.prebuilt.utils import validate_site
 from neuralqx.operator.wrappers import ProductOperator
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 from .wcl.identity import IdentityOperator
@@ -51,12 +42,14 @@ def _canonical_charge(hilbert, charge, *, operator: str) -> tuple[int | float, i
     """Return a validated stored charge label and its local basis index."""
     value = np.asarray(charge)
     if value.ndim != 0 or value.dtype.kind not in "iuf":
-        raise TypeError(f"{operator} charge must be a real scalar, got {charge!r}.")
+        raise NeuralqxTypeError(
+            f"{operator} charge must be a real scalar, got {charge!r}."
+        )
     if not np.isfinite(value):
-        raise ValueError(f"{operator} charge must be finite, got {charge!r}.")
+        raise NeuralqxValueError(f"{operator} charge must be finite, got {charge!r}.")
     raw_index = (float(value) - hilbert.q_min) / hilbert.q_step
     if not np.isfinite(raw_index):
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} charge {charge!r} is outside the allowed charge lattice."
         )
     index = round(raw_index)
@@ -69,7 +62,7 @@ def _canonical_charge(hilbert, charge, *, operator: str) -> tuple[int | float, i
     # Off-lattice charges are never truncated to integer charges.
     on_lattice = abs(raw_index - index) <= 8 * precision * max(1, abs(raw_index))
     if not 0 <= index < hilbert.local_size or not on_lattice:
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} charge {charge!r} is outside the allowed lattice "
             f"{hilbert.q_min} + k * {hilbert.q_step}, with 0 <= k < {hilbert.local_size}."
         )
@@ -275,11 +268,11 @@ class ColoringOperator(_ColoringProjector):
         hilbert = require_u1_hilbert(self.hilbert, operator=name)
         site = validate_site(hilbert, self.site, operator=name)
         if site >= hilbert.tiny_size:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"{name} site must name a base edge in [0, {hilbert.tiny_size}), got {site}."
             )
         if len(self.charge_vector) != hilbert.gauge_dimensions:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"{name} requires {hilbert.gauge_dimensions} charges, got {len(self.charge_vector)}."
             )
         selections = tuple(
@@ -357,10 +350,10 @@ def n_point_function(
             probability = state.expect(joint)
     """
     if not callable(operator):
-        raise TypeError("n_point_function requires an operator factory.")
+        raise NeuralqxTypeError("n_point_function requires an operator factory.")
     edges, charge_vectors = tuple(edges), tuple(charge_vectors)
     if len(edges) != len(charge_vectors):
-        raise ValueError(
+        raise NeuralqxValueError(
             "Each edge must have exactly one corresponding charge selection."
         )
     factors = tuple(
@@ -369,9 +362,11 @@ def n_point_function(
     )
     for factor in factors:
         if not isinstance(factor, ComputationalOperator):
-            raise TypeError("The local factory must return a ComputationalOperator.")
+            raise NeuralqxTypeError(
+                "The local factory must return a ComputationalOperator."
+            )
         if factor.hilbert != hilbert:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Every local factor must act on the supplied Hilbert space."
             )
     if not factors:

@@ -21,6 +21,8 @@ from collections.abc import Callable
 from typing import Any
 
 import jax
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxRuntimeError
 from neuralqx.utils.struct import field
 
 from .base import AbstractModelFramework
@@ -60,7 +62,7 @@ class CallableFramework(AbstractModelFramework):
         dtype: Any,
     ) -> Variables:
         if self.init_fn is None:
-            raise RuntimeError(
+            raise NeuralqxRuntimeError(
                 "CallableFramework needs an init_fn when variables are omitted."
             )
         variables = self.init_fn(key, input_shape, dtype)
@@ -77,7 +79,7 @@ class CallableFramework(AbstractModelFramework):
         training_kwargs: dict[str, Any] | None = None,
     ) -> Any:
         if mutable is not False and mutable is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "CallableFramework does not manage mutable collections."
             )
         kwargs = {} if training_kwargs is None else dict(training_kwargs)

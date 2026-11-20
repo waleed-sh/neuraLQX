@@ -22,6 +22,8 @@ graph family for local vertex experiments and operator sanity checks.
 
 from __future__ import annotations
 
+from neuralqx.utils.errors import NeuralqxValueError
+
 from ._families import circular_vertices
 from ._families import graph_repr
 from ._families import maybe_relabel_nonplanar
@@ -98,11 +100,11 @@ class SingleVertexGraph(Graph):
         else:
             orientation_tuple = tuple(orientation)
         if len(orientation_tuple) != valence:
-            raise ValueError(
-                f"orientation must have length {valence}; got {len(orientation_tuple)}."
+            raise NeuralqxValueError(
+                f"orientation must have length {valence}, got {len(orientation_tuple)}."
             )
         if any(item not in (-1, 1) for item in orientation_tuple):
-            raise ValueError("orientation entries must be either +1 or -1.")
+            raise NeuralqxValueError("orientation entries must be either +1 or -1.")
 
         center = vertex(0.0, 0.0)
         leaves = circular_vertices(valence, radius=1.0)

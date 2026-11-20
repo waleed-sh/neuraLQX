@@ -18,6 +18,7 @@
 from flax import nnx
 
 import jax
+from neuralqx.utils.errors import NeuralqxNotImplementedError
 
 from ..utils.connections import ConnectionPolicy
 from ..utils.connections import map_connections
@@ -44,17 +45,19 @@ class LogWavefunction(nnx.Module):
 
     def __call__(self, states):
         """Return log amplitudes with the final configuration axis removed."""
-        raise NotImplementedError(f"{type(self).__name__} must implement __call__.")
+        raise NeuralqxNotImplementedError(
+            f"{type(self).__name__} must implement __call__."
+        )
 
     def prepare_connections(self, sources):
         """Build differentiable source features for one connected-state call."""
-        raise NotImplementedError(
+        raise NeuralqxNotImplementedError(
             f"{type(self).__name__} does not implement source reuse."
         )
 
     def apply_connections(self, cache, owners, sites, differences):
         """Evaluate exact target log amplitudes from a source cache and sparse changes."""
-        raise NotImplementedError(
+        raise NeuralqxNotImplementedError(
             f"{type(self).__name__} does not implement sparse updates."
         )
 

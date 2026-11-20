@@ -22,6 +22,8 @@ from typing import Any
 from neuralqx.graph import AbstractGraph
 from neuralqx.graph import HalfLadderGraph
 from neuralqx.hilbert.u1.spaces.abstract import AbstractU1Hilbert
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def require_u1_hilbert(
@@ -48,7 +50,7 @@ def require_u1_hilbert(
         # Use the factory name when available to identify the failing construction.
         name = "Prebuilt U(1) operators" if operator is None else operator
         # Report the actual type rather than allowing a later missing-attribute error.
-        raise TypeError(
+        raise NeuralqxTypeError(
             f"{name} require an AbstractU1Hilbert. Got {type(hilbert).__name__}."
         )
     # Preserve object identity shared by the model and its operators.
@@ -80,7 +82,7 @@ def require_gauge_dimensions(
         # Attach the failed requirement to the requesting operator when possible.
         name = "operator" if operator is None else operator
         # Give both counts so the Hilbert-space configuration can be corrected.
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{name} requires gauge_dimensions={expected}. Got {hilbert.gauge_dimensions}."
         )
 
@@ -102,7 +104,7 @@ def require_planar_graph(graph: AbstractGraph, *, model: str) -> None:
     # Use the graph declaration that also selects its sign-table construction.
     if not bool(graph.is_planar):
         # Reject the wrong dimensional prescription at operator construction.
-        raise ValueError(f"{model} requires a planar graph.")
+        raise NeuralqxValueError(f"{model} requires a planar graph.")
 
 
 def require_nonplanar_graph(graph: AbstractGraph, *, model: str) -> None:
@@ -122,7 +124,7 @@ def require_nonplanar_graph(graph: AbstractGraph, *, model: str) -> None:
     # A planar declaration selects the incompatible two-dimensional prescription.
     if bool(graph.is_planar):
         # Fail before assembling triples from the wrong graph model.
-        raise ValueError(f"{model} requires a non-planar graph.")
+        raise NeuralqxValueError(f"{model} requires a non-planar graph.")
 
 
 def require_half_ladder_graph(
@@ -147,7 +149,7 @@ def require_half_ladder_graph(
     # Check the radial-stencil interface before accessing its specialized methods.
     if not isinstance(graph, HalfLadderGraph):
         # Identify the graph type that cannot provide the spherical neighborhood.
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} requires HalfLadderGraph. Got {type(graph).__name__}."
         )
     # Return the same graph object after establishing its type.
@@ -178,14 +180,14 @@ def require_single_vertex_three_edges(
     # Every QR kernel indexes precisely the three base sites.
     if int(hilbert.tiny_size) != 3:
         # Explain the incompatible label count or negative-spin domain.
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} requires a three-edge single-vertex Hilbert space. "
             f"got {hilbert.tiny_size} base edges."
         )
     # Fractional flux powers in the reduced constraint require non-negative spins.
     if hilbert.q_min < 0:
         # Explain the incompatible label count or negative-spin domain.
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} requires non-negative QR spins. "
             "Construct the Hilbert space with positive_qn=True."
         )
@@ -214,11 +216,11 @@ def validate_site(hilbert: AbstractU1Hilbert, site: int, *, operator: str) -> in
     # Validate the type before any integer coercion could hide an invalid input.
     if isinstance(site, bool) or not isinstance(site, int):
         # Expose the original argument in the diagnostic.
-        raise TypeError(f"{operator} site must be an integer. Got {site!r}.")
+        raise NeuralqxTypeError(f"{operator} site must be an integer. Got {site!r}.")
     # Use full state size because later gauge-copy blocks are valid site targets.
     if not 0 <= site < int(hilbert.size):
         # Reject Python-style negative indexing for physical site selection.
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} site must be in [0, {hilbert.size - 1}], got {site}."
         )
     # Return a static integer suitable for indexing inside a traced kernel.
@@ -247,11 +249,11 @@ def validate_copy(hilbert: AbstractU1Hilbert, copy: int, *, operator: str) -> in
     # Reject boolean and fractional inputs before constructing any flat indices.
     if isinstance(copy, bool) or not isinstance(copy, int):
         # Identify the original invalid component selector.
-        raise TypeError(f"{operator} copy must be an integer. Got {copy!r}.")
+        raise NeuralqxTypeError(f"{operator} copy must be an integer. Got {copy!r}.")
     # A component index must address an existing gauge-copy block.
     if not 0 <= copy < int(hilbert.gauge_dimensions):
         # Report the valid inclusive copy range alongside the supplied value.
-        raise ValueError(
+        raise NeuralqxValueError(
             f"{operator} copy must be in [0, {hilbert.gauge_dimensions - 1}], got {copy}."
         )
     # Return the static component index used by site-layout helpers.

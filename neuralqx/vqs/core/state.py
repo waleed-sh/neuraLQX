@@ -28,6 +28,9 @@ from neuralqx.jax.tree import tree_size
 from neuralqx.sampler import MetropolisSampler
 from neuralqx.sampler import MetropolisSamplerState
 from neuralqx.sampler._samples import adjusted_sample_count
+from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.frameworks import AbstractModelFramework
 from neuralqx.utils.frameworks import FrameworkApply
 from neuralqx.utils.frameworks import FrameworkMerge
@@ -166,10 +169,10 @@ class VariationalState(AbstractVariationalState):
         )
         if sampler is None:
             if hilbert is None:
-                raise ValueError("Pass either sampler or hilbert.")
+                raise NeuralqxValueError("Pass either sampler or hilbert.")
             sampler = MetropolisSampler(hilbert)
         elif hilbert is not None and sampler.hilbert != hilbert:
-            raise ValueError("sampler.hilbert and hilbert disagree.")
+            raise NeuralqxValueError("sampler.hilbert and hilbert disagree.")
 
         self._sampler = sampler
         self._hilbert = sampler.hilbert
@@ -190,7 +193,7 @@ class VariationalState(AbstractVariationalState):
         )
         self._merge_variables_kernel = FrameworkMerge(framework)
         if mutable is not False and mutable is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "Mutable model collections are not supported by VariationalState yet. "
                 "Pass mutable=False or update model_state explicitly."
             )
@@ -198,9 +201,9 @@ class VariationalState(AbstractVariationalState):
         self._n_samples = int(n_samples)
         self._n_discard_per_chain = int(n_discard_per_chain)
         if self._n_samples <= 0:
-            raise ValueError("n_samples must be positive.")
+            raise NeuralqxValueError("n_samples must be positive.")
         if self._n_discard_per_chain < 0:
-            raise ValueError("n_discard_per_chain must be non-negative.")
+            raise NeuralqxValueError("n_discard_per_chain must be non-negative.")
 
         if variables is None and framework_variables is not None:
             variables = framework_variables
@@ -325,7 +328,7 @@ class VariationalState(AbstractVariationalState):
 
         if isinstance(source, AbstractVariationalState):
             if variables is not None or parameters is not None:
-                raise ValueError(
+                raise NeuralqxValueError(
                     "A source variational state already supplies its parameters."
                 )
             donor = source.parameters
@@ -607,7 +610,7 @@ class VariationalState(AbstractVariationalState):
         """Set a positive sample count and invalidate the cached sample batch."""
         value = int(value)
         if value <= 0:
-            raise ValueError("n_samples must be positive.")
+            raise NeuralqxValueError("n_samples must be positive.")
         self._n_samples = value
         self._samples = None
         self._sample_measure = None
@@ -626,7 +629,7 @@ class VariationalState(AbstractVariationalState):
         """Set a nonnegative discard count for future sampling calls."""
         value = int(value)
         if value < 0:
-            raise ValueError("n_discard_per_chain must be non-negative.")
+            raise NeuralqxValueError("n_discard_per_chain must be non-negative.")
         self._n_discard_per_chain = value
 
     @property
@@ -647,7 +650,7 @@ class VariationalState(AbstractVariationalState):
             self._parameters_structure is not None
             and structure != self._parameters_structure
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "New parameters do not match the original pytree structure."
             )
         variables = self.framework.place_variables(
@@ -699,7 +702,7 @@ class VariationalState(AbstractVariationalState):
             self._parameters_structure is not None
             and structure != self._parameters_structure
         ):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "New variables contain a different parameter pytree structure."
             )
         self._variables = value
@@ -730,12 +733,14 @@ class VariationalState(AbstractVariationalState):
     def samples(self, value: Any) -> None:
         """Cache supplied configurations without advancing or resetting chains."""
         if self.importance_sampling_enabled:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Use set_samples(..., log_density=...) for importance samples."
             )
         arr = jnp.asarray(value)
         if arr.ndim == 0 or arr.shape[-1] != self.hilbert.size:
-            raise ValueError("Samples have the wrong trailing Hilbert dimension.")
+            raise NeuralqxValueError(
+                "Samples have the wrong trailing Hilbert dimension."
+            )
         self._samples = arr
         self._sample_measure = None
 
@@ -786,7 +791,7 @@ class VariationalState(AbstractVariationalState):
             NotImplementedError: Mutable model collections were requested.
         """
         if mutable is not False and mutable is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "Mutable model collections are not supported yet."
             )
         return self.apply_variables(self.variables, states)
@@ -816,7 +821,7 @@ class VariationalState(AbstractVariationalState):
             NotImplementedError: Mutable model collections were requested.
         """
         if mutable is not False and mutable is not None:
-            raise NotImplementedError(
+            raise NeuralqxNotImplementedError(
                 "Mutable model collections are not supported yet."
             )
         flat, state_shape = flatten_state_batch(states, self.hilbert.size)
@@ -855,7 +860,7 @@ class VariationalState(AbstractVariationalState):
             RuntimeError: The Hilbert space does not support basis indexing.
         """
         if not self.hilbert.is_indexable:
-            raise RuntimeError("to_array requires an indexable Hilbert space.")
+            raise NeuralqxRuntimeError("to_array requires an indexable Hilbert space.")
         states = self.hilbert.all_states(max_states=max_states)
         log_values = evaluate_log_values(
             self.apply_variables_kernel,
@@ -992,7 +997,7 @@ class VariationalState(AbstractVariationalState):
         if not self.importance_sampling_enabled:
             return None
         if samples is not self._samples or self._sample_measure is None:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Importance samples need their sampling density. Use set_samples(..., log_density=...)."
             )
         return self._sample_measure
@@ -1008,21 +1013,23 @@ class VariationalState(AbstractVariationalState):
         from neuralqx.sampler.importance import SamplingMeasure
 
         if not self.importance_sampling_enabled:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "set_samples with a density requires importance_sampling or operator_blur."
             )
         values = jnp.asarray(samples)
         density = jnp.asarray(log_density)
         if jnp.iscomplexobj(density):
-            raise ValueError("A sampling log density must be real.")
+            raise NeuralqxValueError("A sampling log density must be real.")
         if (
             values.ndim < 2
             or values.shape[-1] != self.hilbert.size
             or density.shape != values.shape[:-1]
         ):
-            raise ValueError("Samples and log_density have incompatible shapes.")
+            raise NeuralqxValueError(
+                "Samples and log_density have incompatible shapes."
+            )
         if not bool(jnp.all(jnp.isfinite(density))):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "The sampling density must be finite on every supplied sample."
             )
         self._samples = values

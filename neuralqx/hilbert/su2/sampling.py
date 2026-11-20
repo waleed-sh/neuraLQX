@@ -29,6 +29,7 @@ import numpy as np
 import jax
 from neuralqx.hilbert.su2.proposals.metropolis import random_metropolis_warmup
 from neuralqx.hilbert.utils import batch_shape
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 class SU2SamplingMixin:
@@ -65,7 +66,7 @@ class SU2SamplingMixin:
             max_trials: Ignored because SU(2) uses constructive sampling.
             method: Per-call override: ``"metropolis"`` or ``"vacuum"``.
                 By default, sample a cached exact
-                basis if present; otherwise use ``self.random_init``.
+                basis if present, otherwise use ``self.random_init``.
             n_steps: Attempted updates per output state. Defaults to
                 ``self.init_warmup`` or ``max(32, 4*n_edges)``. Static under JIT.
                 Used for Metropolis warmup only.
@@ -85,13 +86,13 @@ class SU2SamplingMixin:
         out_dtype = self.dtype if dtype is None else np.dtype(dtype)
         count = int(np.prod(shape, dtype=np.int64)) if shape else 1
         if method is not None and method not in ("metropolis", "vacuum"):
-            raise ValueError("method must be 'metropolis', 'vacuum', or None.")
+            raise NeuralqxValueError("method must be 'metropolis', 'vacuum', or None.")
         if n_steps is not None and (
             isinstance(n_steps, (bool, np.bool_))
             or not isinstance(n_steps, (int, np.integer))
             or n_steps < 0
         ):
-            raise ValueError("n_steps must be a nonnegative integer or None.")
+            raise NeuralqxValueError("n_steps must be a nonnegative integer or None.")
 
         if (
             method is None

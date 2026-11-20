@@ -25,19 +25,37 @@ from jax.experimental.sparse import BCOO
 
 import jax
 from neuralqx.hilbert import DiscreteHilbertSpace
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
 
 from ._batching import flatten_states
 from .abstract import AbstractOperator
 
 
 class DiscreteOperator(AbstractOperator):
-    """Base class for operators acting on discrete Hilbert spaces."""
+    r"""An operator specified by its rows in a discrete basis.
+
+    For an input configuration $q$, connected configurations $q'$ carry matrix
+    elements $A_{q,q'}=\langle q|A|q'\rangle$. This is the convention used by
+    local estimators and by `to_sparse` and `to_dense`. A kernel may emit the
+    same target more than once. Such contributions add, including cancellations.
+
+    Padded methods preserve a fixed connection axis for JAX compilation.
+    `get_conn` removes padding for inspection outside JIT. Matrix conversion
+    requires an indexable Hilbert space and enumerates its complete basis.
+
+    Attributes:
+        hilbert (DiscreteHilbertSpace): Discrete Hilbert space defining the basis and its ordering.
+    """
 
     hilbert: DiscreteHilbertSpace
+    """Hilbert space defining the operator basis."""
 
     def __post_init__(self) -> None:
+        """Validate the construction arguments and prepare static kernel metadata."""
         if not isinstance(self.hilbert, DiscreteHilbertSpace):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "Discrete operators must act on a DiscreteHilbertSpace, "
                 f"got {type(self.hilbert).__name__}."
             )
@@ -64,7 +82,7 @@ class DiscreteOperator(AbstractOperator):
         """Return unique nonzero targets followed by zero padding, JIT-compatible.
 
         Duplicate amplitudes are summed before testing for exact cancellation.
-        The padded capacity stays ``max_conn_size``, use ``get_conn`` to obtain
+        The padded capacity stays ``max_conn_size``. Use ``get_conn`` to obtain
         a variable-length row outside JIT.
         """
         from .connectivity import coalesce_connections
@@ -81,7 +99,20 @@ class DiscreteOperator(AbstractOperator):
         pad: bool = False,
         **kwargs: Any,
     ) -> tuple[jax.Array, jax.Array]:
-        """Return connected states flattened over the batch and connection axes."""
+        """Concatenate the connected rows of a batch.
+
+        Args:
+            states: Configurations with final axis `hilbert.size`.
+            sections: Optional writable host array filled with cumulative row
+                lengths. Its length must equal the flattened batch size.
+            pad: Retain all padded branches when true. Otherwise coalesce
+                duplicate targets and remove zero amplitudes.
+            **kwargs: Execution options forwarded to `get_conn_padded`.
+
+        Returns:
+            result (tuple[jax.Array, jax.Array]): A rank-two target array and a rank-one amplitude array. Removing
+                zeros produces a data-dependent shape and must be done outside JIT.
+        """
         flat, _single, _batch_shape = flatten_states(states, self.hilbert.size)
         x_primes, mels = (
             self.get_conn_padded(flat, **kwargs)
@@ -108,7 +139,7 @@ class DiscreteOperator(AbstractOperator):
         """Return nonzero connected states for one input state."""
         flat, single, _batch_shape = flatten_states(state, self.hilbert.size)
         if not single:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "get_conn expects one state, use get_conn_padded for batches."
             )
         x_primes, mels = self.get_conn_coalesced(flat, **kwargs)
@@ -130,7 +161,7 @@ class DiscreteOperator(AbstractOperator):
         convention used throughout neuraLQX.
         """
         if not self.hilbert.is_indexable:
-            raise RuntimeError("to_sparse requires an indexable Hilbert space.")
+            raise NeuralqxRuntimeError("to_sparse requires an indexable Hilbert space.")
 
         states = self.hilbert.all_states(max_states=max_states)
         x_primes, mels = self.get_conn_padded(states, use_streaming=False)
@@ -143,7 +174,15 @@ class DiscreteOperator(AbstractOperator):
         return BCOO((data[mask], indices), shape=(n_states, n_states)).sum_duplicates()
 
     def to_dense(self, *, max_states: int = 1_000_000) -> jax.Array:
-        """Return a dense matrix representation for small indexable spaces."""
+        """Materialize the complete matrix in the Hilbert space's basis ordering.
+
+        Args:
+            max_states: Upper bound passed to basis enumeration.
+
+        Returns:
+            result (jax.Array): A square JAX array with one row and column per basis state. Storage
+                grows quadratically with the Hilbert-space dimension.
+        """
         return self.to_sparse(max_states=max_states).todense()
 
 

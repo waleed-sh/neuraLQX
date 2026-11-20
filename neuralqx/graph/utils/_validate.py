@@ -26,6 +26,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Literal
 
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.typing import Edge
 from neuralqx.utils.typing import EdgeLike
 from neuralqx.utils.typing import GraphEdges
@@ -47,7 +48,9 @@ def validate_vertices(edges: GraphEdgesLike) -> None:
         try:
             Edge.from_like(edge)
         except (TypeError, ValueError) as exc:
-            raise TypeError(f"Invalid edge at index {edge_index}: {exc}") from exc
+            raise NeuralqxTypeError(
+                f"Invalid edge at index {edge_index}: {exc}"
+            ) from exc
 
 
 def ensure_edge_keys(edges: GraphEdgesLike) -> GraphEdges:
@@ -78,7 +81,7 @@ def ensure_edge_keys(edges: GraphEdgesLike) -> GraphEdges:
 
     if any(kind == "keyed" for kind in edge_kinds):
         msg = "Graph edges must be either all keyed or all unkeyed, not mixed."
-        raise TypeError(msg)
+        raise NeuralqxTypeError(msg)
 
     next_key: defaultdict[frozenset[Vertex], int] = defaultdict(int)
     keyed_edges: list[Edge] = []
@@ -111,15 +114,17 @@ def _edge_kind(edge: EdgeLike, *, index: int) -> Literal["keyed", "unkeyed"]:
     if isinstance(edge, Edge):
         return "keyed"
     if not isinstance(edge, Sequence) or isinstance(edge, (str, bytes)):
-        raise TypeError(
+        raise NeuralqxTypeError(
             f"Edge at index {index} must be an Edge, ``(start, end)``, "
-            f"or ``(start, end, key)``; got {edge!r}."
+            f"or ``(start, end, key)``, got {edge!r}."
         )
     if len(edge) == 2:
         return "unkeyed"
     if len(edge) == 3:
         return "keyed"
-    raise TypeError(f"Edge at index {index} must have length 2 or 3; got {len(edge)}.")
+    raise NeuralqxTypeError(
+        f"Edge at index {index} must have length 2 or 3, got {len(edge)}."
+    )
 
 
 __all__ = [

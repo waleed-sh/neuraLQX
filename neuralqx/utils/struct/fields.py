@@ -45,19 +45,22 @@ construction/replacement/deserialization. Derived fields:
     - are never serialised (they are recomputed instead).
 """
 
+from __future__ import annotations
+
 import dataclasses
 import typing
-
 from collections.abc import Callable
 from collections.abc import Mapping
-
 from enum import Enum
 from typing import Any
 
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import NeuralqxValueError
+
+from ._internals._types import ValidatorLike
 from ._internals.field_helpers import MISSING
 from ._internals.field_helpers import MissingType
 from ._internals.field_helpers import normalize_validators
-from ._internals._types import ValidatorLike
 
 __all__ = [
     "FieldKind",
@@ -161,7 +164,7 @@ class FieldSpec:
             return typing.cast(Callable[[], Any], self.factory)()
         if self.default is not MISSING:
             return self.default
-        raise TypeError(f"Field {self.name!r} requires a value.")
+        raise NeuralqxTypeError(f"Field {self.name!r} requires a value.")
 
     @property
     def should_serialize(self) -> bool:
@@ -280,9 +283,9 @@ def field(
             - ``fn(self, value)``
     """
     if default is not MISSING and default_factory is not MISSING:
-        raise ValueError("Cannot specify both 'default' and 'default_factory'.")
+        raise NeuralqxValueError("Cannot specify both 'default' and 'default_factory'.")
     if not pytree and static:
-        raise ValueError("A field cannot be both static and opaque.")
+        raise NeuralqxValueError("A field cannot be both static and opaque.")
     kind = (
         FieldKind.OPAQUE
         if not pytree
@@ -290,17 +293,19 @@ def field(
     )
     if derived is not None:
         if init:
-            raise ValueError("Derived fields must set init=False.")
+            raise NeuralqxValueError("Derived fields must set init=False.")
         if default is not MISSING or default_factory is not MISSING:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Derived fields cannot define a default or default_factory."
             )
         if kind is FieldKind.NODE:
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Derived fields must be static or opaque, not pytree nodes."
             )
         if serialize:
-            raise ValueError("Derived fields are recomputed and cannot be serialized.")
+            raise NeuralqxValueError(
+                "Derived fields are recomputed and cannot be serialized."
+            )
     return FieldSpec(
         name="",
         kind=kind,

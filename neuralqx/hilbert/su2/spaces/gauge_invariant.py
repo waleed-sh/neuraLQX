@@ -51,6 +51,8 @@ from neuralqx.hilbert.su2.utils import validate_two_j_max
 from neuralqx.hilbert.u1.utils import scientific_int
 from neuralqx.hilbert.utils import INDEX_LIMIT
 from neuralqx.hilbert.utils import product
+from neuralqx.utils.errors import NeuralqxRuntimeError
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.struct import field
 
 
@@ -262,15 +264,17 @@ class SU2GaugeInvariantHilbert(
         if self.recoupling != "left_comb":
             raise UnsupportedRecouplingSchemeError(self.recoupling)
         if self.random_init not in ("metropolis", "vacuum"):
-            raise ValueError("random_init must be 'metropolis' or 'vacuum'.")
+            raise NeuralqxValueError("random_init must be 'metropolis' or 'vacuum'.")
         if self.init_warmup is not None and (
             isinstance(self.init_warmup, (bool, np.bool_))
             or not isinstance(self.init_warmup, (int, np.integer))
             or self.init_warmup < 0
         ):
-            raise ValueError("init_warmup must be a nonnegative integer or None.")
+            raise NeuralqxValueError(
+                "init_warmup must be a nonnegative integer or None."
+            )
         if self.max_exact_states < 1:
-            raise ValueError("max_exact_states must be >= 1.")
+            raise NeuralqxValueError("max_exact_states must be >= 1.")
 
         dtype = np.dtype(self.dtype_like)
         metadata = compile_su2_graph_metadata(self.graph)
@@ -459,7 +463,7 @@ class SU2GaugeInvariantHilbert(
         """
         if self._exact_states is not None:
             if self._exact_states.shape[0] > max_states:
-                raise RuntimeError(
+                raise NeuralqxRuntimeError(
                     f"Refusing to materialize {self._exact_states.shape[0]} states, "
                     f"increase max_states={max_states} explicitly if intentional."
                 )
@@ -488,17 +492,19 @@ class SU2GaugeInvariantHilbert(
             present in the cached basis.
         """
         if self._exact_states is None:
-            raise RuntimeError("Constrained SU(2) ranking requires exact=True.")
+            raise NeuralqxRuntimeError("Constrained SU(2) ranking requires exact=True.")
         arr = jnp.asarray(states, dtype=jnp.int32)
         if validate and not bool(jnp.all(self.is_valid(arr))):
-            raise ValueError("states contain values outside the SU(2) Hilbert space.")
+            raise NeuralqxValueError(
+                "states contain values outside the SU(2) Hilbert space."
+            )
         exact = jnp.asarray(self._exact_states, dtype=jnp.int32)
         single = arr.ndim == 1
         rows = arr[None, :] if single else arr.reshape((-1, self.size))
         matches = jnp.all(rows[:, None, :] == exact[None, :, :], axis=-1)
         found = jnp.any(matches, axis=-1)
         if validate and not bool(jnp.all(found)):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "states are valid-shaped but not present in exact SU(2) basis."
             )
         out = jnp.argmax(matches, axis=-1).astype(jnp.int32)
@@ -517,7 +523,9 @@ class SU2GaugeInvariantHilbert(
             RuntimeError: If the space was not constructed with ``exact=True``.
         """
         if self._exact_states is None:
-            raise RuntimeError("Constrained SU(2) unranking requires exact=True.")
+            raise NeuralqxRuntimeError(
+                "Constrained SU(2) unranking requires exact=True."
+            )
         nums = jnp.asarray(numbers, dtype=jnp.int32)
         exact = jnp.asarray(self._exact_states, dtype=self.dtype)
         return exact[nums]
@@ -560,7 +568,7 @@ class SU2GaugeInvariantHilbert(
         """
         edges = np.asarray(edge_values, dtype=np.int32).reshape(-1)
         if edges.shape[0] != self.n_edges:
-            raise ValueError(
+            raise NeuralqxValueError(
                 f"Expected {self.n_edges} edge labels, got {edges.shape[0]}."
             )
         if not np.all((edges >= 0) & (edges <= self.two_j_max)):

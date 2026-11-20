@@ -23,11 +23,9 @@ import logging
 import os
 import sys
 import threading
-
 from dataclasses import dataclass
 from dataclasses import replace
 from datetime import datetime
-
 from typing import Any
 from typing import Generic
 from typing import Iterator
@@ -38,6 +36,12 @@ from typing import Sequence
 from typing import TextIO
 from typing import cast
 
+from neuralqx.utils.errors import ConfigError
+from neuralqx.utils.errors import ConfigValidationError
+from neuralqx.utils.errors import NeuralqxAttributeError
+from neuralqx.utils.errors import NeuralqxKeyError
+from neuralqx.utils.errors import NeuralqxTypeError
+from neuralqx.utils.errors import UnknownOptionError
 from neuralqx.utils.typing import ConfigValueT
 from neuralqx.utils.typing import MutationHook
 from neuralqx.utils.typing import Parser
@@ -46,23 +50,11 @@ from neuralqx.utils.typing import Validator
 _LOGGER = logging.getLogger("neuralqx.config")
 
 
-class ConfigError(RuntimeError):
-    """Base class for all neuraLQX configuration errors."""
-
-
-class UnknownOptionError(ConfigError):
-    """Raised when accessing or mutating an unknown configuration option."""
-
-
-class ConfigValidationError(ConfigError):
-    """Raised when a configuration value fails parsing or validation."""
-
-
 class ReadOnlyDict(dict[str, Any]):
     """Immutable dictionary used for package-wide static values."""
 
     def _readonly(self, *args: Any, **kwargs: Any) -> None:
-        raise TypeError("This configuration dictionary is read-only.")
+        raise NeuralqxTypeError("This configuration dictionary is read-only.")
 
     __setitem__ = _readonly
     __delitem__ = _readonly
@@ -546,7 +538,9 @@ class ConfigManager:
         """
         if name in self._options:
             return self.get(name)
-        raise AttributeError(f"{self.__class__.__name__} has no option '{name}'.")
+        raise NeuralqxAttributeError(
+            f"{self.__class__.__name__} has no option '{name}'."
+        )
 
     def __dir__(self) -> list[str]:
         """Includes registered options in interactive attribute completion."""
@@ -576,7 +570,9 @@ class ConfigManager:
         if "_options" in self.__dict__ and name in self._options:
             self.set(name, value)
             return
-        raise AttributeError(f"{self.__class__.__name__} has no option '{name}'.")
+        raise NeuralqxAttributeError(
+            f"{self.__class__.__name__} has no option '{name}'."
+        )
 
     @staticmethod
     def _build_statics() -> ReadOnlyDict:
@@ -619,7 +615,7 @@ class ConfigManager:
         try:
             return self._statics[name]
         except KeyError as exc:
-            raise KeyError(f"Unknown static variable {name!r}.") from exc
+            raise NeuralqxKeyError(f"Unknown static variable {name!r}.") from exc
 
     @staticmethod
     def _normalize_env_names(names: str | Sequence[str] | None) -> tuple[str, ...]:
@@ -1687,24 +1683,30 @@ class ConfigManager:
         """Normalizes supported patch call forms."""
         if arg1 is None:
             if arg2 is not _MISSING:
-                raise TypeError(
+                raise NeuralqxTypeError(
                     "Second positional argument is valid only when first argument is a key string."
                 )
             return dict(kwargs)
 
         if arg2 is not _MISSING:
             if kwargs:
-                raise TypeError("Cannot mix positional and keyword patch arguments.")
+                raise NeuralqxTypeError(
+                    "Cannot mix positional and keyword patch arguments."
+                )
             if not isinstance(arg1, str):
-                raise TypeError(
+                raise NeuralqxTypeError(
                     "First positional argument must be a key string in two-argument form."
                 )
             return {arg1: arg2}
 
         if not isinstance(arg1, Mapping):
-            raise TypeError("Single-argument patch form expects a mapping of updates.")
+            raise NeuralqxTypeError(
+                "Single-argument patch form expects a mapping of updates."
+            )
         if kwargs:
-            raise TypeError("Cannot combine mapping-form patch with keyword arguments.")
+            raise NeuralqxTypeError(
+                "Cannot combine mapping-form patch with keyword arguments."
+            )
         return dict(arg1)
 
     def _read_env_value(
@@ -1815,6 +1817,72 @@ class NeuralqxConfig(ConfigManager):
     backend_target: Literal["auto", "cpu", "gpu", "tpu"]
     jit_enabled: bool
     profile_level: Literal["off", "basic", "trace", "full"]
+    """Capture detail. off creates no artifacts, basic records application events, trace captures
+    native CPU and accelerator activity, and full additionally enables native Python
+    call tracing by default.
+    """
+    profile_output_dir: str
+    """Root directory for rank artifacts and the merged trace."""
+    profile_run_id: str | None
+    """Unique run directory name shared by all ranks. A single-process session generates
+    one when omitted. Existing rank directories are never reused.
+    """
+    profile_transport: Literal["shared", "tcp", "offline"]
+    """Collection transport. shared reads shared storage, tcp transfers traces to rank zero,
+    and offline writes independent artifacts.
+    """
+    profile_coordinator_address: str | None
+    """Reachable rank-zero host:port for TCP transport."""
+    profile_timeout_s: float
+    """Deadline in seconds for each coordination or transfer phase."""
+    profile_clock_samples: int
+    """Round trips per boundary clock calibration."""
+    profile_max_events: int
+    """Total application and telemetry event budget per process. Native XLA buffers are
+    controlled by JAX and are not covered.
+    """
+    profile_max_lanes: int
+    """Maximum application thread and asyncio task lanes."""
+    profile_jax_host_tracer_level: int
+    """Native host tracing detail from 1 to 3. Level zero cannot supply the clock markers
+    needed for native trace alignment.
+    """
+    profile_jax_python_tracer_level: int | None
+    """Native Python call tracing, 0 or 1. None selects 1 for full and 0 otherwise."""
+    profile_nvtx: bool
+    """Emit process ranges to NVIDIA tools through the optional nvtx package."""
+    profile_telemetry: Literal["off", "auto", "nvml", "nvidia-smi"]
+    """GPU provider: off, auto, nvml, or nvidia-smi. Explicit providers must work. Auto reports
+    unavailable providers in the capture metadata.
+    """
+    profile_telemetry_interval_s: float
+    """Delay in seconds between background management queries."""
+    profile_telemetry_scope: Literal["host", "rank"]
+    """Sampling ownership. host elects the lowest rank per hostname. rank samples separately and
+    supports isolated GPU containers.
+    """
+    profile_telemetry_devices: tuple[str, ...]
+    """GPU UUIDs or management indices. Empty selects all GPUs visible to the management
+    provider, independently of JAX's logical device numbering and CUDA_VISIBLE_DEVICES.
+    """
+    profile_nvidia_smi_timeout_s: float
+    """Timeout in seconds for one read-only management subprocess query."""
+    profile_max_trace_bytes: int
+    """Limit on each compressed rank trace transferred over TCP."""
+    profile_synchronize: Literal["none", "boundary"]
+    """Completion policy. boundary waits on supplied results or a wait_for callback. none
+    introduces no application completion fences.
+    """
+    profile_wait_steps: int
+    """Unprofiled steps in each scheduled cycle."""
+    profile_warmup_steps: int
+    """Native warmup steps discarded during export."""
+    profile_active_steps: int
+    """Recorded steps per cycle. Zero records the whole context."""
+    profile_repeat: int
+    """Number of capture cycles. Zero repeats until context exit."""
+    profile_skip_first: int
+    """Unprofiled steps before the first scheduled cycle."""
     log_level: Literal["critical", "error", "warning", "info", "debug"]
     compile_cache_enabled: bool
     compile_cache_dir: str | None
@@ -1925,9 +1993,13 @@ def _register_default_options(cfg: ConfigManager) -> None:
         values=("off", "basic", "trace", "full"),
         doc="Profiling detail level for runtime diagnostics and performance traces.",
         env_default="NEURALQX_PROFILE_LEVEL",
-        role="runtime",
+        role="profiling",
         mutability=ConfigMutability.RUNTIME,
+        include_in_fingerprint=False,
     )
+    from ._profile_config import register_profile_options
+
+    register_profile_options(cfg)
     cfg.define_enum(
         "log_level",
         default="warning",

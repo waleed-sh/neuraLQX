@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+"""Cartesian graph vertices."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -21,6 +23,8 @@ from dataclasses import dataclass
 from numbers import Real
 from typing import Literal
 from typing import overload
+
+from neuralqx.utils.errors import NeuralqxTypeError
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +46,7 @@ class Vertex:
         if isinstance(value, cls):
             return value
         if not _is_coordinate_triple(value):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 "A vertex must be a Vertex or a coordinate triple ``(x, y, z)``; "
                 f"got {value!r}."
             )
@@ -51,7 +55,7 @@ class Vertex:
     @staticmethod
     def _coerce_coordinate(value: object, *, name: str) -> float:
         if isinstance(value, bool) or not isinstance(value, Real):
-            raise TypeError(
+            raise NeuralqxTypeError(
                 f"Vertex coordinate {name!r} must be a real number; got {value!r}."
             )
         return float(value)

@@ -37,6 +37,7 @@ from neuralqx.sampler.metropolis.kernel import sample_chain
 from neuralqx.sampler.rules.exchange import ExchangeRule
 from neuralqx.sampler.rules.exchange.kernel import exchange_batch_spmd
 from neuralqx.sampler.state import MetropolisSamplerState
+from neuralqx.utils.errors import NeuralqxRuntimeError
 
 
 class LocalBatchSamplerView:
@@ -513,7 +514,9 @@ def _exchange_probabilities(rule: ExchangeRule) -> jax.Array:
 def _sample_mesh_or_error():
     mesh = sample_mesh()
     if mesh is None:
-        raise RuntimeError("Sample shard-map execution requires an active sample mesh.")
+        raise NeuralqxRuntimeError(
+            "Sample shard-map execution requires an active sample mesh."
+        )
     return mesh
 
 

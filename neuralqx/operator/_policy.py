@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from neuralqx.config import config
+from neuralqx.utils.errors import NeuralqxValueError
 
 
 def resolve_streaming_policy(
@@ -37,7 +38,7 @@ def resolve_streaming_policy(
         else int(chunk_size)
     )
     if resolved_chunk <= 0:
-        raise ValueError("operator streaming chunk_size must be positive.")
+        raise NeuralqxValueError("operator streaming chunk_size must be positive.")
     return stream, resolved_chunk
 
 

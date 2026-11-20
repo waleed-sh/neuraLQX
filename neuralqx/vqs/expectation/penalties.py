@@ -27,6 +27,7 @@ from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import Squared
 from neuralqx.operator.wrappers import SumOfSquares
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
+from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import PenaltyExpectationRule
 from neuralqx.utils.typing import PenaltyForcesRule
 from neuralqx.utils.typing import PenaltyGradientRule
@@ -92,7 +93,7 @@ def penalty_expect_and_grad(
         ) and can_use_covariance(operator, machine_pow=vstate.machine_pow)
     if use_covariance:
         if not can_use_covariance(operator, machine_pow=vstate.machine_pow):
-            raise ValueError(
+            raise NeuralqxValueError(
                 "Covariance gradients are not valid for this penalty and sampling "
                 "distribution. Use use_covariance=False for the full derivative."
             )
