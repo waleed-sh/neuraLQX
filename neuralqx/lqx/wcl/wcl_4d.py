@@ -80,7 +80,7 @@ class LqxWCL4D(LqxWCL1D):
         self._admissible_vertices = admissible_thiemann_3p1_vertices(hilbert)
 
     def __repr__(self) -> str:
-        """Return the model type and its defining Hilbert-space and graph parameters."""
+        """Return the model type and its defining Hilbert space and graph parameters."""
         return (
             f"LqxWCL4D(hilbert={self.hilbert!r}, graph={self.graph!r}, "
             f"n_admissible={len(self._admissible_vertices)}, n_lapses={len(self.lapses)})"

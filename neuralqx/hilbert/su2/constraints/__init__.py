@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""SU(2) Hilbert-space constraints."""
+"""SU(2) Hilbert space constraints."""
 
 from .gauge import GaugeInvariantSU2Constraint
 from .gauge import SU2GaugeConstraint

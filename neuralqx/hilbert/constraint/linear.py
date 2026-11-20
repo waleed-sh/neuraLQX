@@ -106,7 +106,7 @@ class LinearConstraint(AbstractDiscreteConstraint):
         """Checks that all constrained sites exist in a Hilbert space.
 
         Args:
-            hilbert: Hilbert-space instance exposing a flat ``size``.
+            hilbert: Hilbert space instance exposing a flat ``size``.
 
         Raises:
             IndexError: If any referenced site is outside the flat state range.

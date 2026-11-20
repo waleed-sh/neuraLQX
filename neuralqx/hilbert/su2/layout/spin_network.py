@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Flat spin-network layout for gauge-invariant SU(2) states.
+"""Flat spin network layout for gauge invariant SU(2) states.
 
 The layout maps graph edges and vertex recoupling channels into flat state
 sites. Edge doubled-spin labels are stored first, followed by left-comb channel
@@ -89,7 +89,7 @@ class SpinNetworkCoord:
 
 @dataclass(frozen=True)
 class SU2SiteInfo:
-    """Rich metadata for one flat SU(2) spin-network site.
+    """Rich metadata for one flat SU(2) spin network site.
 
     Attributes:
         site: Flat site index.
@@ -127,7 +127,7 @@ class SU2SiteInfo:
 class SpinNetworkView:
     """Semantic view of a flat SU(2) state array.
 
-    The view splits the flat spin-network layout into the two blocks that users
+    The view splits the flat spin network layout into the two blocks that users
     usually reason about directly. ``edge_spins`` contains doubled-spin labels
     for graph edges, while ``vertex_channels`` contains the concatenated
     left-comb recoupling-channel labels allocated to graph vertices.
@@ -219,7 +219,7 @@ class SpinNetworkLayout:
         valence_by_vertex: tuple[int, ...],
         two_j_max: int,
     ) -> None:
-        """Builds the flat spin-network layout from graph metadata.
+        """Builds the flat spin network layout from graph metadata.
 
         Args:
             n_edges: Number of edge spin sites to allocate first in the flat
@@ -318,7 +318,7 @@ class SpinNetworkLayout:
         )
 
     def __hash__(self) -> int:
-        """Returns a structural hash for the spin-network layout."""
+        """Returns a structural hash for the spin network layout."""
         return hash(
             (
                 type(self),
@@ -357,7 +357,7 @@ class SpinNetworkLayout:
         """Decodes a flat site index into a semantic coordinate.
 
         Args:
-            site: Flat site index in the spin-network state.
+            site: Flat site index in the spin network state.
 
         Returns:
             Coordinate describing whether the site stores an edge spin or a
@@ -416,7 +416,7 @@ class SpinNetworkLayout:
             vertex: Original graph vertex id or zero-based vertex position.
 
         Returns:
-            Integer vertex position used by this spin-network layout.
+            Integer vertex position used by this spin network layout.
 
         Raises:
             IndexError: If ``vertex`` is neither a known id nor a valid
@@ -434,7 +434,7 @@ class SpinNetworkLayout:
         """Returns rich semantic metadata for one flat site.
 
         Args:
-            site: Flat site index in the spin-network state.
+            site: Flat site index in the spin network state.
 
         Returns:
             :class:`SU2SiteInfo` describing the site kind, maximum label, and

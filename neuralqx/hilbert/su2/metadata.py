@@ -116,7 +116,7 @@ def compile_su2_graph_metadata(graph: AbstractGraph) -> SU2GraphMetadata:
     """Compiles deterministic SU(2) incidence metadata from a graph.
 
     Args:
-        graph: Graph whose edge and vertex order define the spin-network
+        graph: Graph whose edge and vertex order define the spin network
             layout.
 
     Returns:

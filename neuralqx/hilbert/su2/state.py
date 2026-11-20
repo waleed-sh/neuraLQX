@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Flat-state helpers for SU(2) spin-network Hilbert spaces.
+"""Flat-state helpers for SU(2) spin network Hilbert spaces.
 
 SU(2) states are already integer local indices: edge doubled-spin labels are
 stored first, followed by vertex channel labels. This mixin provides conversion
@@ -50,7 +50,7 @@ class SU2StateMixin:
         """Returns SU(2) state values as local integer indices.
 
         Args:
-            states: Flat spin-network state array.
+            states: Flat spin network state array.
 
         Returns:
             Integer array with the same shape as ``states``. SU(2) doubled-spin
@@ -73,7 +73,7 @@ class SU2StateMixin:
 
         Returns:
             State-value array with the same shape as ``indices``. The values are
-            numerically identical to the indices because the spin-network basis
+            numerically identical to the indices because the spin network basis
             stores integer labels directly.
         """
         idx = jnp.asarray(indices, dtype=jnp.int32)
@@ -85,7 +85,7 @@ class SU2StateMixin:
         """Checks per-site integer bounds without vertex admissibility.
 
         Args:
-            states: Candidate flat spin-network state array.
+            states: Candidate flat spin network state array.
 
         Returns:
             Boolean mask over the leading batch axes. The result confirms only
@@ -104,7 +104,7 @@ class SU2StateMixin:
         """Views flat SU(2) states as edge spins and vertex channels.
 
         Args:
-            states: Flat spin-network state array.
+            states: Flat spin network state array.
 
         Returns:
             :class:`SpinNetworkView` whose ``edge_spins`` block contains the
@@ -130,7 +130,7 @@ class SU2StateMixin:
                 ``view`` is not supplied.
 
         Returns:
-            Flat spin-network state array with edge labels followed by channel
+            Flat spin network state array with edge labels followed by channel
             labels.
         """
         if view is not None:
@@ -149,7 +149,7 @@ class SU2StateMixin:
         """Returns the edge doubled-spin block from flat states.
 
         Args:
-            states: Flat spin-network state array.
+            states: Flat spin network state array.
 
         Returns:
             Array containing the first ``n_edges`` sites, preserving leading
@@ -166,7 +166,7 @@ class SU2StateMixin:
         """Returns all vertex channels or the channels for one vertex.
 
         Args:
-            states: Flat spin-network state array.
+            states: Flat spin network state array.
             vertex: Optional vertex id or layout position.
 
         Returns:
@@ -191,7 +191,7 @@ class SU2StateMixin:
         """Returns the doubled-spin label for one graph edge.
 
         Args:
-            states: Flat spin-network state array.
+            states: Flat spin network state array.
             edge: Edge index or graph edge object accepted by the graph.
 
         Returns:
@@ -209,7 +209,7 @@ class SU2StateMixin:
         """Returns incident edge spins and channel labels for one vertex.
 
         Args:
-            states: Flat spin-network state array.
+            states: Flat spin network state array.
             vertex: Vertex id or layout position.
 
         Returns:

@@ -179,7 +179,7 @@ def _unrank_number(number: int, local_sizes: tuple[int, ...]) -> list[int]:
         rem, digit = divmod(rem, local_sizes[idx])
         row[idx] = digit
     if rem != 0:
-        raise NeuralqxValueError("number outside the Hilbert-space range.")
+        raise NeuralqxValueError("number outside the Hilbert space range.")
     return row
 
 

@@ -92,7 +92,7 @@ class LqxSphericalBojowaldSwiderski(LQXModel):
         self.delta = int(delta)
 
     def __repr__(self) -> str:
-        """Return the model type and its defining Hilbert-space and graph parameters."""
+        """Return the model type and its defining Hilbert space and graph parameters."""
         return (
             f"LqxSphericalBojowaldSwiderski(hilbert={self.hilbert!r}, "
             f"graph={self.graph!r}, immirzi={self.immirzi}, delta={self.delta})"

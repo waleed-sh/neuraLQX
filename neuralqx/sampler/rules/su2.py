@@ -60,7 +60,7 @@ class SU2MetropolisRule(AbstractTransitionRule):
 
     Initialization uses the Hilbert space's random valid-state generator.
     A cached exact basis permits uniform draws. Otherwise independent,
-    finite uniform-target warmups produce gauge-invariant starting states
+    finite uniform-target warmups produce gauge invariant starting states
     without enumerating the basis. This initialization is independent of
     the wavefunction and of this rule's training proposal weights. It does
     not replace thermalization against the current wavefunction. Explicit
@@ -121,7 +121,7 @@ class SU2MetropolisRule(AbstractTransitionRule):
         the configurations enter the variational chains. Each sample shard
         supplies its own key and local batch size through the common rule
         interface. The vacuum remains an allowed random outcome and is the
-        only outcome when the gauge-invariant space is trivial.
+        only outcome when the gauge invariant space is trivial.
         """
         _cycle_geometry(sampler.hilbert)
         return super().random_state_local(

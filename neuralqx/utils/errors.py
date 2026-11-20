@@ -226,7 +226,7 @@ class DependencyViolation(NeuralqxRuntimeError):
 
 
 class SU2HilbertError(NeuralqxValueError):
-    """Base class for SU(2) Hilbert-space construction and state errors.
+    """Base class for SU(2) Hilbert space construction and state errors.
 
     All SU(2)-specific public exceptions inherit from this type so callers can
     catch configuration, layout, recoupling, and exact-enumeration failures
@@ -260,10 +260,10 @@ class InvalidSU2CutoffError(SU2HilbertError):
 
 
 class SU2UnconstrainedNotImplementedError(SU2HilbertError):
-    """The spin-network constructor cannot select the magnetic-index basis.
+    """The spin network constructor cannot select the magnetic-index basis.
 
-    The SU2Hilbert alias intentionally represents the gauge-invariant
-    spin-network basis. The unconstrained magnetic-index link basis has
+    The SU2Hilbert alias intentionally represents the gauge invariant
+    spin network basis. The unconstrained magnetic-index link basis has
     different state variables, validation rules, sampling behavior, and
     proposal kernels, so construction fails explicitly instead of silently
     producing the wrong representation. This avoids exposing misleading state
@@ -278,8 +278,8 @@ class SU2UnconstrainedNotImplementedError(SU2HilbertError):
         to its explicit constructor.
         """
         super().__init__(
-            "The new SU(2) implementation represents the gauge-invariant "
-            "spin-network basis. The unconstrained magnetic-index link basis "
+            "The new SU(2) implementation represents the gauge invariant "
+            "spin network basis. The unconstrained magnetic-index link basis "
             "is a different Hilbert space. Use SU2PeterWeylHilbert explicitly."
         )
 
@@ -287,10 +287,10 @@ class SU2UnconstrainedNotImplementedError(SU2HilbertError):
 class UnsupportedRecouplingSchemeError(SU2HilbertError):
     """Requested SU(2) vertex recoupling scheme is unavailable.
 
-    Spin-network vertices currently use the ``"left_comb"`` recoupling scheme.
+    spin network vertices currently use the ``"left_comb"`` recoupling scheme.
     This error is raised when a caller asks for another scheme so the boundary
     of the implemented API is clear at construction time and downstream layout
-    assumptions stay explicit for every SU(2) Hilbert-space method.
+    assumptions stay explicit for every SU(2) Hilbert space method.
     """
 
     def __init__(self, recoupling: object) -> None:
@@ -308,10 +308,10 @@ class UnsupportedRecouplingSchemeError(SU2HilbertError):
 
 
 class InvalidSU2StateLayoutError(SU2HilbertError):
-    """Flat SU(2) spin-network state has the wrong trailing shape.
+    """Flat SU(2) spin network state has the wrong trailing shape.
 
     SU(2) helpers expect the final axis of each state array to match the
-    spin-network layout size: edge doubled-spin labels followed by vertex
+    spin network layout size: edge doubled-spin labels followed by vertex
     channel labels. This error reports arrays whose trailing shape cannot be
     interpreted as such a flat state.
     """
@@ -327,7 +327,7 @@ class InvalidSU2StateLayoutError(SU2HilbertError):
         where a flat state cannot be interpreted by the SU(2) layout.
         """
         super().__init__(
-            "Invalid SU(2) spin-network state shape: expected final axis "
+            "Invalid SU(2) spin network state shape: expected final axis "
             f"of length {expected_size}, got {got!r}."
         )
 
@@ -362,7 +362,7 @@ class SU2ExactEnumerationTooLargeError(SU2HilbertError):
 
     Exact enumeration is intended for small validation systems, deterministic
     tests, and cases where ranking or unranking is required. The guard prevents
-    accidental materialization of very large spin-network bases that would be
+    accidental materialization of very large spin network bases that would be
     expensive in memory and time. Increase the explicit limit only when the
     basis size is known to be acceptable.
     """

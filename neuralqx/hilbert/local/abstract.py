@@ -33,7 +33,7 @@ from neuralqx.utils.struct import StructABCMeta
 
 
 class AbstractLocalSpace(Struct, metaclass=StructABCMeta):
-    """Abstract finite domain for one scalar Hilbert-space site.
+    """Abstract finite domain for one scalar Hilbert space site.
 
     A local space defines the allowed quantum-number values at a single flat
     site and the compact integer indices used for basis ranking, random

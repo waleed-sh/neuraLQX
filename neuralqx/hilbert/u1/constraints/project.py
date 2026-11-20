@@ -15,7 +15,7 @@
 
 """Constructive projection onto a U(1) gauge-fixing slice.
 
-Gauge-invariant U(1) spaces keep free-edge values and reconstruct every slave
+gauge invariant U(1) spaces keep free-edge values and reconstruct every slave
 edge from the configured dependency topology. These helpers operate on
 two-dimensional state batches and are used from JIT-compiled wrappers.
 """
@@ -34,7 +34,7 @@ def reimpose_gauge_fixing_batch(space: Any, states: jax.Array) -> jax.Array:
     """Recomputes slave edges from free edges for a two-dimensional batch.
 
     Args:
-        space: Gauge-invariant U(1) Hilbert space.
+        space: gauge invariant U(1) Hilbert space.
         states: Two-dimensional state batch.
 
     Returns:
@@ -55,7 +55,7 @@ def _set_slave_for_all_gauges(
     """Sets one slave edge for every gauge component.
 
     Args:
-        space: Gauge-invariant U(1) Hilbert space.
+        space: gauge invariant U(1) Hilbert space.
         states: Two-dimensional state batch.
         slave: Base edge index reconstructed by the relation.
         fixers: Signed source base edges.

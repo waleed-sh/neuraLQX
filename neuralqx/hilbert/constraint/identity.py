@@ -46,7 +46,7 @@ class IdentityConstraint(AbstractDiscreteConstraint):
         """Returns a true mask over the batch dimensions of ``states``.
 
         Args:
-            states: State array whose trailing dimension is the Hilbert-space
+            states: State array whose trailing dimension is the Hilbert space
                 site dimension.
 
         Returns:
@@ -59,7 +59,7 @@ class IdentityConstraint(AbstractDiscreteConstraint):
         """Returns the unconstrained dimension of the Hilbert space.
 
         Args:
-            hilbert: Discrete Hilbert-space instance exposing
+            hilbert: Discrete Hilbert space instance exposing
                 ``unconstrained_dimension``.
 
         Returns:

@@ -36,7 +36,7 @@ def require_u1_hilbert(
     This check runs during construction, before any JAX kernel is traced.
 
     Args:
-        hilbert: Candidate Hilbert-space object.
+        hilbert: Candidate Hilbert space object.
         operator: Optional name to include in the diagnostic.
 
     Returns:
@@ -81,7 +81,7 @@ def require_gauge_dimensions(
     if int(hilbert.gauge_dimensions) != int(expected):
         # Attach the failed requirement to the requesting operator when possible.
         name = "operator" if operator is None else operator
-        # Give both counts so the Hilbert-space configuration can be corrected.
+        # Give both counts so the Hilbert space configuration can be corrected.
         raise NeuralqxValueError(
             f"{name} requires gauge_dimensions={expected}. Got {hilbert.gauge_dimensions}."
         )

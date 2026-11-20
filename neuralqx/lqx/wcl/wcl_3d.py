@@ -77,7 +77,7 @@ class LqxWCL3D(LqxWCL1D):
         self.lapses = {} if lapses is None else dict(lapses)
 
     def __repr__(self) -> str:
-        """Return the model type and its defining Hilbert-space and graph parameters."""
+        """Return the model type and its defining Hilbert space and graph parameters."""
         return f"LqxWCL3D(hilbert={self.hilbert!r}, graph={self.graph!r}, n_lapses={len(self.lapses)})"
 
     def get_holonomy(

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""SU(2) spin-network Hilbert-space errors.
+"""SU(2) spin network Hilbert space errors.
 
 Canonical definitions live in neuralqx.utils.errors. These imports preserve
 existing public exception paths.

@@ -142,7 +142,7 @@ class LQXModel:
 
     @property
     def gauge_dimensions(self) -> int:
-        """Number of gauge components supplied by the model's Hilbert-space convention."""
+        """Number of gauge components supplied by the model's Hilbert space convention."""
         if not hasattr(self.hilbert, "gauge_dimensions"):
             self._not_implemented("gauge_dimensions")
         return int(self.hilbert.gauge_dimensions)

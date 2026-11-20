@@ -68,7 +68,7 @@ class LqxWCL1D(LQXModel):
             require_gauge_dimensions(hilbert, 1, operator=type(self).__name__)
 
     def __repr__(self) -> str:
-        """Return the model type and its defining Hilbert-space and graph parameters."""
+        """Return the model type and its defining Hilbert space and graph parameters."""
         return f"LqxWCL1D(hilbert={self.hilbert!r}, graph={self.graph!r})"
 
     def identity(self, const: complex | float = 1.0) -> wcl.IdentityOperator:

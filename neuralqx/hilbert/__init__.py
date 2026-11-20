@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-"""Hilbert-space APIs for graph-based quantum models in neuraLQX.
+"""Hilbert space APIs for graph-based quantum models in neuraLQX.
 
 The package defines local quantum-number domains, flat discrete Hilbert spaces,
 graph-aware state layouts, constraints, random-state generation, proposal
-moves, and specialized U(1) and SU(2) gauge-invariant spaces. Public imports
+moves, and specialized U(1) and SU(2) gauge invariant spaces. Public imports
 from this package are intended to let callers describe both generic discrete
 spaces and graph-structured lattice-gauge spaces without depending on internal
 layout modules.

@@ -72,7 +72,7 @@ class AndConstraint(AbstractDiscreteConstraint):
         """Evaluates all child constraints and combines them with logical and.
 
         Args:
-            states: State array whose trailing dimension is the Hilbert-space
+            states: State array whose trailing dimension is the Hilbert space
                 site dimension.
 
         Returns:
@@ -122,7 +122,7 @@ class OrConstraint(AbstractDiscreteConstraint):
         """Evaluates all child constraints and combines them with logical or.
 
         Args:
-            states: State array whose trailing dimension is the Hilbert-space
+            states: State array whose trailing dimension is the Hilbert space
                 site dimension.
 
         Returns:
@@ -156,7 +156,7 @@ class NotConstraint(AbstractDiscreteConstraint):
         """Evaluates the child constraint and inverts the boolean mask.
 
         Args:
-            states: State array whose trailing dimension is the Hilbert-space
+            states: State array whose trailing dimension is the Hilbert space
                 site dimension.
 
         Returns:

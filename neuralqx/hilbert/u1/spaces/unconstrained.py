@@ -17,7 +17,7 @@
 
 The unconstrained U(1) Hilbert space uses the shared U(1) construction without
 additional gauge-fixing relations. It is useful for free edge-charge models and
-as the base class for constructive gauge-invariant spaces.
+as the base class for constructive gauge invariant spaces.
 """
 
 from __future__ import annotations

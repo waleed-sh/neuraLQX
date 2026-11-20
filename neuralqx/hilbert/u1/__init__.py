@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Public U(1)^N Hilbert-space API.
+"""Public U(1)^N Hilbert space API.
 
 The package exports unconstrained and constructive gauge-fixed U(1) edge
 Hilbert spaces, gauge-fixing data structures, gauge-fixing utilities, proposal

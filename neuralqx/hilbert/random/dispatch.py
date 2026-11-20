@@ -124,7 +124,7 @@ def _nqx_random_state(
     dtype: Any | None = None,
     max_trials: int = 1024,
 ) -> jax.Array:
-    """Delegates SU(2) gauge-invariant sampling to the SU(2) implementation."""
+    """Delegates SU(2) gauge invariant sampling to the SU(2) implementation."""
     del constraint
     return space.random_state(key, size=size, dtype=dtype, max_trials=max_trials)
 
@@ -139,7 +139,7 @@ def _nqx_random_state(
     dtype: Any | None = None,
     max_trials: int = 1024,
 ) -> jax.Array:
-    """Delegates U(1) gauge-invariant sampling to the U(1) implementation."""
+    """Delegates U(1) gauge invariant sampling to the U(1) implementation."""
     del constraint, max_trials
     return space.random_state(key, size=size, dtype=dtype)
 

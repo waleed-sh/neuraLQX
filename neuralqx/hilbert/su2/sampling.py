@@ -33,7 +33,7 @@ from neuralqx.utils.errors import NeuralqxValueError
 
 
 class SU2SamplingMixin:
-    """Constructs valid SU(2) spin-network states without box rejection.
+    """Constructs valid SU(2) spin network states without box rejection.
 
     SU(2) vertex admissibility makes naive rectangular rejection sampling
     inefficient and, for some graphs, impractical. This mixin therefore samples
@@ -44,7 +44,7 @@ class SU2SamplingMixin:
     Concrete spaces must expose ``_exact_states``, ``random_init``,
     ``two_j_max``, ``size``, and ``dtype``. The public return convention
     matches the rest of the Hilbert API: leading axes are the requested batch
-    shape and the trailing axis is the flat spin-network state.
+    shape and the trailing axis is the flat spin network state.
     """
 
     def random_state(
@@ -57,7 +57,7 @@ class SU2SamplingMixin:
         method: str | None = None,
         n_steps: int | None = None,
     ) -> jax.Array:
-        """Samples valid SU(2) spin-network states.
+        """Samples valid SU(2) spin network states.
 
         Args:
             key: JAX pseudo-random key.

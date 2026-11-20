@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Small utility helpers for SU(2) Hilbert-space construction."""
+"""Small utility helpers for SU(2) Hilbert space construction."""
 
 from .cutoff import validate_two_j_max
 

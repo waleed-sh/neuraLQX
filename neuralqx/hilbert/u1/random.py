@@ -62,7 +62,7 @@ def reimpose_gauge_fixing_jit(space: Any, states: jax.Array) -> jax.Array:
     """JIT wrapper for constructive gauge reconstruction.
 
     Args:
-        space: Gauge-invariant U(1) Hilbert space.
+        space: gauge invariant U(1) Hilbert space.
         states: Two-dimensional state batch.
 
     Returns:

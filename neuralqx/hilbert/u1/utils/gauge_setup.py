@@ -51,7 +51,7 @@ def relations_from_inputs(space: object) -> tuple[GaugeRelation, ...]:
     """Resolves explicit or automatic gauge-fixing relations.
 
     Args:
-        space: U(1) gauge-invariant Hilbert space under construction.
+        space: U(1) gauge invariant Hilbert space under construction.
 
     Returns:
         Tuple of constructive gauge relations.
@@ -77,7 +77,7 @@ def constraint_from_topology(
     """Builds the discrete constraint object from resolved topology.
 
     Args:
-        space: U(1) gauge-invariant Hilbert space under construction.
+        space: U(1) gauge invariant Hilbert space under construction.
         relations: Resolved constructive gauge relations.
         topology: Dependency topology derived from ``relations``.
 
@@ -99,7 +99,7 @@ def constrained_dimension(space: object, topology: GaugeFixingTopology) -> int:
     """Computes the exact dimension of the constructive gauge-fixed subspace.
 
     Args:
-        space: U(1) gauge-invariant Hilbert space under construction.
+        space: U(1) gauge invariant Hilbert space under construction.
         topology: Dependency topology for free and slave edges.
 
     Returns:

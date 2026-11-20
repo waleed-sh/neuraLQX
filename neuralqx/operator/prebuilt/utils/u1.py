@@ -45,7 +45,7 @@ def q_bounds(
         result (tuple[int | float, int | float, int | float, int]): Minimum,
             maximum, lattice spacing, and number of allowed local values.
     """
-    # Use Hilbert-space metadata so all kernels share exactly the same cutoff.
+    # Use Hilbert space metadata so all kernels share exactly the same cutoff.
     return hilbert.q_min, hilbert.q_max, hilbert.q_step, int(hilbert.local_size)
 
 

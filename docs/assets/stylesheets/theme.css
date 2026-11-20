@@ -5,6 +5,7 @@
   --nqx-ice: #edf6f9;
   --nqx-peach: #ffddd2;
   --nqx-terracotta: #e29578;
+  --nqx-nav-heading: color-mix(in srgb, var(--nqx-terracotta) 65%, black);
   --background: color-mix(in srgb, var(--nqx-ice) 22%, white);
   --foreground: #18363b;
   --card: #ffffff;
@@ -76,7 +77,7 @@
   --sidebar-ring: var(--ring);
   --surface: var(--card);
   --surface-foreground: var(--foreground);
-  --code: var(--card);
+  --code: #1b363b;
   --code-foreground: var(--foreground);
   --code-highlight: var(--accent);
   --code-number: var(--muted-foreground);
@@ -85,6 +86,28 @@
   --warning: #50372e;
   --warning-foreground: var(--nqx-peach);
   --theme-accent: var(--nqx-seafoam);
+  --nqx-nav-heading: var(--nqx-terracotta);
+}
+
+/* Match highlighted code and API panels to the surrounding dark palette. */
+.dark article .codehilite,
+.dark article .highlight,
+.dark article pre {
+  background-color: var(--code)
+}
+
+.dark article .codehilite .hll {
+  background-color: var(--code-highlight)
+}
+
+.dark article .doc .doc-object {
+  background-color: var(--card)
+}
+
+/* Keep links recognisable when their labels contain code or icons. */
+a[href],
+a[href] * {
+  cursor: pointer
 }
 
 .nqx-navigation {
@@ -100,7 +123,7 @@
 .nqx-nav-heading {
   margin: 0 0 0.4rem;
   padding: 0 0.6rem;
-  color: var(--foreground);
+  color: var(--nqx-nav-heading);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.035em;

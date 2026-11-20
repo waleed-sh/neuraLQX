@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Abstract discrete Hilbert-space interface.
+"""Abstract discrete Hilbert space interface.
 
 Discrete Hilbert spaces use flat state arrays whose trailing dimension indexes
 sites. The class centralizes local-index conversion, validity checks, sampling,
@@ -137,7 +137,7 @@ class DiscreteHilbertSpace(AbstractHilbertSpace):
         dimension = self.dimension
         if dimension is None:
             raise NeuralqxRuntimeError(
-                "The constrained Hilbert-space dimension is not cheaply known."
+                "The constrained Hilbert space dimension is not cheaply known."
             )
         return dimension
 

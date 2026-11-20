@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Gauge-invariant homogeneous U(1)^N Hilbert space.
+"""gauge invariant homogeneous U(1)^N Hilbert space.
 
 This module defines the constructive gauge-fixed U(1) Hilbert space. Gauge
 relations identify slave edges whose values are recomputed from free edges,
@@ -64,7 +64,7 @@ class U1GaugeInvariantHilbert(U1Hilbert):
     values, while proposal moves are projected back onto the gauge-fixing slice
     after updates.
 
-    This class is the public entry point for U(1) gauge-invariant simulations.
+    This class is the public entry point for U(1) gauge invariant simulations.
     It preserves the inherited U(1) local range, graph views, index conversion,
     free-edge proposal API, and plaquette proposal API, but the valid state set
     is defined by the resolved constructive gauge relations.
@@ -113,7 +113,7 @@ class U1GaugeInvariantHilbert(U1Hilbert):
         constraint.validate_hilbert(self)
 
     def __hash__(self) -> int:
-        """Returns a structural hash for the gauge-invariant space."""
+        """Returns a structural hash for the gauge invariant space."""
         return hash(
             (
                 type(self),

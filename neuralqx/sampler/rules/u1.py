@@ -113,7 +113,7 @@ class U1GaugeRule(AbstractTransitionRule):
         """Propose a valid configuration for each chain with zero log correction.
 
         Args:
-            sampler: Metropolis sampler supplying the gauge-invariant space.
+            sampler: Metropolis sampler supplying the gauge invariant space.
             apply_fn: Wavefunction evaluator, unused by this symmetric proposal.
             parameters: Network parameters, unused by the proposal.
             sampler_state: Current chain metadata, unused by the proposal.

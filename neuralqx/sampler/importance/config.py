@@ -129,7 +129,7 @@ class OperatorBlur:
     Generic kernels execute in fixed-size device blocks. Operators exposing
     compact preparation reuse their sparse buffers and existing caches on
     each device. Reverse degrees require additional connectivity work. No
-    dense quadratic operator or full Hilbert-space enumeration is needed.
+    dense quadratic operator or full Hilbert space enumeration is needed.
     """
 
     operator: Any

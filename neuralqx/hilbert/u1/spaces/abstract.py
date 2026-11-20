@@ -17,7 +17,7 @@
 
 The abstract U(1) implementation builds the common edge-only graph layout,
 local charge range, plaquette metadata, and product dimension used by both
-unconstrained and gauge-invariant U(1) Hilbert spaces.
+unconstrained and gauge invariant U(1) Hilbert spaces.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class AbstractU1Hilbert(
         local_space: Scalar local charge range.
         layout: Graph layout mapping edge components to flat sites.
         _local_spaces: Scalar local charge range for every flat site.
-        _dimension: Exact Hilbert-space dimension.
+        _dimension: Exact Hilbert space dimension.
         _dimension_pretty: Scientific-notation dimension string.
         _plaquettes: Minimal graph loops represented by edge indices.
         _plaquette_lmax: Maximum plaquette length.
@@ -111,7 +111,7 @@ class AbstractU1Hilbert(
     )
     """Scalar local charge range for every flat site."""
     _dimension: int = field(static=True, init=False, default=0, repr=False)
-    """Exact Hilbert-space dimension."""
+    """Exact Hilbert space dimension."""
     _dimension_pretty: str = field(static=True, init=False, default="", repr=False)
     """Scientific-notation dimension string."""
     _plaquettes: tuple[tuple[int, ...], ...] = field(

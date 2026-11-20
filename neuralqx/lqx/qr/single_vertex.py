@@ -47,7 +47,7 @@ class LqxQR(LQXModel):
     """
 
     def __repr__(self) -> str:
-        """Return the model type and its defining Hilbert-space and graph parameters."""
+        """Return the model type and its defining Hilbert space and graph parameters."""
         return f"LqxQR(hilbert={self.hilbert!r}, graph={self.graph!r})"
 
     def flux(self, site: int, *, power: float = 1.0, inverse: bool = False):

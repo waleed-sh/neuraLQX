@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Abstract interfaces for Hilbert-space constraints.
+"""Abstract interfaces for Hilbert space constraints.
 
 Constraints are JAX-compatible predicates over flat state arrays. They are
 used by discrete Hilbert spaces to validate states, restrict sampling, and
@@ -33,7 +33,7 @@ from neuralqx.utils.struct import StructABCMeta
 
 
 class AbstractConstraint(Struct, metaclass=StructABCMeta):
-    """Base protocol for predicates over Hilbert-space states.
+    """Base protocol for predicates over Hilbert space states.
 
     A constraint receives state arrays in the flat representation owned by a
     Hilbert space and returns a boolean mask over the leading batch axes. The
@@ -51,7 +51,7 @@ class AbstractConstraint(Struct, metaclass=StructABCMeta):
         """Evaluates whether each state satisfies the constraint.
 
         Args:
-            states: State array whose trailing dimension is the Hilbert-space
+            states: State array whose trailing dimension is the Hilbert space
                 site dimension.
 
         Returns:
@@ -62,7 +62,7 @@ class AbstractConstraint(Struct, metaclass=StructABCMeta):
         """Returns the exact constrained dimension when it is cheaply known.
 
         Args:
-            hilbert: Hilbert-space instance whose dimension is being queried.
+            hilbert: Hilbert space instance whose dimension is being queried.
 
         Returns:
             Exact number of valid states, or ``None`` when the constraint does
@@ -126,7 +126,7 @@ class AbstractDiscreteConstraint(AbstractConstraint):
         """Validates compatibility with a discrete Hilbert space.
 
         Args:
-            hilbert: Discrete Hilbert-space instance about to use this
+            hilbert: Discrete Hilbert space instance about to use this
                 constraint.
 
         Raises:

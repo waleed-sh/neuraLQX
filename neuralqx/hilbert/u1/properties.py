@@ -16,7 +16,7 @@
 """Read-only properties shared by U(1) Hilbert spaces.
 
 The mixin exposes common scalar ranges, dimensions, and indexing capability for
-both unconstrained and gauge-invariant homogeneous U(1) spaces.
+both unconstrained and gauge invariant homogeneous U(1) spaces.
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ class U1PropertiesMixin:
 
     @property
     def dimension(self) -> int:
-        """Exact Hilbert-space dimension."""
+        """Exact Hilbert space dimension."""
         return self._dimension
 
     @property

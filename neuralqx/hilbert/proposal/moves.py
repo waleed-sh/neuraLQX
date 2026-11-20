@@ -35,7 +35,7 @@ class AbstractProposalMove(Struct, metaclass=StructABCMeta):
     """Base type for immutable proposal move descriptors.
 
     Proposal moves describe how a Markov-chain transition should alter a batch
-    of Hilbert-space states. They intentionally store only static
+    of Hilbert space states. They intentionally store only static
     configuration, while the actual update kernels live in the proposal
     dispatchers and concrete Hilbert subpackages.
 

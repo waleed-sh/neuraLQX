@@ -19,7 +19,7 @@ A calculation starts with a [graph](concepts/graphs/index.md) and a [Hilbert spa
 
 [LQX models](concepts/lqx/index.md) connect this description to the operators of a particular theory. The library includes [U(1) models](concepts/lqx/u1.md), [SU(2) models](concepts/lqx/su2.md), and [symmetry-reduced models](concepts/lqx/reduced-models.md). Each model exposes the geometric quantities and constraint operators appropriate to its formulation.
 
-For example, you can construct a gauge-invariant SU(2) Hilbert space on the complete graph with five vertices, then define an area operator:
+For example, you can construct a gauge invariant SU(2) Hilbert space on the complete graph with five vertices, then define an area operator:
 
 ```python
 import neuralqx as nqx

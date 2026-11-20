@@ -13,9 +13,9 @@
 # limitations under the License.
 
 
-"""Gauge-invariant SU(2) spin-network Hilbert space.
+"""gauge invariant SU(2) spin network Hilbert space.
 
-This module defines the spin-network Hilbert space used by the SU(2) API.
+This module defines the spin network Hilbert space used by the SU(2) API.
 Flat states contain doubled-spin edge labels followed by left-comb recoupling
 channels at graph vertices. The space can optionally enumerate the exact valid
 basis for indexing and direct sampling.
@@ -61,9 +61,9 @@ class SU2GaugeInvariantHilbert(
     SU2SamplingMixin,
     DiscreteHilbertSpace,
 ):
-    """Gauge-invariant SU(2) spin-network Hilbert space.
+    """gauge invariant SU(2) spin network Hilbert space.
 
-    ``SU2GaugeInvariantHilbert`` represents the spin-network basis of an
+    ``SU2GaugeInvariantHilbert`` represents the spin network basis of an
     SU(2) lattice gauge theory on a graph. Edge sites store doubled-spin labels
     ``two_j`` with values from ``0`` through ``two_j_max``. Vertices with
     valence greater than three receive additional left-comb recoupling-channel
@@ -74,7 +74,7 @@ class SU2GaugeInvariantHilbert(
     admissibility. The edge labels incident on a vertex and the vertex's
     channel labels must form a valid recoupling tree. This is stronger than a
     simple rectangular local-domain check, so the class owns compiled graph
-    metadata, a spin-network layout, a gauge constraint, optional exact-basis
+    metadata, a spin network layout, a gauge constraint, optional exact-basis
     enumeration, and constructive state-completion helpers.
 
     When ``exact`` is true the valid basis is enumerated up to
@@ -84,7 +84,7 @@ class SU2GaugeInvariantHilbert(
     Metropolis warmup. Wavefunction sampling uses ``MetropolisSU2`` and its
     shared proposal kernel with explicit Hastings corrections.
 
-    This class is the gauge-invariant SU(2) Hilbert space. Passing
+    This class is the gauge invariant SU(2) Hilbert space. Passing
     ``is_gauge_invariant=False`` raises an explicit error because the
     unconstrained magnetic-index link basis is a different representation.
     Use SU2PeterWeylHilbert explicitly for that representation.
@@ -114,7 +114,7 @@ class SU2GaugeInvariantHilbert(
         init_warmup: Optional number of attempted initialization updates per state.
         dtype_like: Dtype-like object used to resolve state dtype.
         metadata: Compiled graph incidence metadata.
-        layout: Spin-network flat-state layout.
+        layout: spin network flat-state layout.
         constraint: SU(2) gauge constraint.
         _local_spaces: Local range for every flat site.
         _dtype: Common dtype used for state values.
@@ -155,7 +155,7 @@ class SU2GaugeInvariantHilbert(
     """Compiled graph incidence metadata."""
 
     layout: SpinNetworkLayout = field(pytree=False, init=False, default=None)
-    """Spin-network flat-state layout."""
+    """spin network flat-state layout."""
 
     constraint: SU2GaugeConstraint = field(static=True, init=False, default=None)
     """SU(2) gauge constraint."""
@@ -213,14 +213,14 @@ class SU2GaugeInvariantHilbert(
         dtype: Any = jnp.int32,
         dtype_like: Any | None = None,
     ) -> None:
-        """Initializes a gauge-invariant SU(2) spin-network Hilbert space.
+        """Initializes a gauge invariant SU(2) spin network Hilbert space.
 
         Args:
             graph: Graph whose edges and vertices define the spin network.
             two_j_max: Maximum doubled-spin edge label.
             cutoff: Compatibility alias for ``two_j_max``.
-            is_gauge_invariant: Whether to construct the gauge-invariant
-                spin-network basis.
+            is_gauge_invariant: Whether to construct the gauge invariant
+                spin network basis.
             recoupling: Vertex recoupling scheme. Only ``"left_comb"`` is
                 currently supported.
             exact: Whether to enumerate and cache the exact physical basis.
@@ -349,7 +349,7 @@ class SU2GaugeInvariantHilbert(
 
     @property
     def n_edges(self) -> int:
-        """Number of spin-network edge sites."""
+        """Number of spin network edge sites."""
         return self.layout.n_edges
 
     @property
@@ -379,7 +379,7 @@ class SU2GaugeInvariantHilbert(
 
     @property
     def local_sizes(self) -> tuple[int, ...]:
-        """Local dimension at every flat spin-network site."""
+        """Local dimension at every flat spin network site."""
         return tuple(max_label + 1 for max_label in self.layout.site_max_label_tuple)
 
     @property
@@ -426,7 +426,7 @@ class SU2GaugeInvariantHilbert(
         """Checks the SU(2) gauge constraint using physics terminology.
 
         Args:
-            states: Candidate flat spin-network state array.
+            states: Candidate flat spin network state array.
 
         Returns:
             Boolean mask over the leading batch axes indicating which rows
@@ -435,10 +435,10 @@ class SU2GaugeInvariantHilbert(
         return self.constraint(states)
 
     def check_states(self, states: Any) -> jax.Array:
-        """Returns whether states are valid spin-network basis states.
+        """Returns whether states are valid spin network basis states.
 
         Args:
-            states: Candidate flat spin-network state array.
+            states: Candidate flat spin network state array.
 
         Returns:
             Boolean mask from :meth:`is_valid`, combining per-site local bounds
@@ -447,7 +447,7 @@ class SU2GaugeInvariantHilbert(
         return self.is_valid(states)
 
     def all_states(self, *, max_states: int = 1_000_000) -> jax.Array:
-        """Materializes exact valid spin-network basis states.
+        """Materializes exact valid spin network basis states.
 
         Args:
             max_states: Maximum number of states to materialize.
@@ -480,7 +480,7 @@ class SU2GaugeInvariantHilbert(
         """Ranks states against the cached exact SU(2) basis.
 
         Args:
-            states: Valid spin-network states to rank.
+            states: Valid spin network states to rank.
             validate: Whether to check membership before returning labels.
 
         Returns:
@@ -511,7 +511,7 @@ class SU2GaugeInvariantHilbert(
         return out[0] if single else out.reshape(arr.shape[:-1])
 
     def numbers_to_states(self, numbers: Any) -> jax.Array:
-        """Unranks exact-basis labels into SU(2) spin-network states.
+        """Unranks exact-basis labels into SU(2) spin network states.
 
         Args:
             numbers: Integer labels into the cached exact basis.
@@ -534,7 +534,7 @@ class SU2GaugeInvariantHilbert(
         """Ranks states using the exact-basis implementation.
 
         Args:
-            states: Valid spin-network states to rank.
+            states: Valid spin network states to rank.
             validate: Whether to check membership before returning labels.
 
         Returns:
@@ -588,10 +588,10 @@ class SU2GaugeInvariantHilbert(
         return state
 
     def explain_invalid_state(self, state: Any) -> dict[str, Any]:
-        """Returns a diagnostic for the first invalid spin-network condition.
+        """Returns a diagnostic for the first invalid spin network condition.
 
         Args:
-            state: Candidate flat spin-network state.
+            state: Candidate flat spin network state.
 
         Returns:
             Dictionary describing whether the state is valid. Invalid results
@@ -640,7 +640,7 @@ class SU2GaugeInvariantHilbert(
                 completion fails.
 
         Returns:
-            Full flat spin-network state with admissible vertex channels.
+            Full flat spin network state with admissible vertex channels.
 
         Raises:
             SU2ChannelConstructionFailureError: If no admissible channel
@@ -652,10 +652,10 @@ class SU2GaugeInvariantHilbert(
         return state
 
     def site_info(self, site: int):
-        """Returns layout metadata for one flat spin-network site.
+        """Returns layout metadata for one flat spin network site.
 
         Args:
-            site: Flat site index in the spin-network layout.
+            site: Flat site index in the spin network layout.
 
         Returns:
             :class:`SU2SiteInfo` describing whether the site is an edge or

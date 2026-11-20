@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Gauge-invariant SU(2) spin-network constraints.
+"""gauge invariant SU(2) spin network constraints.
 
 The SU(2) gauge constraint checks local bounds at every flat site and left-comb
 admissibility at each graph vertex.
@@ -143,7 +143,7 @@ class SU2GaugeConstraint(AbstractDiscreteConstraint):
                 the shared constraint protocol and is not otherwise needed.
 
         Returns:
-            Exact number of valid spin-network states when the space was built
+            Exact number of valid spin network states when the space was built
             with exact enumeration, otherwise ``None``.
         """
         del hilbert
@@ -153,7 +153,7 @@ class SU2GaugeConstraint(AbstractDiscreteConstraint):
         """Evaluates SU(2) site bounds and vertex admissibility.
 
         Args:
-            states: Flat spin-network state array. The final axis must match
+            states: Flat spin network state array. The final axis must match
                 the layout size represented by ``site_max_label``.
 
         Returns:

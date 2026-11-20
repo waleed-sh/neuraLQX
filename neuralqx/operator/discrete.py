@@ -181,7 +181,7 @@ class DiscreteOperator(AbstractOperator):
 
         Returns:
             result (jax.Array): A square JAX array with one row and column per basis state. Storage
-                grows quadratically with the Hilbert-space dimension.
+                grows quadratically with the Hilbert space dimension.
         """
         return self.to_sparse(max_states=max_states).todense()
 

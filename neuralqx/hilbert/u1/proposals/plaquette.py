@@ -16,7 +16,7 @@
 """Plaquette U(1) proposal kernels.
 
 Plaquette proposals choose minimal graph loops and add or subtract one charge
-step along every edge in the loop. Gauge-invariant spaces reconstruct slave
+step along every edge in the loop. gauge invariant spaces reconstruct slave
 edges after each update to remain on the configured gauge-fixing slice.
 """
 

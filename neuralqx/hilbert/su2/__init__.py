@@ -14,7 +14,7 @@
 
 # TODO: this is just a mess right now, needs to be restructured or have a better abstraction...
 
-"""Gauge-invariant SU(2) spin-network Hilbert spaces."""
+"""gauge invariant SU(2) spin network Hilbert spaces."""
 
 from .constraints import GaugeInvariantSU2Constraint
 from .constraints import SU2GaugeConstraint

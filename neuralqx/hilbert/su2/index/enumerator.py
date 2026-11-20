@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Exact enumeration for small SU(2) spin-network Hilbert spaces.
+"""Exact enumeration for small SU(2) spin network Hilbert spaces.
 
 Exact enumeration is intended for validation, small examples, and indexable
 test systems. It walks all edge doubled-spin sectors and appends every
@@ -39,11 +39,11 @@ def enumerate_exact_states(
     two_j_max: int,
     max_states: int = 100_000,
 ) -> np.ndarray:
-    """Materializes all gauge-invariant basis states for small systems.
+    """Materializes all gauge invariant basis states for small systems.
 
     Args:
         metadata: Compiled graph incidence metadata.
-        layout: Spin-network flat-state layout.
+        layout: spin network flat-state layout.
         two_j_max: Maximum doubled-spin edge label.
         max_states: Safety limit for the number of returned states.
 

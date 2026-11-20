@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Hilbert-space abstractions and concrete discrete spaces."""
+"""Hilbert space abstractions and concrete discrete spaces."""
 
 from .abstract import AbstractHilbertSpace
 from .discrete import AbstractDiscreteHilbert

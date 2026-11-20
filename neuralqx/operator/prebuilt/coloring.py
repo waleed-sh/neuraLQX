@@ -166,7 +166,7 @@ class ChargeColoringOperator(_ColoringProjector):
     with :math:`E` base edges, component :math:`c` of edge :math:`e` has flat
     index :math:`s=cE+e`.
 
-    Both unconstrained and gauge-invariant U(1) Hilbert spaces are supported.
+    Both unconstrained and gauge invariant U(1) Hilbert spaces are supported.
     The projector restricts the existing state space and preserves its gauge
     conditions. Charges may be fractional when the Hilbert space permits
     them. Floating-point roundoff is normalized to the stored lattice label
@@ -229,7 +229,7 @@ class ColoringOperator(_ColoringProjector):
     supported, including a single U(1) copy.
 
     This is a real orthogonal projector with :math:`P^2=P=P^\dagger`. It is
-    diagonal on both unconstrained and gauge-invariant Hilbert spaces. Its
+    diagonal on both unconstrained and gauge invariant Hilbert spaces. Its
     kernel returns one unchanged configuration with matrix element one for
     a match and zero otherwise. No basis enumeration or sparse matrix
     construction is needed.

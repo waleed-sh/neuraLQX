@@ -16,7 +16,7 @@
 """Free-edge U(1) proposal kernels.
 
 Free-edge proposals update only the independent base edges of a U(1) space.
-Gauge-invariant spaces project the updated states back onto their constructive
+gauge invariant spaces project the updated states back onto their constructive
 gauge-fixing slice after the local updates are applied.
 """
 

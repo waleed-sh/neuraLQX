@@ -97,7 +97,7 @@ def left_comb_valid_py(edge_two_j: Iterable[int], channels: Iterable[int]) -> bo
 
     Returns:
         ``True`` when the edge labels and channel labels form an admissible
-        gauge-invariant vertex.
+        gauge invariant vertex.
     """
     edges = tuple(int(x) for x in edge_two_j)
     ch = tuple(int(x) for x in channels)

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Hilbert-space type aliases."""
+"""Hilbert space type aliases."""
 
 from __future__ import annotations
 

@@ -9,7 +9,8 @@
       {{ menu(item.children) }}
     </details>
     {% else %}
-    <a href="{{ item.url | url }}" data-sidebar="menu-button" data-active="{{ item.active | lower }}"{% if item.active %} aria-current="page"{% endif %}>
+    {# aria-current keeps our nested menu independent of the theme's flat-menu scrolling. #}
+    <a href="{{ item.url | url }}" data-sidebar="menu-button"{% if item.active %} aria-current="page"{% endif %}>
       {{ item.meta.sidebar_title if item.meta and item.meta.sidebar_title else item.title }}
     </a>
     {% endif %}

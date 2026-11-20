@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""SU(2) spin-network layouts."""
+"""SU(2) spin network layouts."""
 
 from .spin_network import SU2SiteInfo
 from .spin_network import SpinNetworkCoord

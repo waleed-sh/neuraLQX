@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""Abstract Hilbert-space base interfaces.
+"""Abstract Hilbert space base interfaces.
 
 The base classes in ``neuralqx.hilbert.space`` describe the minimum contract
 shared by concrete Hilbert spaces. Specialized subclasses add discreteness,

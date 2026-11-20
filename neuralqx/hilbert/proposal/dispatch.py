@@ -139,7 +139,7 @@ def _chosen_sites_and_local(
         Pair containing chosen site indices and local-index states.
     """
     if n_sites > space.size:
-        raise NeuralqxValueError("n_sites cannot exceed Hilbert-space size.")
+        raise NeuralqxValueError("n_sites cannot exceed Hilbert space size.")
     keys = jax.random.split(jax.random.split(key, 2)[0], states.shape[0])
     sites = jax.vmap(
         lambda subkey: jax.random.choice(

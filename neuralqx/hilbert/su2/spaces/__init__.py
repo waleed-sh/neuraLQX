@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""SU(2) Hilbert-space implementations."""
+"""SU(2) Hilbert space implementations."""
 
 from .gauge_invariant import SU2GaugeInvariantHilbert
 from .gauge_invariant import SU2Hilbert

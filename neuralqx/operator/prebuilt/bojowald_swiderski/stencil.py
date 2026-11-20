@@ -90,7 +90,7 @@ def require_spherical_hilbert(hilbert: Any, *, operator: str) -> AbstractU1Hilbe
     to the charge-range interface supplied by AbstractU1Hilbert.
 
     Args:
-        hilbert: Candidate Hilbert-space object.
+        hilbert: Candidate Hilbert space object.
         operator: Name of the requesting spherical operator.
 
     Returns:

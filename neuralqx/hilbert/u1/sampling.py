@@ -34,7 +34,7 @@ class U1SamplingMixin:
 
     The mixin implements direct sampling from the finite U(1) local charge
     range. It does not use rejection sampling because every scalar charge is
-    drawn from an already valid local domain. Gauge-invariant subclasses may
+    drawn from an already valid local domain. gauge invariant subclasses may
     call this implementation to sample an unconstrained candidate and then
     impose their constructive relations.
 
