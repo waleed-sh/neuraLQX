@@ -247,6 +247,11 @@
   font-size: 0.875rem;
 }
 
+/* Keep callout headings separate from the text they introduce. */
+article .admonition > p.admonition-title {
+  display: block
+}
+
 #page-header {
   gap: 1rem;
 }

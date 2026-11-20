@@ -150,6 +150,7 @@ nav:
   - API reference:
       - Overview: api/index.md
       - Changelog: api/changelog.md
+      - Contributing to neuraLQX: api/contributing.md
       - Public API:
           - Overview: api/public/index.md
       - Experimental API:
@@ -204,7 +205,9 @@ markdown_extensions:
       toc_depth: 3
   - codehilite:
       guess_lang: false
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      # Match the theme's code block and syntax highlighting styles.
+      css_class: codehilite
   - pymdownx.inlinehilite
   - pymdownx.details
   - pymdownx.tabbed:
@@ -219,6 +222,7 @@ extra_javascript:
   - assets/javascripts/navigation.js
 
 exclude_docs: |
+  **/AGENTS.md
   /requirements.txt
   /hooks/
   /overrides/
