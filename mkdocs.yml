@@ -48,9 +48,16 @@ nav:
       - LQX models:
           - Overview: concepts/lqx/index.md
           - Model structure: concepts/lqx/structure.md
-          - U(1) models: concepts/lqx/u1.md
+          - Creating a model: concepts/lqx/custom-models.md
+          - U(1) models:
+              - Overview and shared operators: concepts/lqx/u1.md
+              - Planar weak coupling model: concepts/lqx/wcl-planar.md
+              - Spatial weak coupling model: concepts/lqx/wcl-spatial.md
           - SU(2) models: concepts/lqx/su2.md
-          - Reduced models: concepts/lqx/reduced-models.md
+          - Reduced models:
+              - Overview: concepts/lqx/reduced-models.md
+              - Single vertex quantum reduction: concepts/lqx/qr.md
+              - Spherical symmetry: concepts/lqx/spherical.md
       - Operators:
           - Overview: concepts/operators/index.md
           - Constructing operators: concepts/operators/construction.md
