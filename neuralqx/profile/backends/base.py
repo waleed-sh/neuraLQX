@@ -29,6 +29,19 @@ class ActivityCollector(Protocol):
     devices: list[dict]
     """Local device identity and hardware metadata for the capture manifest."""
 
+    def annotation(self, name: str, *, attributes=None, step_num=None):
+        """Return a native host annotation paired with one application region.
+
+        Args:
+            name: Stable operation label.
+            attributes: Bounded scalar metadata describing this operation.
+            step_num: Logical step identifier, or None for an ordinary region.
+
+        Returns:
+            Context manager that records native host context without device waits.
+        """
+        ...
+
     def start(self) -> None:
         """Acquire and start native collection, raising if ownership is unavailable."""
         ...

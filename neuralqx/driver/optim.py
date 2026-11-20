@@ -25,8 +25,10 @@ import optax
 
 import jax
 from neuralqx.optimizer import identity_preconditioner
+from neuralqx.profile._instrumentation import instrument
 
 
+@instrument("optimizer.cast_update", detail="developer", category="neuralqx.optimizer")
 def cast_gradient_like_parameters(gradient: Any, parameters: Any) -> Any:
     """Cast an update/gradient pytree to parameter-compatible leaves."""
 
@@ -42,6 +44,7 @@ def cast_gradient_like_parameters(gradient: Any, parameters: Any) -> Any:
     return jax.tree_util.tree_map(cast_leaf, gradient, parameters)
 
 
+@instrument("optimizer.update", detail="summary", category="neuralqx.optimizer")
 def apply_optax_update(
     optimizer: Any,
     optimizer_state: Any,

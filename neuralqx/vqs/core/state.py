@@ -25,6 +25,8 @@ import jax
 from neuralqx.hilbert import DiscreteHilbertSpace
 from neuralqx.jax.random import as_prng_key
 from neuralqx.jax.tree import tree_size
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import region
 from neuralqx.sampler import MetropolisSampler
 from neuralqx.sampler import MetropolisSamplerState
 from neuralqx.sampler._samples import adjusted_sample_count
@@ -175,8 +177,11 @@ class VariationalState(AbstractVariationalState):
             raise NeuralqxValueError("sampler.hilbert and hilbert disagree.")
 
         self._sampler = sampler
+
         self._hilbert = sampler.hilbert
+
         self._framework = framework
+
         model_description = model if model is not None else apply_fn
         if isinstance(model_description, AbstractModelFramework):
             model_description = getattr(
@@ -185,12 +190,16 @@ class VariationalState(AbstractVariationalState):
         self._model_name = getattr(
             model_description, "__name__", type(model_description).__name__
         )
+
         self._chunk_size = chunk_size
+
         self._training_kwargs = dict(training_kwargs or {})
+
         self._apply_variables_kernel = FrameworkApply(
             framework,
             static_training_kwargs(self._training_kwargs),
         )
+
         self._merge_variables_kernel = FrameworkMerge(framework)
         if mutable is not False and mutable is not None:
             raise NeuralqxNotImplementedError(
@@ -198,7 +207,9 @@ class VariationalState(AbstractVariationalState):
                 "Pass mutable=False or update model_state explicitly."
             )
         self._mutable = False
+
         self._n_samples = int(n_samples)
+
         self._n_discard_per_chain = int(n_discard_per_chain)
         if self._n_samples <= 0:
             raise NeuralqxValueError("n_samples must be positive.")
@@ -224,11 +235,15 @@ class VariationalState(AbstractVariationalState):
                 else initialize_variables()
             )
         self._parameters_structure = None
+
         self._variables = framework.place_variables(variables)
+
         self._parameters, self._model_state = framework.split_variables(self._variables)
+
         self._parameters_structure = jax.tree_util.tree_structure(self._parameters)
 
         self._sampler_key = as_prng_key(seed if sampler_seed is None else sampler_seed)
+
         self._estimator_key = jax.random.fold_in(self._sampler_key, 741923)
         if jax.process_count() > 1:
             from jax.experimental import multihost_utils
@@ -240,7 +255,9 @@ class VariationalState(AbstractVariationalState):
                 raw, impl=str(jax.random.key_impl(self._estimator_key))
             )
         self._sampler_state: MetropolisSamplerState | None = None
+
         self._sampler_state_stale = True
+
         self._samples: jax.Array | None = None
         self._initialize_importance()
         if not _defer_sampler_initialization:
@@ -897,6 +914,7 @@ class VariationalState(AbstractVariationalState):
         self._importance_weight_cache = None
         self._sampler_state_stale = True
 
+    @instrument("sampling", detail="summary", category="neuralqx.sampling")
     def sample(self) -> tuple[jax.Array, MetropolisSamplerState]:
         """Advance the chains and replace the cached sample batch.
 
@@ -911,21 +929,30 @@ class VariationalState(AbstractVariationalState):
             through :attr:`samples`. The returned sampler state contains the
             final chain positions and updated RNG and acceptance counters.
         """
-        state = self.sampler_state
-        sampling_apply, sampling_variables = self._sampling_inputs()
+        with region(
+            "sampling.refresh", detail="detailed", category="neuralqx.sampling"
+        ):
+            state = self.sampler_state
+            sampling_apply, sampling_variables = self._sampling_inputs()
         if self.n_discard_per_chain:
-            _discarded, state = self.sampler.sample(
+            with region(
+                "sampling.discard", detail="detailed", category="neuralqx.sampling"
+            ):
+                _discarded, state = self.sampler.sample(
+                    sampling_apply,
+                    sampling_variables,
+                    state=state,
+                    chain_length=self.n_discard_per_chain,
+                )
+        with region(
+            "sampling.collect", detail="detailed", category="neuralqx.sampling"
+        ):
+            samples, state = self.sampler.sample(
                 sampling_apply,
                 sampling_variables,
                 state=state,
-                chain_length=self.n_discard_per_chain,
+                n_samples=self.n_samples,
             )
-        samples, state = self.sampler.sample(
-            sampling_apply,
-            sampling_variables,
-            state=state,
-            n_samples=self.n_samples,
-        )
         if self.importance_sampling_enabled:
             samples = self._record_sampling_measure(samples)
         self._samples = samples
@@ -1072,11 +1099,15 @@ class VariationalState(AbstractVariationalState):
                 getattr(self.sampler, "operator_blur", None), self.hilbert
             )
 
+    @instrument(
+        "sampling.density_inputs", detail="developer", category="neuralqx.sampling"
+    )
     def _sampling_inputs(self):
         if getattr(self.sampler, "importance_sampling", None) is None:
             return self.apply_variables_kernel, self.variables
         return self._sampling_apply, (self.variables, self._importance_exponent)
 
+    @instrument("sampling.measure", detail="detailed", category="neuralqx.sampling")
     def _record_sampling_measure(self, samples):
         from neuralqx.sampler.importance import SamplingMeasure
 

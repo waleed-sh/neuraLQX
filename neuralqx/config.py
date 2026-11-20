@@ -1809,111 +1809,168 @@ class NeuralqxConfig(ConfigManager):
 
     # DType and precision policy.
     dtype_real: Literal["float16", "bfloat16", "float32", "float64"]
+
     dtype_complex: Literal["complex64", "complex128"]
+
     dtype_index: Literal["int32", "int64"]
+
     enable_x64: bool
 
     # Runtime and compilation behavior.
     backend_target: Literal["auto", "cpu", "gpu", "tpu"]
+
     jit_enabled: bool
+
+    profile: bool
+    """Automatically capture bounded variational driver runs when True."""
+
+    profile_detail: Literal["summary", "detailed", "developer"]
+    """Package annotation detail, sampled once when an automatic capture starts."""
+
     profile_level: Literal["off", "basic", "trace", "full"]
-    """Capture detail. off creates no artifacts, basic records application events, trace captures
+    """Capture detail. basic records application events by default, off creates no artifacts, trace captures
     native CPU and accelerator activity, and full additionally enables native Python
     call tracing by default.
     """
+
     profile_output_dir: str
     """Root directory for rank artifacts and the merged trace."""
+
     profile_run_id: str | None
     """Unique run directory name shared by all ranks. A single-process session generates
     one when omitted. Existing rank directories are never reused.
     """
+
     profile_transport: Literal["shared", "tcp", "offline"]
     """Collection transport. shared reads shared storage, tcp transfers traces to rank zero,
     and offline writes independent artifacts.
     """
+
     profile_coordinator_address: str | None
     """Reachable rank-zero host:port for TCP transport."""
+
     profile_timeout_s: float
     """Deadline in seconds for each coordination or transfer phase."""
+
     profile_clock_samples: int
     """Round trips per boundary clock calibration."""
+
     profile_max_events: int
     """Total application and telemetry event budget per process. Native XLA buffers are
     controlled by JAX and are not covered.
     """
+
     profile_max_lanes: int
     """Maximum application thread and asyncio task lanes."""
+
     profile_jax_host_tracer_level: int
     """Native host tracing detail from 1 to 3. Level zero cannot supply the clock markers
     needed for native trace alignment.
     """
+
     profile_jax_python_tracer_level: int | None
     """Native Python call tracing, 0 or 1. None selects 1 for full and 0 otherwise."""
+
     profile_nvtx: bool
     """Emit process ranges to NVIDIA tools through the optional nvtx package."""
+
     profile_telemetry: Literal["off", "auto", "nvml", "nvidia-smi"]
     """GPU provider: off, auto, nvml, or nvidia-smi. Explicit providers must work. Auto reports
     unavailable providers in the capture metadata.
     """
+
     profile_telemetry_interval_s: float
     """Delay in seconds between background management queries."""
+
     profile_telemetry_scope: Literal["host", "rank"]
     """Sampling ownership. host elects the lowest rank per hostname. rank samples separately and
     supports isolated GPU containers.
     """
+
     profile_telemetry_devices: tuple[str, ...]
     """GPU UUIDs or management indices. Empty selects all GPUs visible to the management
     provider, independently of JAX's logical device numbering and CUDA_VISIBLE_DEVICES.
     """
+
     profile_nvidia_smi_timeout_s: float
     """Timeout in seconds for one read-only management subprocess query."""
+
     profile_max_trace_bytes: int
     """Limit on each compressed rank trace transferred over TCP."""
+
     profile_synchronize: Literal["none", "boundary"]
     """Completion policy. boundary waits on supplied results or a wait_for callback. none
     introduces no application completion fences.
     """
+
     profile_wait_steps: int
     """Unprofiled steps in each scheduled cycle."""
+
     profile_warmup_steps: int
     """Native warmup steps discarded during export."""
+
     profile_active_steps: int
     """Recorded steps per cycle. Zero records the whole context."""
+
     profile_repeat: int
     """Number of capture cycles. Zero repeats until context exit."""
+
     profile_skip_first: int
     """Unprofiled steps before the first scheduled cycle."""
+
     log_level: Literal["critical", "error", "warning", "info", "debug"]
+
     compile_cache_enabled: bool
+
     compile_cache_dir: str | None
 
     # JAX distributed runtime startup.
     distributed: bool
+
     distributed_auto_initialize: bool
+
     distributed_coordinator_address: str | None
+
     distributed_num_processes: int | None
+
     distributed_process_id: int | None
+
     distributed_local_device_ids: tuple[int, ...] | None
+
     distributed_initialization_timeout: int
 
     # JAX mesh and sharding policy.
     sharding_axes: tuple[str, ...]
+
     sample_sharding_enabled: bool
+
     parameter_sharding_enabled: bool
+
     operator_sharding_enabled: bool
+
     operator_streaming_enabled: bool
+
     operator_streaming_chunk_size: int
+
     mesh_sample_axis_name: str
+
     mesh_parameter_axis_name: str
+
     mesh_operator_axis_name: str
+
     mesh_sample_axis_size: int | None
+
     mesh_parameter_axis_size: int | None
+
     mesh_operator_axis_size: int | None
 
     # Experimental and feature gating.
     experimental: bool
+
     experimental_features: tuple[str, ...]
+
     experimental_connection_deduplication: bool
+
     allow_ffi_kernels: bool
 
     def __init__(self) -> None:
@@ -1989,9 +2046,9 @@ def _register_default_options(cfg: ConfigManager) -> None:
     )
     cfg.define_enum(
         "profile_level",
-        default="off",
+        default="basic",
         values=("off", "basic", "trace", "full"),
-        doc="Profiling detail level for runtime diagnostics and performance traces.",
+        doc="Collection level for profiling sessions. Defaults to basic host regions. Native activity requires trace or full.",
         env_default="NEURALQX_PROFILE_LEVEL",
         role="profiling",
         mutability=ConfigMutability.RUNTIME,

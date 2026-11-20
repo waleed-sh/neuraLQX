@@ -44,6 +44,9 @@ class ProfileOptions:
         level: off creates no artifacts, basic records application events,
             trace also captures native CPU and accelerator activity, and full
             additionally enables native Python call tracing by default.
+        detail: summary retains driver phases. detailed adds named operator
+            terms and estimator stages. developer also records internal dispatch
+            boundaries. This does not turn on global Python call tracing.
         output_dir: Root directory for rank artifacts and the merged trace.
         run_id: Unique run directory name shared by all ranks. A single-process
             session generates one when omitted. Existing rank directories are
@@ -84,10 +87,18 @@ class ProfileOptions:
             nonfinite interval, or an incomplete schedule.
     """
 
-    level: Literal["off", "basic", "trace", "full"] = "off"
-    """Capture detail. off creates no artifacts, basic records application events, trace captures
+    level: Literal["off", "basic", "trace", "full"] = "basic"
+    """Capture detail. basic records application events by default, off creates no artifacts, trace captures
     native CPU and accelerator activity, and full additionally enables native Python
     call tracing by default.
+    """
+
+    detail: Literal["summary", "detailed", "developer"] = "summary"
+    """Depth of package annotations, independent of native collection level.
+
+    summary records major phases, detailed adds operator and estimator stages,
+    and developer includes internal dispatch boundaries. User spans are retained
+    in every mode. Compiled-operation names remain attached across mode changes.
     """
 
     output_dir: str = ".neuralqx/profiles"
@@ -178,6 +189,7 @@ class ProfileOptions:
     def __post_init__(self) -> None:
         for name, choices in (
             ("level", ("off", "basic", "trace", "full")),
+            ("detail", ("summary", "detailed", "developer")),
             ("transport", ("shared", "tcp", "offline")),
             ("telemetry", ("off", "auto", "nvml", "nvidia-smi")),
             ("telemetry_scope", ("host", "rank")),

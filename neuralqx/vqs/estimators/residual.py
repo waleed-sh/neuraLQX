@@ -43,6 +43,7 @@ from neuralqx.hilbert.local import LocalRange
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator.connectivity import coalesce_connections
+from neuralqx.profile._instrumentation import instrument
 from neuralqx.utils.errors import NeuralqxValueError
 
 from .connectivity import _capacity
@@ -505,6 +506,9 @@ def _local_plan(spec, samples, key, offset):
     return _compact_plan(spec, samples, key, offset)
 
 
+@instrument(
+    "estimator.residual.prepare", detail="detailed", category="neuralqx.estimator"
+)
 def prepare_residual(vstate, spec, samples):
     """Freeze auxiliary draws and prepare each addressable sample shard locally."""
     from jax.sharding import NamedSharding
@@ -687,6 +691,9 @@ def _sharded_values(
     )(variables, samples, arrays, density)
 
 
+@instrument(
+    "estimator.residual.evaluate", detail="developer", category="neuralqx.estimator"
+)
 def evaluate_residual(vstate, variables, samples, plan, density, options):
     """Preserve parameter sharding instead of replicating a model-parallel tree."""
     layout = plan.layout

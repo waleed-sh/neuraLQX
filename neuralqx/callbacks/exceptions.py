@@ -13,7 +13,11 @@
 # limitations under the License.
 
 
-"""Callback exceptions."""
+"""Callback exceptions.
+
+Canonical definitions live in neuralqx.utils.errors. These imports preserve
+existing public exception paths.
+"""
 
 from neuralqx.utils.errors import StopRun
 

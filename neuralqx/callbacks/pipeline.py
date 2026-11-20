@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from neuralqx.profile._instrumentation import region
+
 from .adapters import as_callback
 from .adapters import as_tuple
 from .base import Callback
@@ -33,6 +35,7 @@ class CallbackPipeline(Callback):
 
     def __init__(self, callbacks: Any = None, *, extra: Any = None) -> None:
         callback_items = as_tuple(callbacks) + as_tuple(extra)
+
         self.callbacks = tuple(
             sorted(
                 (as_callback(callback) for callback in callback_items),
@@ -91,12 +94,20 @@ class CallbackPipeline(Callback):
 
     def _emit(self, event: str, context: CallbackContext) -> CallbackControl:
         control = CallbackControl.continue_()
-        for callback in self.callbacks:
-            hook = getattr(callback, event)
-            result = as_control(hook(context))
-            control = control.merge(result)
-            if control.stop:
-                break
+        if not self.callbacks:
+            return control
+        with region(f"callbacks.{event}", category="neuralqx.callbacks"):
+            for index, callback in enumerate(self.callbacks):
+                hook = getattr(callback, event)
+                with region(
+                    f"callback[{index}]/{type(callback).__name__[:96]}/{event}",
+                    detail="detailed",
+                    category="neuralqx.callbacks",
+                ):
+                    result = as_control(hook(context))
+                control = control.merge(result)
+                if control.stop:
+                    break
         return control
 
     @staticmethod

@@ -25,6 +25,8 @@ import jax.numpy as jnp
 import jax
 from neuralqx.jax.differentiation import vjp as neuralqx_vjp
 from neuralqx.jax.streaming import apply_batched
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import region
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.stats import Stats
 from neuralqx.utils.stats import statistics
@@ -64,11 +66,17 @@ class MultiVMCDriver(AbstractVariationalDriver):
 
         super().__init__(states, loss_name=loss_name)
         self.hamiltonian = hamiltonian
+
         self.optimizer = optimizer
+
         self.optimizer_states = [optimizer.init(state.parameters) for state in states]
+
         self.preconditioner = resolve_preconditioner(preconditioner)
+
         self.orthogonality_strength = float(orthogonality_strength)
+
         self._last_energies: list[Any] = []
+
         self._last_overlaps: dict[tuple[int, int], Any] = {}
 
     @property
@@ -79,15 +87,19 @@ class MultiVMCDriver(AbstractVariationalDriver):
     def energy(self) -> Any:
         return self.loss_stats
 
+    @instrument("vmc.reset", detail="developer", category="neuralqx.driver")
     def reset_step(self) -> None:
+        """Invalidate each state's samples before the next joint iteration."""
         for state in self.states:
             state.reset()
 
     def compute_loss_and_update(self) -> tuple[Any, Any]:
+        """Differentiate each energy and pair penalty, then precondition each state."""
         energies: list[Any] = []
         gradients: list[Any] = []
-        for state in self.states:
-            stats, gradient = state.expect_and_grad(self.hamiltonian)
+        for index, state in enumerate(self.states):
+            with region(f"state[{index}]", category="neuralqx.driver"):
+                stats, gradient = state.expect_and_grad(self.hamiltonian)
             energies.append(stats)
             gradients.append(gradient)
 
@@ -95,10 +107,13 @@ class MultiVMCDriver(AbstractVariationalDriver):
         if self.orthogonality_strength != 0.0 and len(self.states) > 1:
             for i in range(len(self.states)):
                 for j in range(i + 1, len(self.states)):
-                    stats, pair_grad = fidelity_expect_and_grad_joint(
-                        self.states[i],
-                        self.states[j],
-                    )
+                    with region(
+                        f"orthogonality[{i},{j}]", category="neuralqx.gradient"
+                    ):
+                        stats, pair_grad = fidelity_expect_and_grad_joint(
+                            self.states[i],
+                            self.states[j],
+                        )
                     overlaps[(i, j)] = stats
                     gradients[i] = _tree_add_scaled(
                         gradients[i],
@@ -112,13 +127,18 @@ class MultiVMCDriver(AbstractVariationalDriver):
                     )
 
         updates = []
-        for state, gradient in zip(self.states, gradients, strict=True):
-            update = self.preconditioner(
-                state,
-                gradient,
-                step=self.step_count,
-                samples=state.samples,
-            )
+        for index, (state, gradient) in enumerate(
+            zip(self.states, gradients, strict=True)
+        ):
+            with region(
+                f"state[{index}]/preconditioner", category="neuralqx.optimizer"
+            ):
+                update = self.preconditioner(
+                    state,
+                    gradient,
+                    step=self.step_count,
+                    samples=state.samples,
+                )
             updates.append(cast_gradient_like_parameters(update, state.parameters))
 
         self._last_energies = energies
@@ -127,27 +147,39 @@ class MultiVMCDriver(AbstractVariationalDriver):
         return _sum_independent_stats(energies), updates
 
     def update_parameters(self, update: Any) -> None:
+        """Apply each optimizer update while retaining state-indexed trace regions."""
         new_optimizer_states = []
         for idx, (state, state_update) in enumerate(
             zip(self.states, update, strict=True)
         ):
-            opt_state, parameters = apply_optax_update(
-                self.optimizer,
-                self.optimizer_states[idx],
-                state.parameters,
-                state_update,
-            )
+            with region(f"state[{idx}]/update", category="neuralqx.optimizer"):
+                opt_state, parameters = apply_optax_update(
+                    self.optimizer,
+                    self.optimizer_states[idx],
+                    state.parameters,
+                    state_update,
+                )
             new_optimizer_states.append(opt_state)
             state.parameters = parameters
         self.optimizer_states = new_optimizer_states
 
     def estimate(self, observables: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Estimate each named observable with a separate region for every state."""
         if observables is None:
             return {}
-        return {
-            name: [state.expect(operator) for state in self.states]
-            for name, operator in observables.items()
-        }
+        estimates = {}
+        with region("observables", category="neuralqx.driver"):
+            for name, operator in observables.items():
+                label = name[:160] if isinstance(name, str) else type(name).__name__
+                values = []
+                for index, state in enumerate(self.states):
+                    with region(
+                        f"state[{index}]/observable/{label}",
+                        category="neuralqx.observable",
+                    ):
+                        values.append(state.expect(operator))
+                estimates[name] = values
+        return estimates
 
     def _log_additional_data(self, log_data: dict[str, Any]) -> None:
         super()._log_additional_data(log_data)

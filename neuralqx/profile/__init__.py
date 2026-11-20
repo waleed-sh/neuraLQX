@@ -17,8 +17,9 @@
 
 Importing this module does not start collection. Enter Profiler to open a
 session, and use span, annotate, event, and counter to contribute application
-events. Package profile_* options control new sessions. Existing numerical
-execution paths are not automatically instrumented.
+events. Set config.profile=True to capture variational driver runs automatically.
+Package profile_* options control new sessions, and profile_detail selects the
+depth of built-in numerical annotations without changing compilation caches.
 """
 
 from .annotations import annotate

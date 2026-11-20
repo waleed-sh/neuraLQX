@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from neuralqx.profile._instrumentation import region
 from neuralqx.vqs.estimators.utils import validate_operator_hilbert
 
 from .base import AbstractVariationalDriver
@@ -42,8 +43,11 @@ class VMC(AbstractVariationalDriver):
         validate_operator_hilbert(variational_state, hamiltonian)
         super().__init__(variational_state, loss_name=loss_name)
         self.hamiltonian = hamiltonian
+
         self.optimizer = optimizer
+
         self.optimizer_state = optimizer.init(variational_state.parameters)
+
         self.preconditioner = resolve_preconditioner(preconditioner)
 
     @property
@@ -51,18 +55,21 @@ class VMC(AbstractVariationalDriver):
         return self.loss_stats
 
     def compute_loss_and_update(self) -> tuple[Any, Any]:
+        """Sample, differentiate the loss, and precondition its gradient."""
         stats, gradient = self.state.expect_and_grad(self.hamiltonian)
         self._loss_grad = gradient
-        update = self.preconditioner(
-            self.state,
-            gradient,
-            step=self.step_count,
-            samples=self.state.samples,
-        )
+        with region("preconditioner", category="neuralqx.optimizer"):
+            update = self.preconditioner(
+                self.state,
+                gradient,
+                step=self.step_count,
+                samples=self.state.samples,
+            )
         update = cast_gradient_like_parameters(update, self.state.parameters)
         return stats, update
 
     def update_parameters(self, update: Any) -> None:
+        """Apply the optimizer update and invalidate dependent sample caches."""
         self.optimizer_state, parameters = apply_optax_update(
             self.optimizer,
             self.optimizer_state,

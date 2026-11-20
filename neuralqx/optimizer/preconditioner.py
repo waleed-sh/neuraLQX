@@ -21,6 +21,8 @@ import abc
 from collections.abc import Callable
 from typing import Any
 
+from neuralqx.profile._instrumentation import region
+
 from .linear_operator import LinearOperator
 from .linear_operator import Solver
 
@@ -56,10 +58,15 @@ class AbstractLinearPreconditioner(abc.ABC):
         solver_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self.solver = solver
+
         self.solver_restart = bool(solver_restart)
+
         self.solver_kwargs = dict(solver_kwargs or {})
+
         self.x0: Any | None = None
+
         self.info: Any = None
+
         self.lhs: LinearOperator | None = None
 
     def __call__(
@@ -70,14 +77,20 @@ class AbstractLinearPreconditioner(abc.ABC):
         step: Any | None = None,
         **kwargs: Any,
     ) -> Any:
-        lhs = self.lhs_constructor(vstate, step=step, **kwargs)
+        with region(
+            "preconditioner.construct", detail="detailed", category="neuralqx.optimizer"
+        ):
+            lhs = self.lhs_constructor(vstate, step=step, **kwargs)
         x0 = None if self.solver_restart else self.x0
-        result = lhs.solve(
-            self.solver,
-            gradient,
-            x0=x0,
-            **self.solver_kwargs,
-        )
+        with region(
+            "preconditioner.solve", detail="detailed", category="neuralqx.optimizer"
+        ):
+            result = lhs.solve(
+                self.solver,
+                gradient,
+                x0=x0,
+                **self.solver_kwargs,
+            )
         if isinstance(result, tuple) and len(result) == 2:
             solution, info = result
         else:

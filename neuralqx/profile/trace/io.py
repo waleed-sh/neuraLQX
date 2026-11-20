@@ -87,10 +87,15 @@ def write_trace(path: Path, events: Iterable[dict], metadata: dict) -> None:
         path: Destination path. A .gz suffix selects gzip.
         events: Iterable yielding one event dictionary at a time.
         metadata: Capture metadata stored under the neuralqx key.
+
+    Gzip uses its fastest compression level. Export favors turnaround time over
+    minimum artifact size, with bounded batches to avoid per-event gzip writes.
     """
     with atomic_file(path, binary=True) as raw:
         if path.suffix == ".gz":
-            with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as compressed:
+            with gzip.GzipFile(
+                fileobj=raw, mode="wb", compresslevel=1, mtime=0
+            ) as compressed:
                 _write_events(compressed, events, metadata)
         else:
             _write_events(raw, events, metadata)
@@ -99,12 +104,18 @@ def write_trace(path: Path, events: Iterable[dict], metadata: dict) -> None:
 def _write_events(stream, events, metadata) -> None:
     stream.write(b'{"displayTimeUnit":"ms","traceEvents":[')
     separator = b""
+    buffer = bytearray()
     for event in events:
-        stream.write(separator)
-        stream.write(
+        buffer.extend(separator)
+        buffer.extend(
             json.dumps(event, allow_nan=False, separators=(",", ":")).encode("utf-8")
         )
         separator = b","
+        if len(buffer) >= 64 * 1024:
+            stream.write(buffer)
+            buffer.clear()
+    if buffer:
+        stream.write(buffer)
     stream.write(b'],"neuralqx":')
     stream.write(
         json.dumps(metadata, allow_nan=False, separators=(",", ":")).encode("utf-8")

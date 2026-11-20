@@ -1,22 +1,8 @@
-# Copyright (c) 2026 The neuraLQX Authors - All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """Shared network evaluation for eager, single-device discrete estimators.
 
 Operator execution remains in the operator subsystem. Here a batch's computed
 connections become a reusable, parameter-independent sparse evaluation plan.
-Only counts cross to Python, sorting, summation and gathers run in JAX.
+Only counts cross to Python; sorting, summation and gathers run in JAX.
 """
 
 from dataclasses import dataclass
@@ -30,6 +16,8 @@ from neuralqx.jax.streaming import apply_batched
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.connectivity import pack_local_indices
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import operator_region
 
 from .operators import OperatorTerm
 from .operators import linear_operator_terms
@@ -99,20 +87,43 @@ def _extract_diagonal(samples, states, mels, owners, *, n_rows):
 
 @dataclass(frozen=True)
 class ConnectionPlan:
-    """A batch-local plan, never cache it across changing samples/operators."""
+    """A batch-local plan that must be rebuilt when samples or operators change."""
 
     states: jax.Array
-    mels: jax.Array
-    owners: jax.Array
-    target_ids: jax.Array
-    diagonal: jax.Array
-    coefficients: jax.Array
-    squared: tuple[bool, ...]
-    n_unique: int
-    n_contributions: int
-    n_input_nonzero: int
+    """Unique connected states padded to the selected evaluation capacity."""
 
+    mels: jax.Array
+    """Coalesced off-diagonal matrix elements aligned with owners."""
+
+    owners: jax.Array
+    """Source sample and operator group indices for each matrix element."""
+
+    target_ids: jax.Array
+    """Indices into the unique connected-state batch."""
+
+    diagonal: jax.Array
+    """Diagonal contributions for each source sample and operator group."""
+
+    coefficients: jax.Array
+    """Linear weights applied after each group has been evaluated."""
+
+    squared: tuple[bool, ...]
+    """Whether each group represents a squared operator action."""
+
+    n_unique: int
+    """Number of distinct active connected states before padding."""
+
+    n_contributions: int
+    """Number of surviving off-diagonal contributions."""
+
+    n_input_nonzero: int
+    """Number of nonzero input contributions before coalescing."""
+
+    @instrument(
+        "operators.shared_network", detail="detailed", category="neuralqx.model"
+    )
     def evaluate(self, apply_fn, variables, samples, *, chunk_size):
+        """Evaluate all groups using one shared network pass over unique targets."""
         return _evaluate(
             apply_fn,
             variables,
@@ -129,6 +140,7 @@ class ConnectionPlan:
         )
 
 
+@instrument("connectivity.coalesce", detail="detailed", category="neuralqx.operator")
 def prepare_connections(
     hilbert, samples, states, mels, owners, *, squared=(False,), coefficients=None
 ):
@@ -190,6 +202,7 @@ def prepare_connections(
     )
 
 
+@instrument("operators.deduplicate", detail="developer", category="neuralqx.operator")
 def prepare_estimator(
     operator,
     samples,
@@ -214,7 +227,11 @@ def prepare_estimator(
         or isinstance(samples, jax.core.Tracer)
     ):
         return None
-    terms = _combine_identical_terms(linear_operator_terms(operator))
+    input_terms = linear_operator_terms(operator)
+    source_indices = {}
+    for index, term in enumerate(input_terms):
+        source_indices.setdefault(id(term.operator), []).append(index)
+    terms = _combine_identical_terms(input_terms)
     if not terms or any(
         not isinstance(t.operator, (DiscreteOperator, Squared)) for t in terms
     ):
@@ -242,6 +259,8 @@ def prepare_estimator(
     has_linear = any(isinstance(t.operator, DiscreteOperator) for t in terms)
     squared, coefficients = ([False], [1.0]) if has_linear else ([], [])
     for term, parent in zip(terms, parents, strict=True):
+        indices = source_indices[id(term.operator)]
+        term_index = indices[0]
         if isinstance(term.operator, Squared):
             group = len(squared)
             squared.append(True)
@@ -250,35 +269,42 @@ def prepare_estimator(
         else:
             group = 0
             children = (term,)
-        for child in children:
+        for child_index, child in enumerate(children):
             op = child.operator
             if isinstance(child.coefficient, jax.core.Tracer):
                 return None
             if bool(jnp.asarray(child.coefficient) == 0):
                 continue
-            compact = getattr(op, "get_conn_compact", None)
-            packed = computed.get(id(op))
-            if packed is None:
-                packed = (
-                    compact(flat)
-                    if compact is not None
-                    and not operator_streaming
-                    and operator_streaming_chunk_size is None
-                    else None
-                )
-            if packed is None:
-                xp, mel = op.get_conn_padded(
-                    flat,
-                    use_streaming=operator_streaming,
-                    chunk_size=operator_streaming_chunk_size,
-                )
-                xp, mel = xp.reshape((-1, flat.shape[-1])), mel.reshape(-1)
-                source = jnp.repeat(
-                    jnp.arange(len(flat), dtype=jnp.int32), op.max_conn_size
-                )
-            else:
-                xp, mel, source = packed
-            computed[id(op)] = (xp, mel, source)
+            operation = "connections.reuse" if id(op) in computed else "connections"
+            with operator_region(
+                op,
+                term_index,
+                operation=f"{operation}.child[{child_index}]",
+                source_indices=indices,
+            ):
+                compact = getattr(op, "get_conn_compact", None)
+                packed = computed.get(id(op))
+                if packed is None:
+                    packed = (
+                        compact(flat)
+                        if compact is not None
+                        and not operator_streaming
+                        and operator_streaming_chunk_size is None
+                        else None
+                    )
+                if packed is None:
+                    xp, mel = op.get_conn_padded(
+                        flat,
+                        use_streaming=operator_streaming,
+                        chunk_size=operator_streaming_chunk_size,
+                    )
+                    xp, mel = xp.reshape((-1, flat.shape[-1])), mel.reshape(-1)
+                    source = jnp.repeat(
+                        jnp.arange(len(flat), dtype=jnp.int32), op.max_conn_size
+                    )
+                else:
+                    xp, mel, source = packed
+                computed[id(op)] = (xp, mel, source)
             states.append(xp)
             mels.append(mel * child.coefficient)
             owners.append(source + group * len(flat))
@@ -350,19 +376,20 @@ def _evaluate(
     squared,
     chunk_size,
 ):
-    values = diagonal
-    if len(states):
-        base = apply_batched(apply_fn, variables, samples, chunk_size=chunk_size)
-        targets = _apply_active(apply_fn, variables, states, count, chunk_size)
-        delta = jnp.where(
-            mels != 0, targets[target_ids] - base[owners % len(samples)], 0
-        )
-        contributions = mels * jnp.exp(delta)
-        values = values.astype(contributions.dtype).at[owners].add(contributions)
-    values = values.reshape((len(squared), len(samples)))
-    total = None
-    for group in range(len(squared)):
-        v = abs(values[group]) ** 2 if squared[group] else values[group]
-        v = coefficients[group] * v
-        total = v if total is None else total + v
-    return total
+    with jax.named_scope("operators.shared_coalesced_evaluation"):
+        values = diagonal
+        if len(states):
+            base = apply_batched(apply_fn, variables, samples, chunk_size=chunk_size)
+            targets = _apply_active(apply_fn, variables, states, count, chunk_size)
+            delta = jnp.where(
+                mels != 0, targets[target_ids] - base[owners % len(samples)], 0
+            )
+            contributions = mels * jnp.exp(delta)
+            values = values.astype(contributions.dtype).at[owners].add(contributions)
+        values = values.reshape((len(squared), len(samples)))
+        total = None
+        for group in range(len(squared)):
+            v = abs(values[group]) ** 2 if squared[group] else values[group]
+            v = coefficients[group] * v
+            total = v if total is None else total + v
+        return total

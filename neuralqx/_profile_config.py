@@ -55,6 +55,13 @@ def register_profile_options(cfg) -> None:
         "mutability": ConfigMutability.RUNTIME,
         "include_in_fingerprint": False,
     }
+    cfg.define_bool(
+        "profile",
+        default=False,
+        doc="Automatically capture variational driver runs. Explicit profiler sessions remain independent.",
+        env_default="NEURALQX_PROFILE",
+        **common,
+    )
     declarations = (
         (
             "string",
@@ -188,6 +195,12 @@ def register_profile_options(cfg) -> None:
             kwargs["validator"] = validator
         getattr(cfg, f"define_{kind}")(f"profile_{suffix}", **kwargs)
     for suffix, default, values, doc in (
+        (
+            "detail",
+            "summary",
+            ("summary", "detailed", "developer"),
+            "Package annotations: major phases, operator and estimator stages, or developer dispatch internals.",
+        ),
         (
             "transport",
             "shared",

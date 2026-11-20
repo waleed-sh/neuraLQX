@@ -231,6 +231,9 @@ class Profiler:
         self.options = replace(
             self._supplied_options or ProfileOptions.from_config(), **self._overrides
         )
+        self._detail_level = {"summary": 0, "detailed": 1, "developer": 2}[
+            self.options.detail
+        ]
         self._schedule = self._supplied_schedule or self.options.make_schedule()
         self._state = "running"
         if self.options.level == "off":

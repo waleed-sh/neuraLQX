@@ -28,6 +28,7 @@ from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
+from neuralqx.profile._instrumentation import instrument
 from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators.operators import OperatorTerm
@@ -58,21 +59,23 @@ def local_values_from_connections(
     if xp.shape[0] != samples_2d.shape[0]:
         raise NeuralqxValueError("Connected-state batch and sample batch disagree.")
 
-    logpsi = apply_batched(
-        apply_variables, variables, samples_2d, chunk_size=chunk_size
-    )
+    with jax.named_scope("model.reference"):
+        logpsi = apply_batched(
+            apply_variables, variables, samples_2d, chunk_size=chunk_size
+        )
     # Padding need not contain valid configurations. Evaluate a sampled state
     # there so zero matrix elements cannot hide NaNs in the backward pass.
     xp = jnp.where((mel != 0)[..., None], xp, samples_2d[:, None, :])
     connected = xp.reshape((-1, samples_2d.shape[-1]))
-    logpsi_connected = apply_connected(
-        apply_variables,
-        variables,
-        samples_2d,
-        connected,
-        jnp.repeat(jnp.arange(samples_2d.shape[0]), xp.shape[1]),
-        chunk_size=chunk_size,
-    ).reshape(mel.shape)
+    with jax.named_scope("model.connected"):
+        logpsi_connected = apply_connected(
+            apply_variables,
+            variables,
+            samples_2d,
+            connected,
+            jnp.repeat(jnp.arange(samples_2d.shape[0]), xp.shape[1]),
+            chunk_size=chunk_size,
+        ).reshape(mel.shape)
     ratios = jnp.exp(jnp.where(mel != 0, logpsi_connected - logpsi[:, None], 0))
     contrib_dtype = jnp.result_type(mel, ratios)
     contrib = jnp.where(
@@ -119,12 +122,19 @@ def local_values_from_compact_connections(
 ) -> jax.Array:
     """Apply the model only to packed connections, then sum by source row."""
     connected = jnp.where((mels != 0)[:, None], connected, samples_2d[owners])
-    logpsi = apply_batched(
-        apply_variables, variables, samples_2d, chunk_size=chunk_size
-    )
-    connected_logpsi = apply_connected(
-        apply_variables, variables, samples_2d, connected, owners, chunk_size=chunk_size
-    )
+    with jax.named_scope("model.reference"):
+        logpsi = apply_batched(
+            apply_variables, variables, samples_2d, chunk_size=chunk_size
+        )
+    with jax.named_scope("model.connected"):
+        connected_logpsi = apply_connected(
+            apply_variables,
+            variables,
+            samples_2d,
+            connected,
+            owners,
+            chunk_size=chunk_size,
+        )
     delta = jnp.where(mels != 0, connected_logpsi - logpsi[owners], 0)
     contributions = mels * jnp.exp(delta)
     return (
@@ -239,34 +249,44 @@ def _local_values_from_operator_terms_with_logpsi(
     chunk_size: int | None,
 ) -> jax.Array:
     """Compute one same-size operator-term bucket with precomputed base values."""
-    xp = jnp.asarray(x_primes_terms)
-    mel = jnp.asarray(mels_terms)
-    if xp.ndim != 4:
-        xp = xp.reshape((xp.shape[0], samples_2d.shape[0], -1, samples_2d.shape[-1]))
-        mel = mel.reshape(xp.shape[:-1])
-    if xp.shape[1] != samples_2d.shape[0]:
-        raise NeuralqxValueError("Operator-term connections and sample batch disagree.")
+    with jax.named_scope("operators.shared_connected_evaluation"):
+        xp = jnp.asarray(x_primes_terms)
+        mel = jnp.asarray(mels_terms)
+        if xp.ndim != 4:
+            xp = xp.reshape(
+                (xp.shape[0], samples_2d.shape[0], -1, samples_2d.shape[-1])
+            )
+            mel = mel.reshape(xp.shape[:-1])
+        if xp.shape[1] != samples_2d.shape[0]:
+            raise NeuralqxValueError(
+                "Operator-term connections and sample batch disagree."
+            )
 
-    xp = jnp.where((mel != 0)[..., None], xp, samples_2d[None, :, None, :])
-    connected = xp.reshape((-1, samples_2d.shape[-1]))
-    logpsi_connected = apply_connected(
-        apply_variables,
-        variables,
-        samples_2d,
-        connected,
-        jnp.tile(jnp.repeat(jnp.arange(samples_2d.shape[0]), xp.shape[2]), xp.shape[0]),
-        chunk_size=chunk_size,
-    ).reshape(mel.shape)
-    ratios = jnp.exp(jnp.where(mel != 0, logpsi_connected - logpsi[None, :, None], 0))
-    contrib_dtype = jnp.result_type(mel, ratios)
-    contrib = jnp.where(
-        mel != 0,
-        mel.astype(contrib_dtype) * ratios.astype(contrib_dtype),
-        jnp.zeros_like(ratios, dtype=contrib_dtype),
-    )
-    return jnp.sum(jnp.sum(contrib, axis=-1), axis=0)
+        xp = jnp.where((mel != 0)[..., None], xp, samples_2d[None, :, None, :])
+        connected = xp.reshape((-1, samples_2d.shape[-1]))
+        logpsi_connected = apply_connected(
+            apply_variables,
+            variables,
+            samples_2d,
+            connected,
+            jnp.tile(
+                jnp.repeat(jnp.arange(samples_2d.shape[0]), xp.shape[2]), xp.shape[0]
+            ),
+            chunk_size=chunk_size,
+        ).reshape(mel.shape)
+        ratios = jnp.exp(
+            jnp.where(mel != 0, logpsi_connected - logpsi[None, :, None], 0)
+        )
+        contrib_dtype = jnp.result_type(mel, ratios)
+        contrib = jnp.where(
+            mel != 0,
+            mel.astype(contrib_dtype) * ratios.astype(contrib_dtype),
+            jnp.zeros_like(ratios, dtype=contrib_dtype),
+        )
+        return jnp.sum(jnp.sum(contrib, axis=-1), axis=0)
 
 
+@instrument("operators.local_values", detail="detailed", category="neuralqx.operator")
 def discrete_operator_terms_local_values(
     apply_variables: Any,
     variables: Any,
@@ -288,6 +308,7 @@ def discrete_operator_terms_local_values(
     generic_terms = tuple(
         term for term in terms if not is_computational_operator(term.operator)
     )
+    term_positions = {id(term): index for index, term in enumerate(terms)}
     if computational_terms:
         device_values = sharded_operator_term_values(
             apply_variables,
@@ -298,6 +319,9 @@ def discrete_operator_terms_local_values(
             enabled=operator_sharding,
             operator_streaming=operator_streaming,
             operator_streaming_chunk_size=operator_streaming_chunk_size,
+            profile_indices=tuple(
+                term_positions[id(term)] for term in computational_terms
+            ),
         )
         if device_values is None:
             fallback_terms.extend(computational_terms)
@@ -314,6 +338,7 @@ def discrete_operator_terms_local_values(
         operator_sharding=operator_sharding,
         operator_streaming=operator_streaming,
         operator_streaming_chunk_size=operator_streaming_chunk_size,
+        profile_indices=tuple(term_positions[id(term)] for term in fallback_terms),
     )
     values = fallback_total
     if device_total is not None:
@@ -322,6 +347,7 @@ def discrete_operator_terms_local_values(
     return restore_sample_values(values, sample_shape)
 
 
+@instrument("operator.local_values", detail="detailed", category="neuralqx.operator")
 def discrete_operator_local_values(
     apply_variables: Any,
     variables: Any,
@@ -365,6 +391,7 @@ def discrete_operator_local_values(
     return restore_sample_values(values, sample_shape)
 
 
+@instrument("operator.connectivity", detail="detailed", category="neuralqx.operator")
 def prepare_discrete_connections(
     operator, flat, *, operator_streaming, operator_streaming_chunk_size
 ):
@@ -387,6 +414,9 @@ def prepare_discrete_connections(
     )
 
 
+@instrument(
+    "operator.local_connectivity", detail="developer", category="neuralqx.operator"
+)
 def _prepare_local_connections(
     operator, flat, *, operator_streaming, operator_streaming_chunk_size
 ):

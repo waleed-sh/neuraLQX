@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.profile._instrumentation import instrument
 from neuralqx.utils.stats import OnlineStats
 from neuralqx.utils.stats import Stats
 from neuralqx.utils.stats import online_statistics
@@ -34,6 +35,9 @@ class LocalEstimators(Struct):
 
     data: Any
 
+    @instrument(
+        "estimator.statistics", detail="detailed", category="neuralqx.estimator"
+    )
     def to_stats(self) -> Stats:
         """Summarize local estimator samples."""
         return statistics(self.data)

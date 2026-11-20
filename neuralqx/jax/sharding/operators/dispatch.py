@@ -32,12 +32,16 @@ from neuralqx.jax.streaming import apply_connected
 from neuralqx.jax.streaming import stream_flattened_kernel
 from neuralqx.operator import ComputationalOperator
 from neuralqx.operator._policy import resolve_streaming_policy
+from neuralqx.profile._instrumentation import instrument
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import DistributedPhase
 from neuralqx.utils.typing import DistributedPlan
 from neuralqx.utils.typing import DistributedWorkload
 
 
+@instrument(
+    "operators.sharded_dispatch", detail="detailed", category="neuralqx.operator"
+)
 def sharded_operator_term_values(
     apply_variables: Any,
     variables: Any,
@@ -48,6 +52,7 @@ def sharded_operator_term_values(
     enabled: bool | None,
     operator_streaming: bool | None,
     operator_streaming_chunk_size: int | None,
+    profile_indices: tuple[int, ...] | None = None,
 ) -> jax.Array | None:
     """Compute local values for computational terms on the operator mesh.
 
@@ -66,6 +71,9 @@ def sharded_operator_term_values(
     devices cannot execute Python, but runtime connected-component and
     model-evaluation work is distributed by the operator mesh instead of being
     precomputed term-by-term before placement.
+
+    profile_indices supplies original flattened term positions for compiled
+    branch names after partitioning. None uses the positions in terms.
 
     ``None`` is returned when the fast path is not applicable, allowing callers
     to fall back to a generic host-dispatched implementation.
@@ -101,13 +109,14 @@ def sharded_operator_term_values(
     branches = tuple(
         _operator_term_branch(
             term,
+            term_index=index if profile_indices is None else profile_indices[index],
             apply_variables=apply_variables,
             matrix_element_dtype=common_dtype,
             stream=stream,
             chunk_size=resolved_chunk_size,
             model_chunk_size=chunk_size,
         )
-        for term in terms
+        for index, term in enumerate(terms)
     )
     branches = (
         *branches,
@@ -208,6 +217,7 @@ def _dispatch_specs(
 def _operator_term_branch(
     term: Any,
     *,
+    term_index: int = 0,
     apply_variables: Any,
     matrix_element_dtype: jnp.dtype,
     stream: bool,
@@ -220,39 +230,44 @@ def _operator_term_branch(
     max_conn_size = int(operator.max_conn_size)
 
     def branch(states_2d, logpsi, variables):
-        if stream:
-            x_primes, mels = stream_flattened_kernel(
-                lambda chunk: operator._get_conn_padded_batch_kernel(chunk),
-                states_2d,
-                chunk_size=chunk_size,
-                max_conn_size=max_conn_size,
-                matrix_element_dtype=operator.dtype,
+        with jax.named_scope(f"operator[{term_index}]/{type(operator).__name__}"):
+            if stream:
+                x_primes, mels = stream_flattened_kernel(
+                    lambda chunk: operator._get_conn_padded_batch_kernel(chunk),
+                    states_2d,
+                    chunk_size=chunk_size,
+                    max_conn_size=max_conn_size,
+                    matrix_element_dtype=operator.dtype,
+                )
+            else:
+                x_primes, mels = operator._get_conn_padded_batch_kernel(states_2d)
+            mels = jnp.asarray(mels, dtype=matrix_element_dtype) * jnp.asarray(
+                coefficient, dtype=matrix_element_dtype
             )
-        else:
-            x_primes, mels = operator._get_conn_padded_batch_kernel(states_2d)
-        mels = jnp.asarray(mels, dtype=matrix_element_dtype) * jnp.asarray(
-            coefficient, dtype=matrix_element_dtype
-        )
-        if bool(getattr(operator, "is_diagonal", False)):
-            return jnp.sum(mels, axis=-1)
-        x_primes = jnp.where((mels != 0)[..., None], x_primes, states_2d[:, None, :])
-        connected = x_primes.reshape((-1, states_2d.shape[-1]))
-        logpsi_connected = apply_connected(
-            apply_variables,
-            variables,
-            states_2d,
-            connected,
-            jnp.repeat(jnp.arange(len(states_2d)), x_primes.shape[1]),
-            chunk_size=model_chunk_size,
-        ).reshape(mels.shape)
-        ratios = jnp.exp(jnp.where(mels != 0, logpsi_connected - logpsi[:, None], 0))
-        contrib_dtype = jnp.result_type(mels, ratios)
-        contrib = jnp.where(
-            mels != 0,
-            mels.astype(contrib_dtype) * ratios.astype(contrib_dtype),
-            jnp.zeros_like(ratios, dtype=contrib_dtype),
-        )
-        return jnp.sum(contrib, axis=-1)
+            if bool(getattr(operator, "is_diagonal", False)):
+                return jnp.sum(mels, axis=-1)
+            x_primes = jnp.where(
+                (mels != 0)[..., None], x_primes, states_2d[:, None, :]
+            )
+            connected = x_primes.reshape((-1, states_2d.shape[-1]))
+            logpsi_connected = apply_connected(
+                apply_variables,
+                variables,
+                states_2d,
+                connected,
+                jnp.repeat(jnp.arange(len(states_2d)), x_primes.shape[1]),
+                chunk_size=model_chunk_size,
+            ).reshape(mels.shape)
+            ratios = jnp.exp(
+                jnp.where(mels != 0, logpsi_connected - logpsi[:, None], 0)
+            )
+            contrib_dtype = jnp.result_type(mels, ratios)
+            contrib = jnp.where(
+                mels != 0,
+                mels.astype(contrib_dtype) * ratios.astype(contrib_dtype),
+                jnp.zeros_like(ratios, dtype=contrib_dtype),
+            )
+            return jnp.sum(contrib, axis=-1)
 
     return branch
 

@@ -27,6 +27,8 @@ from neuralqx.operator import Squared
 from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import operator_region
 from neuralqx.utils.errors import NeuralqxNotImplementedError
 from neuralqx.utils.typing import EstimatorRule
 
@@ -42,6 +44,7 @@ from .statistics import LocalEstimators
 from .utils import validate_operator_hilbert
 
 
+@instrument("estimator.local_values", detail="detailed", category="neuralqx.estimator")
 def local_estimators(
     vstate: Any,
     operator: Any,
@@ -96,10 +99,11 @@ def local_estimators(
         return LocalEstimators(values)
     if is_operator_sequence(operator):
         total = None
-        for item in operator:
-            values = local_estimators(
-                vstate, item, samples=samples, options=options
-            ).data
+        for index, item in enumerate(operator):
+            with operator_region(item, index, operation="local_values"):
+                values = local_estimators(
+                    vstate, item, samples=samples, options=options
+                ).data
             total = values if total is None else total + values
         assert total is not None
         return LocalEstimators(total)
@@ -155,6 +159,9 @@ def _squared_local_estimator_kernel(
     return LocalEstimators(values)
 
 
+@instrument(
+    "estimator.prepare_shared", detail="developer", category="neuralqx.estimator"
+)
 def _prepared_local_values(vstate, operator, samples, options):
     plan = prepare_estimator(
         operator,

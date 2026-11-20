@@ -25,6 +25,9 @@ import jax
 from neuralqx.jax.sharding import place_operator_terms
 from neuralqx.operator import ComputationalOperator
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import operator_region
+from neuralqx.profile._instrumentation import region
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.vqs.estimators.operators import OperatorTerm
 
@@ -57,6 +60,9 @@ def bucket_terms_by_conn_size(
     return tuple(tuple(bucket) for _size, bucket in sorted(buckets.items()))
 
 
+@instrument(
+    "operators.prepare_bucket", detail="developer", category="neuralqx.operator"
+)
 def host_stacked_operator_term_connections(
     terms: tuple[OperatorTerm, ...],
     states_2d: jax.Array,
@@ -64,6 +70,7 @@ def host_stacked_operator_term_connections(
     operator_sharding: bool | None,
     operator_streaming: bool | None,
     operator_streaming_chunk_size: int | None,
+    profile_indices: tuple[int, ...] | None = None,
 ) -> tuple[jax.Array, jax.Array]:
     """Generate term connections on the host and then place the term axis.
 
@@ -72,15 +79,20 @@ def host_stacked_operator_term_connections(
     historical execution model: each term is evaluated by Python on the host,
     the results are stacked, and the leading term axis is optionally placed on
     the operator mesh.
+
+    profile_indices carries original flattened indices through execution buckets.
+    None uses the positions in terms. The indices only affect trace labels.
     """
     x_parts = []
     mel_parts = []
-    for term in terms:
-        x_primes, mels = term.operator.get_conn_padded(
-            states_2d,
-            use_streaming=operator_streaming,
-            chunk_size=operator_streaming_chunk_size,
-        )
+    for position, term in enumerate(terms):
+        index = position if profile_indices is None else profile_indices[position]
+        with operator_region(term.operator, index):
+            x_primes, mels = term.operator.get_conn_padded(
+                states_2d,
+                use_streaming=operator_streaming,
+                chunk_size=operator_streaming_chunk_size,
+            )
         dtype = jnp.result_type(mels, term.coefficient)
         x_parts.append(jnp.asarray(x_primes))
         mel_parts.append(
@@ -96,6 +108,7 @@ def host_stacked_operator_term_connections(
     )
 
 
+@instrument("operators.host_dispatch", detail="detailed", category="neuralqx.operator")
 def host_operator_term_values(
     apply_variables: Any,
     variables: Any,
@@ -106,26 +119,38 @@ def host_operator_term_values(
     operator_sharding: bool | None,
     operator_streaming: bool | None,
     operator_streaming_chunk_size: int | None,
+    profile_indices: tuple[int, ...] | None = None,
 ) -> jax.Array | None:
-    """Compute fallback term values with the historical host-dispatch model."""
+    """Compute fallback term values with the historical host-dispatch model.
+
+    profile_indices identifies the original flattened position of every term.
+    None uses local positions. Buckets preserve those indices in trace labels,
+    while the shared network pass remains one measured operation.
+    """
     if not terms:
         return None
 
+    indices = tuple(range(len(terms))) if profile_indices is None else profile_indices
+    term_positions = {
+        id(term): index for index, term in zip(indices, terms, strict=True)
+    }
+
     diagonal_total = None
     offdiagonal_terms = []
-    for term in terms:
+    for index, term in zip(indices, terms, strict=True):
         if bool(getattr(term.operator, "is_diagonal", False)):
-            _x_primes, mels = term.operator.get_conn_padded(
-                states_2d,
-                use_streaming=operator_streaming,
-                chunk_size=operator_streaming_chunk_size,
-            )
-            dtype = jnp.result_type(mels, term.coefficient)
-            values = jnp.sum(
-                jnp.asarray(mels, dtype=dtype)
-                * jnp.asarray(term.coefficient, dtype=dtype),
-                axis=-1,
-            )
+            with operator_region(term.operator, index, operation="diagonal_values"):
+                _x_primes, mels = term.operator.get_conn_padded(
+                    states_2d,
+                    use_streaming=operator_streaming,
+                    chunk_size=operator_streaming_chunk_size,
+                )
+                dtype = jnp.result_type(mels, term.coefficient)
+                values = jnp.sum(
+                    jnp.asarray(mels, dtype=dtype)
+                    * jnp.asarray(term.coefficient, dtype=dtype),
+                    axis=-1,
+                )
             diagonal_total = (
                 values if diagonal_total is None else diagonal_total + values
             )
@@ -142,6 +167,7 @@ def host_operator_term_values(
             operator_sharding=operator_sharding,
             operator_streaming=operator_streaming,
             operator_streaming_chunk_size=operator_streaming_chunk_size,
+            profile_indices=tuple(term_positions[id(term)] for term in bucket),
         )
         x_buckets.append(x_terms)
         mel_buckets.append(mel_terms)
@@ -151,14 +177,20 @@ def host_operator_term_values(
             local_values_from_operator_term_buckets,
         )
 
-        values = local_values_from_operator_term_buckets(
-            apply_variables,
-            variables,
-            states_2d,
-            tuple(x_buckets),
-            tuple(mel_buckets),
-            chunk_size=chunk_size,
-        )
+        with region(
+            "operators.shared_network",
+            detail="detailed",
+            category="neuralqx.model",
+            attributes={"operator_count": len(offdiagonal_terms)},
+        ):
+            values = local_values_from_operator_term_buckets(
+                apply_variables,
+                variables,
+                states_2d,
+                tuple(x_buckets),
+                tuple(mel_buckets),
+                chunk_size=chunk_size,
+            )
     if diagonal_total is not None:
         values = diagonal_total if values is None else values + diagonal_total
     return values

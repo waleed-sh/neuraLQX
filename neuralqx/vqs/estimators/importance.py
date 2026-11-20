@@ -32,6 +32,8 @@ from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.wrappers import PenaltyCost
 from neuralqx.operator.wrappers import penalty_local_value_coefficients
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import operator_region
 from neuralqx.sampler.importance import WeightedLocalEstimators
 from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
@@ -52,6 +54,9 @@ class _Combination:
     penalties: tuple
 
 
+@instrument(
+    "estimator.importance.prepare", detail="detailed", category="neuralqx.estimator"
+)
 def prepare_importance(vstate, operator, samples, options):
     """Prepare sparse actions once, outside differentiation of network variables."""
     validate_operator_hilbert(vstate, operator)
@@ -95,10 +100,11 @@ def prepare_importance(vstate, operator, samples, options):
         for t in terms
     ):
         children, penalties = [], []
-        for term in terms:
+        for index, term in enumerate(terms):
             penalty = term.operator if isinstance(term.operator, PenaltyCost) else None
             parent = term.operator if penalty is None else penalty.cost_operator
-            children.append(prepare_importance(vstate, parent, samples, options))
+            with operator_region(term.operator, index, operation="importance_child"):
+                children.append(prepare_importance(vstate, parent, samples, options))
             penalties.append(penalty)
         return (
             flat,
@@ -120,21 +126,22 @@ def prepare_importance(vstate, operator, samples, options):
     connections = []
     squared = []
     coefficients = []
-    for term in linear_operator_terms(operator):
+    for index, term in enumerate(linear_operator_terms(operator)):
         square = isinstance(term.operator, Squared)
         op = term.operator.operator if square else term.operator
         if not isinstance(op, DiscreteOperator):
             raise NeuralqxTypeError(
                 "Importance estimators require discrete operators or their squared markers."
             )
-        connections.append(
-            prepare_discrete_connections(
-                op,
-                flat,
-                operator_streaming=options.operator_streaming,
-                operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+        with operator_region(term.operator, index, operation="importance_connections"):
+            connections.append(
+                prepare_discrete_connections(
+                    op,
+                    flat,
+                    operator_streaming=options.operator_streaming,
+                    operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+                )
             )
-        )
         squared.append(square)
         coefficients.append(term.coefficient)
     return flat, tuple(connections), tuple(squared), jnp.asarray(coefficients), measure
@@ -266,6 +273,9 @@ def sharded_amplitude_values(
     return mapped(variables, samples, connections, coefficients, log_density)
 
 
+@instrument(
+    "estimator.importance.evaluate", detail="developer", category="neuralqx.estimator"
+)
 def evaluate_importance(vstate, variables, prepared, options):
     """Select sample-local execution while respecting model-parallel variables."""
     flat, connections, squared, coefficients, measure = prepared

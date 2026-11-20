@@ -75,6 +75,22 @@ class JaxCollector:
         self.calibration: dict | None = None
         """Selected clock anchor, cached after the first trace scan."""
 
+    def annotation(self, name: str, *, attributes=None, step_num=None):
+        """Construct native context for dispatch and correlation events.
+
+        Args:
+            name: Stable application operation name.
+            attributes: Bounded Python scalars attached to the native region.
+            step_num: Optional optimizer step number for native step grouping.
+
+        Returns:
+            A JAX TraceAnnotation or StepTraceAnnotation. Neither waits on arrays.
+        """
+        values = {} if attributes is None else dict(attributes)
+        if step_num is None:
+            return self.jax.profiler.TraceAnnotation(name, **values)
+        return self.jax.profiler.StepTraceAnnotation(name, step_num=step_num, **values)
+
     def start(self) -> None:
         """Start native collection and emit its first host clock anchor."""
         options = self.jax.profiler.ProfileOptions()
