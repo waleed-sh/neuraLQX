@@ -1,0 +1,239 @@
+site_name: neuraLQX
+site_description: JAX-native infrastructure for variational simulations in canonical Loop Quantum Gravity.
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://neuralqx.readthedocs.io/en/latest/"]
+repo_url: https://github.com/waleed-sh/neuraLQX
+repo_name: waleed-sh/neuraLQX
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 The neuraLQX Authors
+strict: true
+
+theme:
+  name: shadcn
+  custom_dir: docs/overrides
+  icon: assets/images/mark.svg
+  favicon: assets/images/mark.svg
+  accent: "#006d77"
+  show_title: true
+  show_stargazers: false
+  show_datetime: false
+  hide_source_files: true
+  topbar_sections: false
+  pygments_style:
+    light: friendly
+    dark: native
+  katex_options:
+    throwOnError: false
+
+# Explicit order for authored pages. The hook fills the two API submenus.
+nav:
+  - Overview: index.md
+  - Installation: start/installation.md
+  - Quick start: start/quickstart.md
+  - Citing neuraLQX: start/citing.md
+  - Core concepts:
+      - Overview: concepts/index.md
+      - Graphs:
+          - Overview: concepts/graphs/index.md
+          - Constructing graphs: concepts/graphs/construction.md
+          - Vertex and edge labels: concepts/graphs/labels.md
+          - Connectivity and loops: concepts/graphs/connectivity.md
+          - Embeddings and plotting: concepts/graphs/embeddings.md
+      - Hilbert spaces:
+          - Overview: concepts/hilbert/index.md
+          - Local spaces: concepts/hilbert/local-spaces.md
+          - State layouts: concepts/hilbert/state-layouts.md
+          - Constraints: concepts/hilbert/constraints.md
+          - U(1) spaces: concepts/hilbert/u1.md
+          - SU(2) spaces: concepts/hilbert/su2.md
+      - LQX models:
+          - Overview: concepts/lqx/index.md
+          - Model structure: concepts/lqx/structure.md
+          - U(1) models: concepts/lqx/u1.md
+          - SU(2) models: concepts/lqx/su2.md
+          - Reduced models: concepts/lqx/reduced-models.md
+      - Operators:
+          - Overview: concepts/operators/index.md
+          - Constructing operators: concepts/operators/construction.md
+          - Applying operators: concepts/operators/application.md
+          - Operator algebra: concepts/operators/algebra.md
+          - Prebuilt operators: concepts/operators/prebuilt.md
+      - Samplers:
+          - Overview: concepts/samplers/index.md
+          - Metropolis sampling: concepts/samplers/metropolis.md
+          - Transition rules: concepts/samplers/transition-rules.md
+          - Samples and diagnostics: concepts/samplers/diagnostics.md
+      - Optimisers:
+          - Overview: concepts/optimisers/index.md
+          - Optimisation with Optax: concepts/optimisers/optax.md
+          - Stochastic reconfiguration: concepts/optimisers/sr.md
+          - Linear solvers: concepts/optimisers/solvers.md
+      - VMC drivers:
+          - Overview: concepts/drivers/index.md
+          - Running simulations: concepts/drivers/running.md
+          - Monitoring and callbacks: concepts/drivers/monitoring.md
+          - Checkpointing: concepts/drivers/checkpointing.md
+          - Multiple states: concepts/drivers/multiple-states.md
+      - Variational states (VQS):
+          - Overview: concepts/vqs/index.md
+          - Creating a state: concepts/vqs/state.md
+          - Expectations and gradients: concepts/vqs/expectations.md
+          - Batching and chunking: concepts/vqs/batching.md
+      - Neural networks:
+          - Overview: concepts/networks/index.md
+          - Choosing a model: concepts/networks/models.md
+          - Layers and activations: concepts/networks/layers.md
+          - Symmetries and projectors: concepts/networks/symmetries.md
+          - Complex-valued networks: concepts/networks/complex.md
+      - Callbacks:
+          - Overview: concepts/callbacks/index.md
+          - Built-in callbacks: concepts/callbacks/built-in.md
+          - Controlling a run: concepts/callbacks/control.md
+          - Logging and monitoring: concepts/callbacks/logging.md
+  - Developer guide:
+      - Overview: developers/index.md
+      - Profiling:
+          - Overview: developers/profiling/index.md
+          - Profiling for scientists: developers/profiling/for-scientists.md
+          - Instrumentation: developers/profiling/instrumentation.md
+          - Profiler internals: developers/profiling/internals.md
+          - Traces and backends: developers/profiling/traces.md
+      - Structs and pytrees:
+          - Overview: developers/structs/index.md
+          - Fields and static data: developers/structs/fields.md
+          - PyTree behaviour: developers/structs/pytrees.md
+          - Serialisation: developers/structs/serialisation.md
+      - Custom estimators:
+          - Overview: developers/estimators/index.md
+          - Dispatch and contracts: developers/estimators/dispatch.md
+          - Estimator kernels: developers/estimators/kernels.md
+          - Gradients: developers/estimators/gradients.md
+      - Custom operators:
+          - Overview: developers/operators/index.md
+          - Operator contracts: developers/operators/contracts.md
+          - Connectivity: developers/operators/connectivity.md
+          - Composition: developers/operators/composition.md
+      - Custom Hilbert spaces:
+          - Overview: developers/hilbert/index.md
+          - State representation: developers/hilbert/states.md
+          - Constraints: developers/hilbert/constraints.md
+          - Indexing and enumeration: developers/hilbert/indexing.md
+      - Custom samplers:
+          - Overview: developers/samplers/index.md
+          - Sampler contracts: developers/samplers/contracts.md
+          - Transition rules: developers/samplers/transition-rules.md
+          - Sampler state: developers/samplers/state.md
+      - Custom networks:
+          - Overview: developers/networks/index.md
+          - Model contracts: developers/networks/contracts.md
+          - Parameters and frameworks: developers/networks/parameters.md
+      - Custom graphs:
+          - Overview: developers/graphs/index.md
+          - Graph contracts: developers/graphs/contracts.md
+          - Derived structures: developers/graphs/derived-structures.md
+      - Contributing:
+          - Overview: developers/contributing/index.md
+          - Development environment: developers/contributing/environment.md
+          - Testing: developers/contributing/testing.md
+  - Distributed simulations:
+      - Overview: distributed/index.md
+      - JAX parallelism: distributed/jax-parallelism.md
+      - CPU: distributed/cpu.md
+      - Single GPU: distributed/single-gpu.md
+      - Multiple GPUs: distributed/multi-gpu.md
+      - Multiple nodes and GPUs: distributed/multi-node.md
+      - Troubleshooting: distributed/troubleshooting.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - First simulation: tutorials/notebooks/first-simulation.ipynb
+      - Working with graphs: tutorials/notebooks/graphs.ipynb
+      - Custom components: tutorials/notebooks/custom-components.ipynb
+  - API reference:
+      - Overview: api/index.md
+      - Changelog: api/changelog.md
+      - Public API:
+          - Overview: api/public/index.md
+      - Experimental API:
+          - Overview: api/experimental/index.md
+
+hooks:
+  - docs/hooks/api.py
+  - docs/hooks/notebooks.py
+
+plugins:
+  - search
+  - mkdocs-jupyter:
+      include: ["*.ipynb"]
+      # Commit the notebook's saved outputs. Builds never start a kernel.
+      execute: false
+      allow_errors: false
+      include_source: true
+      include_requirejs: true
+      cache: true
+      cache_dir: .cache/mkdocs-jupyter
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            # Source analysis only: RTD does not install/import JAX or neuraLQX.
+            allow_inspection: false
+            docstring_style: google
+            # Existing docstring formatting will be addressed when writing docs.
+            # Strict MkDocs checks still catch broken navigation and page links.
+            docstring_options:
+              warnings: false
+            show_root_heading: true
+            show_root_full_path: true
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            members_order: source
+            inherited_members: false
+            show_submodules: false
+            filters: ["!^_"]
+            heading_level: 2
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - codehilite:
+      guess_lang: false
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_css:
+  - assets/stylesheets/theme.css
+
+extra_javascript:
+  - assets/javascripts/navigation.js
+
+exclude_docs: |
+  /requirements.txt
+  /hooks/
+  /overrides/
+  /README.md
+  **/.ipynb_checkpoints/
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    anchors: warn
+
+watch:
+  - neuralqx

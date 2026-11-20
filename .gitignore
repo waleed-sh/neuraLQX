@@ -9,6 +9,7 @@ build/
 *.pyo
 
 .venv/
+.venv-docs/
 env/
 venv/
 ENV/
@@ -16,10 +17,9 @@ ENV/
 .vscode/
 .idea/
 
-docs/_build/
-/docs/TEST_RUN/
-docs/documentation/api/generated
-docs/experimental/api/generated
+/site/
+/.cache/mkdocs-jupyter/
+**/.ipynb_checkpoints/
 
 .DS_Store
 Thumbs.db

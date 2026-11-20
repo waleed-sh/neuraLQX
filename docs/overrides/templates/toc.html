@@ -1,0 +1,15 @@
+{% set roots = page.toc | list %}
+{% set toc = roots[0].children if roots | length == 1 else roots %}
+{% if toc %}
+<nav id="toc" aria-label="On this page" view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
+  <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
+    <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">{{ _("On This Page") }}</p>
+    {% for heading in toc %}
+    <a href="{{ heading.url }}" data-active="false" data-depth="2">{{ heading.title }}</a>
+    {% for child in heading.children %}
+    <a href="{{ child.url }}" data-active="false" data-depth="3">{{ child.title }}</a>
+    {% endfor %}
+    {% endfor %}
+  </div>
+</nav>
+{% endif %}

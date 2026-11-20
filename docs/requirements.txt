@@ -1,0 +1,9 @@
+# Documentation-only environment used by Read the Docs and CI.
+# Keep these direct pins in sync with both docs lists in pyproject.toml.
+mkdocs==1.6.1
+mkdocs-shadcn==0.12.2
+mkdocs-jupyter==0.26.3
+mkdocstrings[python]==1.0.4
+mkdocstrings-python==2.0.9
+pymdown-extensions==10.21.3
+Pygments==2.19.2

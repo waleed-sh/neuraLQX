@@ -1,0 +1,4 @@
+<a data-slot="button" class="button ghost gap-2 hidden lg:flex" href="{{ nav.homepage.url | url }}" aria-label="neuraLQX home">
+  <span class="flex flex-row justify-center items-center">{% include "templates/icon.html" %}</span>
+  {% if config.theme.show_title %}<span>{{ config.site_name }}</span>{% endif %}
+</a>

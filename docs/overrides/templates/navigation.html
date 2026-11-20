@@ -1,0 +1,32 @@
+{# Shared by desktop and mobile; native details supports any nesting depth. #}
+{% macro menu(items) %}
+<ul class="nqx-nav-list">
+  {% for item in items %}
+  <li>
+    {% if item.children %}
+    <details class="nqx-nav-section"{% if item.active %} open{% endif %}>
+      <summary>{{ item.title }}</summary>
+      {{ menu(item.children) }}
+    </details>
+    {% else %}
+    <a href="{{ item.url | url }}" data-sidebar="menu-button" data-active="{{ item.active | lower }}"{% if item.active %} aria-current="page"{% endif %}>
+      {{ item.meta.sidebar_title if item.meta and item.meta.sidebar_title else item.title }}
+    </a>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+<nav class="nqx-navigation" aria-label="Documentation">
+  {% for section in nav %}
+    {% if section.children %}
+    <div class="nqx-nav-group">
+      <div class="nqx-nav-heading">{{ section.title }}</div>
+      {{ menu(section.children) }}
+    </div>
+    {% else %}
+      {{ menu([section]) }}
+    {% endif %}
+  {% endfor %}
+</nav>
