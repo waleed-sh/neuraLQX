@@ -1,5 +1,5 @@
 site_name: neuraLQX
-site_description: JAX-native infrastructure for variational simulations in canonical Loop Quantum Gravity.
+site_description: High performance simulations toolkit for variational canonical loop quantum gravity.
 site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://neuralqx.readthedocs.io/en/latest/"]
 repo_url: https://github.com/waleed-sh/neuraLQX
 repo_name: waleed-sh/neuraLQX
