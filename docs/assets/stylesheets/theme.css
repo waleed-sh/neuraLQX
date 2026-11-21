@@ -279,7 +279,7 @@ article .admonition > p.admonition-title {
   gap: 1rem;
 }
 
-#page-header > h1 {
+article #page-header > h1 {
   min-width: 0;
   word-break: normal;
   overflow-wrap: break-word;
@@ -291,7 +291,7 @@ article .admonition > p.admonition-title {
 }
 
 @media (max-width: 640px) {
-  #page-header > h1 {
+  article #page-header > h1 {
     font-size: 1.75rem;
     line-height: 1.2;
   }

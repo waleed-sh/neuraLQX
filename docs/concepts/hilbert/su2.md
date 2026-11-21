@@ -102,6 +102,8 @@ $$
 
 For four incident spins $\tfrac12$, the allowed channels are $k=0$ and $k=1$. The stored channel labels are therefore `0` and `2`. They identify two different intertwiners with the same edge spins. A channel label is the doubled intermediate spin, not an ordinal such as “first intertwiner” or “second intertwiner”.
 
+The [SU(2) volume](../lqx/su2-volume/index.md) acts within this local intertwiner space at fixed edge spins. In general it can mix channel states, so the stored channel label is not a volume eigenvalue. The volume guide explains that action and its dense and sparse numerical evaluations.
+
 More generally, a vertex of valence $d>3$ has $d-3$ channel entries. The first couples $j_1$ and $j_2$, each subsequent channel couples the previous channel with the next incident spin, and the final channel must couple admissibly with the last two edge spins. The graph edge order determines the order of incident legs in this construction. You can inspect it through `graph_metadata.incident_edges_by_vertex`, or retrieve the ordered labels with `local_vertex_state`.
 
 Intermediate spins can exceed the edge cutoff. For a channel with zero-based position $r$, the layout allocates the doubled upper bound

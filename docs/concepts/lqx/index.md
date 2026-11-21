@@ -61,8 +61,8 @@ The classes below share an interface, but they describe different state spaces a
 | Model | States and setting | Guide |
 | --- | --- | --- |
 | [`LqxWCL1D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL1D), also available as `LqxWCL` | One U(1) charge per edge, with a BF curvature constraint | [U(1) models](u1.md) |
-| [`LqxWCL3D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL3D) | Three U(1) charges per edge on a planar graph, for the $2+1$ weak coupling construction | [Planar weak coupling model](wcl-planar.md) |
-| [`LqxWCL4D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL4D) | Three U(1) charges per edge on a nonplanar graph, for the $3+1$ weak coupling construction | [Spatial weak coupling model](wcl-spatial.md) |
+| [`LqxWCL3D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL3D) | Three U(1) charges per edge on a planar graph, for the $2+1$ weak coupling construction | [2+1 weak coupling limit](wcl-planar.md) |
+| [`LqxWCL4D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL4D) | Three U(1) charges per edge on a nonplanar graph, for the $3+1$ weak coupling construction | [3+1 weak coupling limit](wcl-spatial.md) |
 | [`LqxSU2`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxSU2), also available as `LqxEuclideanSU2` | Gauge invariant SU(2) spin networks, with geometric observables and a Euclidean constraint | [SU(2) models](su2.md) |
 | [`LqxQR`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxQR) | Three nonnegative reduced spin labels, with Euclidean and Lorentzian terms | [Single vertex quantum reduction](qr.md) |
 | [`LqxSphericalBojowaldSwiderski`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxSphericalBojowaldSwiderski), also available as `LqxSphericalBoSw` | Radial and transverse labels on a half ladder graph | [Spherical symmetry](spherical.md) |

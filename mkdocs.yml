@@ -51,9 +51,14 @@ nav:
           - Creating a model: concepts/lqx/custom-models.md
           - U(1) models:
               - Overview and shared operators: concepts/lqx/u1.md
-              - Planar weak coupling model: concepts/lqx/wcl-planar.md
-              - Spatial weak coupling model: concepts/lqx/wcl-spatial.md
-          - SU(2) models: concepts/lqx/su2.md
+              - 2+1 weak coupling limit: concepts/lqx/wcl-planar.md
+              - 3+1 weak coupling limit: concepts/lqx/wcl-spatial.md
+          - SU(2) models:
+              - Overview and operators: concepts/lqx/su2.md
+              - Volume:
+                  - Overview: concepts/lqx/su2-volume/index.md
+                  - Shifted resolvent quadrature: concepts/lqx/su2-volume/srq.md
+                  - Accuracy and convergence: concepts/lqx/su2-volume/accuracy.md
           - Reduced models:
               - Overview: concepts/lqx/reduced-models.md
               - Single vertex quantum reduction: concepts/lqx/qr.md
@@ -82,7 +87,10 @@ nav:
           - Overview: concepts/optimisers/index.md
           - Optimisation with Optax: concepts/optimisers/optax.md
           - Stochastic reconfiguration: concepts/optimisers/sr.md
+          - Choosing an optimiser for SR: concepts/optimisers/sr-optimisers.md
+          - Quantum geometric tensor: concepts/optimisers/qgt.md
           - Linear solvers: concepts/optimisers/solvers.md
+          - Learning rates and schedules: concepts/optimisers/schedules.md
       - VMC drivers:
           - Overview: concepts/drivers/index.md
           - Running simulations: concepts/drivers/running.md

@@ -1,8 +1,8 @@
 ---
-title: Spatial weak coupling model
+title: 3+1 weak coupling limit
 ---
 
-# Spatial weak coupling model
+# 3+1 weak coupling limit
 
 [`LqxWCL4D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL4D) describes the U(1)$^3$ weak coupling construction in $3+1$ spacetime dimensions. It requires three charge components per edge and a graph marked `is_planar=False`. It provides area, volume, and a regularised Euclidean vertex constraint, together with the [shared U(1) operators](u1.md).
 
@@ -122,7 +122,7 @@ D_{s,c}(q)
 =V_v(q)-V_v\bigl(W(q-d_s h\mathbf e_{s,c})\bigr).
 $$
 
-As on the [planar page](wcl-planar.md#the-euclidean-vertex-constraint), $U_{\alpha,c}$ denotes the positive ket shift around a dressed loop. It is the adjoint of the positive row shift returned by the shared holonomy factory.
+As in the [2+1 weak coupling limit guide](wcl-planar.md#the-euclidean-vertex-constraint), $U_{\alpha,c}$ denotes the positive ket shift around a dressed loop. It is the adjoint of the positive row shift returned by the shared holonomy factory.
 
 For a retained incident triple $(i,j,k)$, choose a minimal loop $\alpha$ leaving $v$ along $i$ and returning along $j$. The edge $k$ supplies the commutator segment. The local operator is
 

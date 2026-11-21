@@ -12,8 +12,8 @@ The [LQX guides](../lqx/index.md) already develop most of their equations and co
 
 | Namespace | Available constructions | Physical guide |
 | --- | --- | --- |
-| [`prebuilt.wcl`](../../api/public/neuralqx/operator/prebuilt/wcl/index.md) | Charge and identity operators, cyclic edge and loop holonomies, Gauss violation, areas, volumes, and weak coupling vertex constraints | [Shared U(1) operators](../lqx/u1.md), [planar model](../lqx/wcl-planar.md), and [spatial model](../lqx/wcl-spatial.md) |
-| [`prebuilt.su2`](../../api/public/neuralqx/operator/prebuilt/su2/index.md) | Area, Ashtekar–Lewandowski volume, fundamental Wilson loops, open holonomy components, and Euclidean vertex constraints | [SU(2) models](../lqx/su2.md) |
+| [`prebuilt.wcl`](../../api/public/neuralqx/operator/prebuilt/wcl/index.md) | Charge and identity operators, cyclic edge and loop holonomies, Gauss violation, areas, volumes, and weak coupling vertex constraints | [Shared U(1) operators](../lqx/u1.md), [2+1 weak coupling limit](../lqx/wcl-planar.md), and [3+1 weak coupling limit](../lqx/wcl-spatial.md) |
+| [`prebuilt.su2`](../../api/public/neuralqx/operator/prebuilt/su2/index.md) | Area, Ashtekar–Lewandowski volume, fundamental Wilson loops, open holonomy components, and Euclidean vertex constraints | [SU(2) models](../lqx/su2.md) and [volume evaluation](../lqx/su2-volume/index.md) |
 | [`prebuilt.qr`](../../api/public/neuralqx/operator/prebuilt/qr/index.md) | Reduced flux powers, bounded creation and annihilation shifts, and Euclidean and Lorentzian constraints | [Single vertex quantum reduction](../lqx/qr.md) |
 | [`prebuilt.bojowald_swiderski`](../../api/public/neuralqx/operator/prebuilt/bojowald_swiderski/index.md) | Spherical volume, radial triad, and the spherical vertex Hamiltonian | [Spherical symmetry](../lqx/spherical.md) |
 

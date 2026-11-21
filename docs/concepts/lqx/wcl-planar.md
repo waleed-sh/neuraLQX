@@ -1,8 +1,8 @@
 ---
-title: Planar weak coupling model
+title: 2+1 weak coupling limit
 ---
 
-# Planar weak coupling model
+# 2+1 weak coupling limit
 
 [`LqxWCL3D`](../../api/public/neuralqx/lqx/index.md#neuralqx.lqx.LqxWCL3D) provides the U(1)$^3$ weak coupling construction in $2+1$ spacetime dimensions. Each edge carries a three-component charge vector, while the graph is planar. The model adds a planar volume and a regularised Euclidean constraint to the [shared U(1) operators](u1.md).
 
@@ -155,4 +155,4 @@ print(len(model.get_constraint_terms()))
 
 This selects $\sum_v H_v^\dagger H_v$, including the chosen lapse inside each $H_v$. The default property would instead use $\sum_v H_vH_v^\dagger$. For separate local objectives, `thiemann_quadratic_constraint(apply_lapse=True, alternative=True)` returns a list. It supports the factorised form through `lazy=True`, which is the default.
 
-The [spatial weak coupling model](wcl-spatial.md) uses the same charge and holonomy conventions but a different volume and a loop-and-segment Hamiltonian construction.
+The [3+1 weak coupling limit](wcl-spatial.md) uses the same charge and holonomy conventions but a different volume and a loop-and-segment Hamiltonian construction.
