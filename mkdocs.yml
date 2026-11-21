@@ -108,8 +108,11 @@ nav:
       - Variational states (VQS):
           - Overview: concepts/vqs/index.md
           - Creating a state: concepts/vqs/state.md
+          - Amplitudes and state vectors: concepts/vqs/arrays.md
           - Expectations and gradients: concepts/vqs/expectations.md
           - Batching and chunking: concepts/vqs/batching.md
+          - Saving and loading: concepts/vqs/saving.md
+          - Transferring weights: concepts/vqs/transfer.md
       - VMC drivers:
           - Overview: concepts/drivers/index.md
           - Running simulations: concepts/drivers/running.md
