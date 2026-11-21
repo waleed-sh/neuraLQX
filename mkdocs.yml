@@ -167,11 +167,13 @@ nav:
           - Overview: developers/samplers/index.md
           - Sampler contracts: developers/samplers/contracts.md
           - Transition rules: developers/samplers/transition-rules.md
+          - Detailed balance and proposal corrections: developers/samplers/detailed-balance.md
           - Sampler state: developers/samplers/state.md
       - Custom networks:
           - Overview: developers/networks/index.md
           - Model contracts: developers/networks/contracts.md
           - Parameters and frameworks: developers/networks/parameters.md
+          - Connected-state evaluation: developers/networks/connections.md
       - Custom graphs:
           - Overview: developers/graphs/index.md
           - Graph contracts: developers/graphs/contracts.md
