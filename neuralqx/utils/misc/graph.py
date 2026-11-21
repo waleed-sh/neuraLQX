@@ -530,6 +530,7 @@ def reduce_permutations(perms: List):
         key1 = (a, b, c)
         key2 = (b, a, c)
 
+        # TODO: what happens if we have "seen" this at another vertex?
         if key1 not in seen and key2 not in seen:
             seen.add(key1)
             reduced.append(triplet)

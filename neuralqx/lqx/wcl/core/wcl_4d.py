@@ -199,7 +199,10 @@ class LqxWCL4D(LqxWCL3D):
 
                 # record the ε(e₁, e₂, e₃) contribution before shifting the edges to the chosen
                 # graph level
-                ε = self.epsilons[str(tuple(edge_triplet))]
+                # TODO check signs here, because currently the vertex information is lost and what happens if we have
+                #   different triplets at different vertices?
+                # ε = self.epsilons[str(tuple(edge_triplet))]
+                ε = self.graph.signs[str(vertex)][tuple(edge_triplet)]
 
                 # get the reordered edges such that they all emanate from the vertex
                 reordered_edge_triplet, reordering_sign = reorder_edge_triplet_key(
