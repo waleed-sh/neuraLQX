@@ -71,6 +71,12 @@ nav:
           - Overview: concepts/samplers/index.md
           - Metropolis sampling: concepts/samplers/metropolis.md
           - Transition rules: concepts/samplers/transition-rules.md
+          - U(1) sampling: concepts/samplers/u1.md
+          - SU(2) sampling:
+              - Overview: concepts/samplers/su2/index.md
+              - Proposal families: concepts/samplers/su2/moves.md
+              - Initialising chains: concepts/samplers/su2/initialisation.md
+          - Importance sampling: concepts/samplers/importance.md
           - Samples and diagnostics: concepts/samplers/diagnostics.md
       - Optimisers:
           - Overview: concepts/optimisers/index.md
