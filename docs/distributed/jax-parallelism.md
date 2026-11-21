@@ -6,7 +6,9 @@ title: JAX parallelism
 
 Parallel execution changes where the arrays and numerical work live. A calculation still consists of a graph, a Hilbert space, a wavefunction, a sampler, and an objective. JAX supplies the machinery that places these arrays on devices and communicates between them. neuraLQX uses that machinery to distribute chains, evaluate operator terms, and combine the resulting estimates and gradients.
 
-This page develops the JAX concepts needed to understand those choices. For a wider treatment of training loops and device placement, see the [JAX Training Cookbook](https://docs.jax.dev/en/latest/the-training-cookbook.html), especially its discussion of meshes and shardings. The following page explains [which sharding strategies neuraLQX implements](sharding.md). The hardware guides then carry [one calculation](cpu.md#the-calculation-used-throughout-these-guides) from a CPU to multiple GPU nodes.
+This page develops the JAX concepts needed to understand those choices. For a fuller explanation of parallelisation, array sharding, and communication between devices, see the [JAX Scaling Cookbook, *How to Scale Your Model*](https://jax-ml.github.io/scaling-book/). Its chapters on [sharded matrices and collective operations](https://jax-ml.github.io/scaling-book/sharding/) and [programming parallel computations in JAX](https://jax-ml.github.io/scaling-book/jax-stuff/) develop the ideas used here. Although its examples focus on large neural networks and TPU systems, the distinction between a global array, its local shards, and the communication needed to combine them also applies to our simulations.
+
+The following page explains [which sharding strategies neuraLQX implements](sharding.md). The hardware guides then carry [one calculation](cpu.md#the-calculation-used-throughout-these-guides) from a CPU to multiple GPU nodes.
 
 ## Hosts, processes, and devices
 
@@ -37,6 +39,8 @@ Replication is an intentional placement. A small parameter array may be needed b
 A [`Mesh`](https://docs.jax.dev/en/latest/jax.sharding.html#jax.sharding.Mesh) gives names to axes of an array of devices. A one-dimensional mesh might have an axis called `samples` with size four. A two-dimensional mesh might have `operators` of size four and `samples` of size two, using eight devices in total. The names describe how we intend to divide work. They are not physical GPU features.
 
 A [`PartitionSpec`](https://docs.jax.dev/en/latest/jax.sharding.html#jax.sharding.PartitionSpec) maps array dimensions to these named mesh axes. `NamedSharding` combines the mesh and the specification.
+
+The JAX documentation also gives a compact introduction to [device meshes and shardings](https://docs.jax.dev/en/latest/the-training-cookbook.html#device-mesh-and-shardings), with examples of how an array's dimensions map onto a device mesh.
 
 | Specification for an array with shape `(batch, width)` | Placement |
 | --- | --- |

@@ -102,4 +102,4 @@ The sections in this guide follow the objects you will encounter in a simulation
 | The parametrised log-amplitude function | [Neural networks](networks/index.md) |
 | Monitoring and controlling a running calculation | [Callbacks](callbacks/index.md) |
 
-Start with [graphs](graphs/index.md) and [Hilbert spaces](hilbert/index.md) to establish the representation of your system. Then follow the components needed for your observable or optimisation problem. The [tutorials](../tutorials/index.md) bring these choices together in complete calculations, while [distributed simulations](../distributed/jax-parallelism.md) covers how the numerical work is placed on CPUs and GPUs.
+Start with [graphs](graphs/index.md) and [Hilbert spaces](hilbert/index.md) to establish the representation of your system. Then follow the components needed for your observable or optimisation problem. The [first simulation tutorial](../tutorials/notebooks/first-simulation.ipynb) brings these choices together in a complete calculation, while [distributed simulations](../distributed/jax-parallelism.md) covers how the numerical work is placed on CPUs and GPUs.

@@ -103,4 +103,4 @@ You can also ask pip to check that the installed packages satisfy one another's 
 python -m pip check
 ```
 
-With the installation ready, the [quick start](quickstart.md) introduces your first calculation. The [core concepts](../concepts/index.md) explain the main components, and the [tutorials](../tutorials/index.md) provide a route into longer examples.
+With the installation ready, the [quick start](quickstart.md) introduces your first calculation. The [core concepts](../concepts/index.md) explain the main components, and the [first simulation tutorial](../tutorials/notebooks/first-simulation.ipynb) provides a route into longer examples. The [configuration reference](configuration.md) explains package settings and their defaults.

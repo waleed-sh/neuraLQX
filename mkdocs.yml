@@ -10,10 +10,10 @@ strict: true
 theme:
   name: shadcn
   custom_dir: docs/overrides
-  icon: assets/images/mark.svg
-  favicon: assets/images/mark.svg
+  icon: assets/images/logo.png
+  favicon: assets/images/logo.png
   accent: "#006d77"
-  show_title: true
+  show_title: false
   show_stargazers: false
   show_datetime: false
   hide_source_files: true
@@ -29,6 +29,7 @@ nav:
   - Overview: index.md
   - Installation: start/installation.md
   - Quick start: start/quickstart.md
+  - Configuration options: start/configuration.md
   - Citing neuraLQX: start/citing.md
   - Core concepts:
       - Overview: concepts/index.md
@@ -192,7 +193,6 @@ nav:
       - Parallelism configuration: distributed/configuration.md
       - Troubleshooting: distributed/troubleshooting.md
   - Tutorials:
-      - Overview: tutorials/index.md
       - First simulation: tutorials/notebooks/first-simulation.ipynb
       - Working with graphs: tutorials/notebooks/graphs.ipynb
       - Custom components: tutorials/notebooks/custom-components.ipynb

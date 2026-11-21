@@ -6,7 +6,7 @@ title: Parallelism configuration
 
 There are three separate choices in a parallel launch. JAX selects and initialises a numerical backend, the launcher starts the Python processes, and neuraLQX chooses how supported operations use the visible devices. Keeping those choices separate makes it easier to interpret a configuration and diagnose a run.
 
-This page covers settings relevant to that execution path. It builds on [JAX parallelism](jax-parallelism.md), [neuraLQX's sharding policies](sharding.md), and the [hardware examples](cpu.md). Profiling options have their own [configuration reference](../developers/profiling/configuration.md).
+This page covers settings relevant to that execution path. It builds on [JAX parallelism](jax-parallelism.md), [neuraLQX's sharding policies](sharding.md), and the [hardware examples](cpu.md). The [complete configuration reference](../start/configuration.md) lists every package setting, including its Python and environment forms. Profiling options also have a [dedicated guide](../developers/profiling/configuration.md).
 
 ## Set topology before starting the calculation
 

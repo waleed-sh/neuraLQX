@@ -89,6 +89,45 @@
   --nqx-nav-heading: var(--nqx-terracotta);
 }
 
+/* Display the existing full logo without its white background forming a panel. */
+.nqx-site-brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+}
+
+.nqx-site-brand:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+
+.nqx-site-logo {
+  display: block;
+  width: auto;
+  height: 3rem;
+  mix-blend-mode: multiply;
+}
+
+.dark .nqx-site-logo {
+  filter: invert(1) hue-rotate(180deg) brightness(2);
+  mix-blend-mode: screen;
+}
+
+@media (min-width: 64rem) {
+  .nqx-site-logo {
+    height: 3.5rem;
+  }
+}
+
+/* The page-width control is unnecessary when the mobile layout fills the screen. */
+@media (max-width: 24rem) {
+  header button[title="Toggle layout"],
+  header button[title="Toggle layout"] + [data-slot="separator"] {
+    display: none;
+  }
+}
+
 /* Match highlighted code and API panels to the surrounding dark palette. */
 .dark article .codehilite,
 .dark article .highlight,

@@ -6,6 +6,8 @@ title: Profiling configuration
 
 This page collects the controls introduced throughout the profiling guides. It covers profiling specifically, including automatic driver activation, explicit session settings, recording windows, native collection, telemetry, and distributed transport. Begin with [profiling for scientists](for-scientists.md) if you have not yet made a capture.
 
+The [complete configuration reference](../../start/configuration.md#profiling-activation-and-output) lists every package option with its Python assignment, environment binding, default, and accepted values.
+
 ## Package options and explicit sessions
 
 The package option `profile`, defaulting to `False`, enables automatic capture for bounded driver `run` calls. Every field of [`ProfileOptions`](../../api/public/neuralqx/profile/index.md#neuralqx.profile.ProfileOptions) also has a package option named `profile_<field>`. For example, `detail` corresponds to `nqx.config.profile_detail`.

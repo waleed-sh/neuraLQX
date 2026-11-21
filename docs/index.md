@@ -9,6 +9,10 @@ neuraLQX is an open-source Python library for studying canonical loop quantum gr
 
 The numerical core is built on [JAX](https://docs.jax.dev/en/latest/), which provides compilation, automatic differentiation, and computation across CPUs and GPUs. You can use the supplied models and algorithms to build a simulation, or introduce your own components as your research requires. To begin, follow the [installation guide](start/installation.md) and the [quick start](start/quickstart.md).
 
+!!! note "Documentation for v1.X"
+
+    These guides describe neuraLQX v2.0.0 and later. Version 2.0.0 is not backwards compatible with v1.X. If you use v1.X, consult the [documentation archived with v1.1.3](https://neuralqx.readthedocs.io/en/v1.1.3/).
+
 !!! note "What's new in v2.0.0"
 
     Version 2.0.0 introduces neuraLQX's own simulation infrastructure, a reworked numerical core designed for faster GPU execution, [SU(2) spin networks](concepts/hilbert/su2.md), and [new sampling methods](concepts/samplers/index.md). See the [changelog](api/changelog.md) for the release details.
@@ -47,7 +51,7 @@ A neural quantum state represents wavefunction amplitudes with a parametrised [n
 
 To optimise the state, you choose an operator that defines your objective, such as a Hamiltonian or a suitable quadratic constraint. A [variational Monte Carlo driver](concepts/drivers/index.md) coordinates sampling, gradient estimation, and parameter updates. You can use [Optax optimisers](concepts/optimisers/optax.md) and [stochastic reconfiguration](concepts/optimisers/sr.md), then follow the calculation with [callbacks](concepts/callbacks/index.md) and save its progress through [checkpointing](concepts/drivers/checkpointing.md).
 
-These components can be changed independently. You might keep the same physical model while comparing network architectures, change the sampling rule for a constrained space, or add an observable to an existing calculation. The [core concepts](concepts/index.md) explain how the components fit together, and the [tutorials](tutorials/index.md) are the place to follow complete calculations in notebooks.
+These components can be changed independently. You might keep the same physical model while comparing network architectures, change the sampling rule for a constrained space, or add an observable to an existing calculation. The [core concepts](concepts/index.md) explain how the components fit together, and the tutorials begin with a [first simulation](tutorials/notebooks/first-simulation.ipynb) in a notebook.
 
 ## Run on the hardware you have
 
