@@ -91,23 +91,31 @@ nav:
           - Quantum geometric tensor: concepts/optimisers/qgt.md
           - Linear solvers: concepts/optimisers/solvers.md
           - Learning rates and schedules: concepts/optimisers/schedules.md
+      - Neural networks:
+          - Overview: concepts/networks/index.md
+          - Built-in networks:
+              - Overview: concepts/networks/models.md
+              - Multilayer perceptrons: concepts/networks/built-in/mlp.md
+              - Restricted Boltzmann machines: concepts/networks/built-in/rbm.md
+              - Jastrow wavefunctions: concepts/networks/built-in/jastrow.md
+              - Convolutional networks: concepts/networks/built-in/cnn.md
+              - Graph networks: concepts/networks/built-in/gnn.md
+              - Autoregressive networks: concepts/networks/built-in/autoregressive.md
+              - Layers and activations: concepts/networks/layers.md
+          - Custom models: concepts/networks/custom-models.md
+          - Projectors: concepts/networks/symmetries.md
+          - Complex and holomorphic models: concepts/networks/complex.md
+      - Variational states (VQS):
+          - Overview: concepts/vqs/index.md
+          - Creating a state: concepts/vqs/state.md
+          - Expectations and gradients: concepts/vqs/expectations.md
+          - Batching and chunking: concepts/vqs/batching.md
       - VMC drivers:
           - Overview: concepts/drivers/index.md
           - Running simulations: concepts/drivers/running.md
           - Monitoring and callbacks: concepts/drivers/monitoring.md
           - Checkpointing: concepts/drivers/checkpointing.md
           - Multiple states: concepts/drivers/multiple-states.md
-      - Variational states (VQS):
-          - Overview: concepts/vqs/index.md
-          - Creating a state: concepts/vqs/state.md
-          - Expectations and gradients: concepts/vqs/expectations.md
-          - Batching and chunking: concepts/vqs/batching.md
-      - Neural networks:
-          - Overview: concepts/networks/index.md
-          - Choosing a model: concepts/networks/models.md
-          - Layers and activations: concepts/networks/layers.md
-          - Symmetries and projectors: concepts/networks/symmetries.md
-          - Complex-valued networks: concepts/networks/complex.md
       - Callbacks:
           - Overview: concepts/callbacks/index.md
           - Built-in callbacks: concepts/callbacks/built-in.md

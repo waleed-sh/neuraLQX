@@ -8,6 +8,8 @@ An operator describes what you measure or how a quantum state is transformed. In
 
 The [Hilbert space](../hilbert/index.md) tells you which basis configurations exist. An operator tells you how their amplitudes enter a measurement or transformation. The [variational state](../vqs/index.md) supplies those amplitudes. Keeping these ingredients separate lets you measure several observables on the same state or optimise different states against the same constraint.
 
+**neuraLQX operators are matrix free by design.** All supplied physical operators can be used in variational calculations without constructing their matrix over the complete Hilbert space. They provide the connected configurations and matrix elements needed to evaluate their action.
+
 ## From a basis configuration to an operator action
 
 Write a wavefunction in the discrete basis as
@@ -25,9 +27,21 @@ $$
 A_{\sigma,\sigma'}=\langle\sigma|A|\sigma'\rangle.
 $$
 
-The configurations $\sigma'$ with nonzero matrix elements are the configurations connected to $\sigma$. neuraLQX normally evaluates those connections directly. It does not need to allocate a matrix with one row and column for every state in the Hilbert space.
+The configurations $\sigma'$ with nonzero matrix elements are the configurations connected to $\sigma$. neuraLQX evaluates the required rows through these connections, using the wavefunction only at the configurations needed for the action.
 
 A diagonal observable connects a configuration only to itself. For example, the charge operator on edge $e$ has eigenvalue $q_e$. An off-diagonal operator can connect different configurations, so its expectation also depends on their relative amplitudes and phases. The [application guide](application.md) derives the expectation value and local estimator from this distinction.
+
+## Matrix free by design
+
+If the Hilbert space has dimension $\mathcal D$, a full dense operator contains $\mathcal D^2$ entries. Even a sparse matrix stores connections across the complete basis. A matrix free operator instead retains a rule for calculating the action on the configurations requested by the simulation.
+
+This distinction matters because the number of basis states can grow exponentially with the number of labels. For an unconstrained product of $N$ coordinates with $q$ possible values each, $\mathcal D=q^N$. A neural wavefunction avoids storing all $\mathcal D$ amplitudes, and matrix free operators avoid storing the global operator alongside it. [Monte Carlo expectations](application.md#from-the-expectation-value-to-the-local-estimator) combine sampled configurations, their operator connections, and network amplitude ratios without enumerating the full basis.
+
+The same representation carries through [operator algebra](algebra.md). Expressions such as `A + B`, `c * A`, and `A @ B` retain their constituent operators and generate the required connections when evaluated. Products can still have many connected configurations, so their evaluation cost depends on the action being composed. The [squared estimator](squared-estimators.md) can avoid expanding a quadratic product's connectivity when only its expectation or gradient is needed.
+
+Matrix free describes the representation of the full operator. Individual implementations can use local matrices or cached coefficients to calculate their entries. For example, the [SU(2) volume operator](../lqx/su2-volume/index.md#dense-spectral-evaluation) can diagonalise local intertwiner blocks without constructing the volume matrix over the complete spin network basis. Numerical approximations such as SRQ have their own [accuracy controls](../lqx/su2-volume/accuracy.md), separate from the matrix free representation.
+
+Explicit [matrix conversion](application.md#matrices-batches-and-memory) remains available for small-space checks. You do not need that conversion before passing an operator to a variational state or driver.
 
 ## A first operator
 

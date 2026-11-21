@@ -4,7 +4,7 @@ title: Operator algebra
 
 # Operator algebra
 
-Operator algebra lets you express a physical construction using smaller pieces. You can add local contributions, introduce coupling constants, form products, and take adjoints. neuraLQX retains these expressions as compositions of operators and evaluates their connected configurations when needed.
+Operator algebra lets you express a physical construction using smaller pieces. You can add local contributions, introduce coupling constants, form products, and take adjoints. neuraLQX retains these expressions as compositions of operators and evaluates their connected configurations when needed. These compositions remain [matrix free](index.md#matrix-free-by-design), including products written with `@`. Constructing a product does not multiply stored full Hilbert space matrices.
 
 This page concerns the linear algebra of [`ComputationalOperator`](../../api/public/neuralqx/operator/index.md#neuralqx.operator.ComputationalOperator) objects. [Squared objectives](squared-estimators.md) and [penalties](penalties.md) have additional meaning for the expectation engine and are combined differently.
 

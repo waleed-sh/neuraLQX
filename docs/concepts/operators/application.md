@@ -64,7 +64,7 @@ $$
 \qquad \sigma_r\sim p_\theta.
 $$
 
-The operator sum inside each local estimator still includes all of its relevant connected configurations. Sampling replaces the outer average over $\sigma$. It does not replace the operator by a random choice of one of its transitions.
+This is the [matrix free evaluation](index.md#matrix-free-by-design) used in a variational calculation. The operator supplies the required connections and matrix elements, and the network supplies the amplitude ratios. Neither the full operator matrix nor a vector containing every wavefunction amplitude is needed. The operator sum inside each local estimator still includes all of its relevant connected configurations. Sampling replaces the outer average over $\sigma$. It does not replace the operator by a random choice of one of its transitions.
 
 For a diagonal observable $A_{\sigma,\sigma'}=a(\sigma)\delta_{\sigma,\sigma'}$, the amplitude ratio cancels and $A_{\mathrm{loc}}(\sigma)=a(\sigma)$. For an off-diagonal operator, the ratio carries the wavefunction information that cannot be obtained from the configuration alone. Local values can be complex even when the exact expectation of a Hermitian operator is real.
 
@@ -195,8 +195,12 @@ Passing a list or tuple of operators to `state.expect` returns the expectation o
 
 ## Matrices, batches, and memory
 
-[`to_sparse`](../../api/public/neuralqx/operator/index.md#neuralqx.operator.DiscreteOperator.to_sparse) returns a JAX sparse `BCOO` matrix, and `to_dense` returns a dense JAX array. Both enumerate the entire basis and require an indexable Hilbert space. Their rows and columns follow `hilbert.all_states()` and its numbering methods. The `max_states` argument bounds basis enumeration, not the final matrix's byte size. Dense storage grows as the square of the Hilbert dimension.
+The matrix conversions used in the small examples on these pages are explicit verification tools. Calling `state.expect(operator)`, `state.local_estimators(operator)`, or `state.expect_and_grad(operator)` uses the operator's action directly and does not first convert it into a full matrix.
 
-For larger calculations, work with connectivity and expectations. `get_conn_padded(..., use_streaming=True, chunk_size=...)` evaluates the input batch in chunks. It still returns the requested connectivity arrays, so chunking reduces intermediate work rather than eliminating the final output allocation. When evaluating a state, `chunk_size` controls network evaluation, while `operator_streaming=True` and `operator_streaming_chunk_size` control operator work.
+[`to_sparse`](../../api/public/neuralqx/operator/index.md#neuralqx.operator.DiscreteOperator.to_sparse) returns a JAX sparse `BCOO` matrix, and [`to_dense`](../../api/public/neuralqx/operator/index.md#neuralqx.operator.DiscreteOperator.to_dense) returns a dense JAX array. Both enumerate the entire basis and require an indexable Hilbert space. Their rows and columns follow `hilbert.all_states()` and its numbering methods. The `max_states` argument bounds basis enumeration, not the final matrix's byte size. Dense storage grows as the square of the Hilbert dimension. A sparse conversion also constructs a global matrix, so it is distinct from evaluating only the rows needed by a simulation.
+
+For larger calculations, work with connectivity and expectations. Matrix free evaluation still allocates connected configurations and their matrix elements. For a batch of $B$ configurations, padded capacity $K$, and configuration width $D=\texttt{hilbert.size}$, the returned arrays have shapes $(B,K,D)$ and $(B,K)$. Their storage depends on the batch and connectivity, and operator-specific caches and network intermediates contribute additional memory.
+
+`get_conn_padded(..., use_streaming=True, chunk_size=...)` evaluates the input batch in chunks. It still returns the requested connectivity arrays, so chunking reduces intermediate work rather than eliminating the final output allocation. When evaluating a state, `chunk_size` controls network evaluation, while `operator_streaming=True` and `operator_streaming_chunk_size` control operator work.
 
 Ordinary observable gradients and factorised quadratic gradients require different estimators. Use `state.expect_and_grad(objective)` to let the implementation select the appropriate route. The next pages explain [operator algebra](algebra.md), the [squared estimator derivation](squared-estimators.md), and [expectation-level penalties](penalties.md).
