@@ -63,6 +63,9 @@ nav:
           - Constructing operators: concepts/operators/construction.md
           - Applying operators: concepts/operators/application.md
           - Operator algebra: concepts/operators/algebra.md
+          - Squared estimators: concepts/operators/squared-estimators.md
+          - Penalties and objectives: concepts/operators/penalties.md
+          - Restricted spaces and residuals: concepts/operators/restricted-spaces.md
           - Prebuilt operators: concepts/operators/prebuilt.md
       - Samplers:
           - Overview: concepts/samplers/index.md
