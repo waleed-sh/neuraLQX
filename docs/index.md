@@ -13,6 +13,12 @@ The numerical core is built on [JAX](https://docs.jax.dev/en/latest/), which pro
 
     Version 2.0.0 introduces neuraLQX's own simulation infrastructure, a reworked numerical core designed for faster GPU execution, [SU(2) spin networks](concepts/hilbert/su2.md), and [new sampling methods](concepts/samplers/index.md). See the [changelog](api/changelog.md) for the release details.
 
+!!! disclosure "Disclosure"
+
+    A substantial part of this documentation was generated with OpenAI Codex, an AI coding assistant, and revised during development. We review the text, check technical explanations against the source code, run examples, and validate the documentation build and links. The neuraLQX maintainers remain responsible for the published content.
+
+    If you spot an error, an unclear explanation, or an example that does not work, please [open an issue](https://github.com/waleed-sh/neuraLQX/issues) with a link to the page and any relevant details.
+
 ## Describe the quantum geometry
 
 A calculation starts with a [graph](concepts/graphs/index.md) and a [Hilbert space](concepts/hilbert/index.md). The graph specifies the vertices and edges, while the Hilbert space determines the quantum labels, their allowed values, and the constraints that admissible configurations must satisfy. These choices define the space in which your variational state lives.

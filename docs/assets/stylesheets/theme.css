@@ -275,6 +275,21 @@ article .admonition > p.admonition-title {
   display: block
 }
 
+article .admonition.disclosure {
+  border-color: var(--nqx-terracotta);
+  border-left: 3px solid var(--nqx-nav-heading);
+  background-color: color-mix(in srgb, var(--nqx-peach) 40%, var(--background));
+  color: var(--foreground)
+}
+
+article .admonition.disclosure > p.admonition-title {
+  color: var(--nqx-nav-heading)
+}
+
+.dark article .admonition.disclosure {
+  background-color: color-mix(in srgb, var(--nqx-terracotta) 10%, var(--background))
+}
+
 #page-header {
   gap: 1rem;
 }
