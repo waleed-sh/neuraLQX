@@ -49,12 +49,14 @@ Known limitations
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
+import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +70,7 @@ from neuralqx.utils.errors import NeuralqxPermissionError
 from neuralqx.utils.errors import NeuralqxRuntimeError
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.errors import SerializationError
+from neuralqx.utils.errors import ValidationError
 
 from ..fields import FieldKind
 from ..pytree import resolve_pytree_spec
@@ -82,20 +85,13 @@ def _struct_type() -> type[Any]:
     return Struct
 
 
-def _distributed():
-    """Lazily import distributed runtime helpers to avoid hard import coupling."""
-    from neuralqx.utils import distributed as dist
-
-    return dist
-
-
 def _serialize_dist_error(exc: Exception) -> dict[str, str]:
-    """Serialise master-rank exception metadata for cross-rank propagation."""
+    """Serialise exception metadata for propagation between processes."""
     return {"type": type(exc).__name__, "message": str(exc)}
 
 
 def _reraise_dist_error(payload: Mapping[str, Any], *, context: str) -> None:
-    """Re-raise a broadcasted exception payload on non-root ranks."""
+    """Re-raise a shared exception payload on each participating process."""
     err = payload.get("error")
     if err is None:
         return
@@ -108,6 +104,7 @@ def _reraise_dist_error(payload: Mapping[str, Any], *, context: str) -> None:
     message = str(err.get("message", ""))
     known: dict[str, type[Exception]] = {
         "SerializationError": SerializationError,
+        "ValidationError": ValidationError,
         "FileExistsError": NeuralqxFileExistsError,
         "FileNotFoundError": NeuralqxFileNotFoundError,
         "PermissionError": NeuralqxPermissionError,
@@ -119,7 +116,78 @@ def _reraise_dist_error(payload: Mapping[str, Any], *, context: str) -> None:
     exc_type = known.get(name)
     if exc_type is not None:
         raise exc_type(message)
-    raise NeuralqxRuntimeError(f"{context} failed on master rank ({name}): {message}")
+    raise NeuralqxRuntimeError(
+        f"{context} failed on a participating process ({name}): {message}"
+    )
+
+
+def _collective_call(function: Callable[[], Any], *, context: str) -> Any:
+    """Propagate recoverable Python errors before starting the next collective."""
+    if jax.process_count() == 1:
+        return function()
+    from jax.experimental import multihost_utils
+
+    result = None
+    message = b""
+    try:
+        result = function()
+    except Exception as exc:
+        error = _serialize_dist_error(exc)
+        error["type"] = error["type"][:128]
+        error["message"] = (
+            f"{context}, process {jax.process_index()}: {error['message'][:1000]}"
+        )
+        message = json.dumps(error).encode("utf-8")
+    buffer = np.zeros(8192, dtype=np.uint8)
+    buffer[: len(message)] = np.frombuffer(message, dtype=np.uint8)
+    errors = np.asarray(multihost_utils.process_allgather(buffer, tiled=False))
+    for row in errors:
+        if np.any(row):
+            error = json.loads(bytes(row).rstrip(b"\x00"))
+            _reraise_dist_error({"error": error}, context=context)
+    return result
+
+
+def _agree(value: Any, *, context: str) -> None:
+    """Check control metadata before any shape-dependent array collective."""
+    if jax.process_count() == 1:
+        return
+    from jax.experimental import multihost_utils
+
+    digest = _collective_call(
+        lambda: np.frombuffer(
+            hashlib.sha256(json.dumps(value, sort_keys=True).encode()).digest(),
+            dtype=np.uint8,
+        ),
+        context=context,
+    )
+    hashes = np.asarray(multihost_utils.process_allgather(digest, tiled=False))
+    if not np.all(hashes == hashes[0]):
+        raise SerializationError(f"Processes disagree on {context}.")
+
+
+def _broadcast_json(value: Any) -> Any:
+    """Broadcast a JSON control message from process zero."""
+    if jax.process_count() == 1:
+        return value
+    from jax.experimental import multihost_utils
+
+    data = _collective_call(
+        lambda: json.dumps(value).encode() if jax.process_index() == 0 else b"",
+        context="Struct metadata encoding",
+    )
+    size = int(
+        multihost_utils.broadcast_one_to_all(np.array(len(data), dtype=np.uint32))
+    )
+    buffer = _collective_call(
+        lambda: (
+            np.frombuffer(data, dtype=np.uint8).copy()
+            if jax.process_index() == 0
+            else np.zeros(size, dtype=np.uint8)
+        ),
+        context="Struct metadata allocation",
+    )
+    return json.loads(bytes(multihost_utils.broadcast_one_to_all(buffer)))
 
 
 def to_python_value(value: Any, *, include_opaque: bool = True) -> Any:
@@ -188,20 +256,29 @@ def to_python_value(value: Any, *, include_opaque: bool = True) -> Any:
 class ArrayStore:
     """In-memory buffer for array payloads during state-dict construction."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, materialize: bool = True) -> None:
         self.counter = 0
-        self.arrays: dict[str, np.ndarray] = {}
+        self.materialize = materialize
+        self.arrays: dict[str, Any] = {}
 
     def put(self, arr: Any) -> dict[str, Any]:
         name = f"arr_{self.counter:06d}"
         self.counter += 1
-        np_arr = np.asarray(arr)
-        self.arrays[name] = np_arr
+        try:
+            dtype = np.dtype(arr.dtype)
+        except TypeError as exc:
+            raise SerializationError(
+                f"Cannot store array dtype {arr.dtype}. Convert typed PRNG keys "
+                "with jax.random.key_data before serialising them."
+            ) from exc
+        if not (jax.dtypes.issubdtype(dtype, np.number) or dtype == np.dtype(bool)):
+            raise SerializationError(f"Cannot store non-numeric array dtype {dtype}.")
+        self.arrays[name] = np.asarray(arr) if self.materialize else arr
         return {
             "__kind__": "array",
             "name": name,
-            "dtype": str(np_arr.dtype),
-            "shape": list(np_arr.shape),
+            "dtype": str(dtype),
+            "shape": list(arr.shape),
         }
 
 
@@ -312,7 +389,7 @@ def decode_value(
         arr = arrays[name]
         expected_shape = tuple(payload.get("shape", []))
         expected_dtype = payload.get("dtype")
-        if expected_shape and tuple(arr.shape) != expected_shape:
+        if "shape" in payload and tuple(arr.shape) != expected_shape:
             raise SerializationError(
                 f"Array {name!r} shape mismatch: expected {expected_shape}, found {arr.shape}."
             )
@@ -401,9 +478,9 @@ def _migrate(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return payload
 
 
-def to_state_dict_impl(obj: Any) -> dict[str, Any]:
+def to_state_dict_impl(obj: Any, *, materialize: bool = True) -> dict[str, Any]:
     """Internal ``to_state_dict`` implementation."""
-    store = ArrayStore()
+    store = ArrayStore(materialize=materialize)
     manifest = encode_value(obj, store)
     arrays = {
         name: {
@@ -440,7 +517,7 @@ def validate_array_manifest(
         arr = arrays[name]
         shape = tuple(expected_meta.get("shape", []))
         dtype = expected_meta.get("dtype")
-        if shape and tuple(arr.shape) != shape:
+        if "shape" in expected_meta and tuple(arr.shape) != shape:
             raise SerializationError(
                 f"Array {name!r} shape mismatch: expected {shape}, found {arr.shape}."
             )
@@ -470,7 +547,12 @@ def from_state_dict_impl(
 
     np_arrays = {k: np.asarray(v) for k, v in arrays.items()}
     validate_array_manifest(payload, np_arrays)
-    return decode_value(payload["manifest"], np_arrays, expected_cls=expected_cls)
+    result = decode_value(payload["manifest"], np_arrays, expected_cls=expected_cls)
+    if expected_cls is not None and not isinstance(result, expected_cls):
+        raise SerializationError(
+            f"Expected {expected_cls.__name__}, found serialized {type(result).__name__}."
+        )
+    return result
 
 
 def write_bundle(
@@ -483,122 +565,174 @@ def write_bundle(
         np.savez_compressed(file, **arrays)
 
 
+def _write_export(path: Path, state: dict[str, Any], *, overwrite: bool) -> None:
+    """Stage complete bundles and restore the previous directory on rename failure."""
+    if (path.exists() or path.is_symlink()) and not overwrite:
+        raise NeuralqxFileExistsError(f"Path already exists: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(dir=path.parent, prefix=".tmp_struct_"))
+    backup = staging / "previous"
+    preserve_backup = False
+    try:
+        bundle = staging / "bundle"
+        bundle.mkdir()
+        manifest = {key: value for key, value in state.items() if key != "array_data"}
+        write_bundle(bundle, manifest, state["array_data"])
+        if path.suffix == ".zip":
+            archive = staging / "bundle.zip"
+            with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for item in sorted(bundle.iterdir()):
+                    zf.write(item, arcname=item.name)
+            bundle = archive
+        if (path.exists() or path.is_symlink()) and not overwrite:
+            raise NeuralqxFileExistsError(f"Path already exists: {path}")
+        if path.suffix == ".zip":
+            os.replace(bundle, path)
+        else:
+            if path.exists() or path.is_symlink():
+                os.replace(path, backup)
+            try:
+                os.replace(bundle, path)
+            except Exception:
+                if backup.exists() or backup.is_symlink():
+                    try:
+                        os.replace(backup, path)
+                    except Exception as exc:
+                        preserve_backup = True
+                        raise NeuralqxOSError(
+                            f"Could not restore the previous bundle. It remains at {backup}."
+                        ) from exc
+                raise
+    finally:
+        if not preserve_backup:
+            shutil.rmtree(staging, ignore_errors=True)
+
+
 def export_impl(obj: Any, path: str | Path, *, overwrite: bool = False) -> Path:
-    """Internal ``export`` implementation."""
-    dist = _distributed()
-    path = Path(path)
-    prepared = dist.safe_replicate_for_io(
-        obj,
-        replicate_to_all_processes=False,
-        block_until_ready=True,
+    """Gather global arrays with JAX and write the bundle on process zero."""
+    path = _collective_call(lambda: Path(path), context="Struct export path")
+    state = _collective_call(
+        lambda: to_state_dict_impl(obj, materialize=False),
+        context="Struct export preparation",
     )
-    dist.barrier("neuralqx:struct:export:pre")
+    arrays = state["array_data"]
+    global_arrays = {
+        name: isinstance(arr, jax.Array) and not arr.is_fully_addressable
+        for name, arr in arrays.items()
+    }
+    _agree(
+        {
+            "path": str(path),
+            "overwrite": overwrite,
+            "manifest": {
+                key: value for key, value in state.items() if key != "array_data"
+            },
+            "global_arrays": global_arrays,
+        },
+        context="Struct export metadata",
+    )
+    for name, arr in arrays.items():
+        if global_arrays[name]:
+            from jax.experimental import multihost_utils
 
-    root_payload: dict[str, Any] = {"path": None, "error": None}
-    if dist.is_global_master():
-        try:
-            if path.exists() and not overwrite:
-                raise NeuralqxFileExistsError(f"Path already exists: {path}")
-
-            state = to_state_dict_impl(prepared)
-            arrays = state.pop("array_data")
-            manifest = state
-
-            if path.suffix == ".zip":
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    tmpdir_path = Path(tmpdir)
-                    write_bundle(tmpdir_path, manifest, arrays)
-                    if path.exists():
-                        path.unlink()
-                    with zipfile.ZipFile(
-                        path, "w", compression=zipfile.ZIP_DEFLATED
-                    ) as zf:
-                        for item in sorted(tmpdir_path.iterdir()):
-                            zf.write(item, arcname=item.name)
-            else:
-                # Stage into a sibling temp directory then rename for an
-                # atomic swap. This ensures a partial write never leaves the
-                # destination in a corrupted state.
-                parent = path.parent
-                parent.mkdir(parents=True, exist_ok=True)
-                tmp_dir = Path(tempfile.mkdtemp(dir=parent, prefix=".tmp_struct_"))
-                try:
-                    write_bundle(tmp_dir, manifest, arrays)
-                    if path.exists():
-                        if path.is_file():
-                            path.unlink()
-                        else:
-                            shutil.rmtree(path)
-                    tmp_dir.rename(path)
-                except Exception:
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
-                    raise
-            root_payload["path"] = str(path)
-        except Exception as exc:
-            root_payload["error"] = _serialize_dist_error(exc)
-
-    payload = dist.bcast(root_payload, root=0)
-    if not isinstance(payload, Mapping):
-        raise SerializationError(
-            f"Distributed export broadcast returned malformed payload: {payload!r}"
+            _collective_call(arr.block_until_ready, context="Struct array readiness")
+            arr = multihost_utils.process_allgather(arr, tiled=True)
+        arrays[name] = _collective_call(
+            lambda: np.asarray(arr), context="Struct array transfer"
         )
-    dist.barrier("neuralqx:struct:export:post")
-    _reraise_dist_error(payload, context="Struct export")
-    out = payload.get("path")
-    return Path(out) if isinstance(out, str) else path
+    _collective_call(
+        lambda: (
+            _write_export(path, state, overwrite=overwrite)
+            if jax.process_index() == 0
+            else None
+        ),
+        context="Struct export",
+    )
+    return path
+
+
+def _read_bundle(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise NeuralqxFileNotFoundError(path)
+    if path.is_file() and path.suffix == ".zip":
+        with zipfile.ZipFile(path, "r") as zf:
+            with zf.open("manifest.json", "r") as file:
+                manifest = json.load(io.TextIOWrapper(file, encoding="utf-8"))
+            with zf.open("arrays.npz", "r") as file:
+                with np.load(io.BytesIO(file.read()), allow_pickle=False) as npz:
+                    arrays = {key: npz[key] for key in npz.files}
+    else:
+        with (path / "manifest.json").open("r", encoding="utf-8") as file:
+            manifest = json.load(file)
+        with np.load(path / "arrays.npz", allow_pickle=False) as npz:
+            arrays = {key: npz[key] for key in npz.files}
+    if not isinstance(manifest, Mapping):
+        raise SerializationError("Malformed manifest payload.")
+    metadata = manifest.get("arrays", {})
+    if not isinstance(metadata, Mapping):
+        raise SerializationError("Malformed 'arrays' section in state payload.")
+    # NumPy stores extension dtypes such as bfloat16 as void data in NPZ files.
+    # Recover their numerical dtype from the existing manifest, without a cast.
+    for name, meta in metadata.items():
+        arr = arrays.get(name)
+        if arr is not None and arr.dtype.kind == "V" and isinstance(meta, Mapping):
+            dtype = np.dtype(meta["dtype"])
+            if dtype.itemsize == arr.dtype.itemsize and jax.dtypes.issubdtype(
+                dtype, np.number
+            ):
+                arrays[name] = arr.view(dtype)
+    return {**manifest, "array_data": arrays}
 
 
 def load_impl(path: str | Path, *, expected_cls: type[Any] | None = None) -> Any:
-    """Internal ``load`` implementation."""
-    dist = _distributed()
-    path = Path(path)
-    dist.barrier("neuralqx:struct:load:pre")
+    """Read on process zero and broadcast host buffers without dtype conversion."""
+    path = _collective_call(lambda: Path(path), context="Struct load path")
+    _agree(
+        {
+            "path": str(path),
+            "expected_cls": class_ref(expected_cls) if expected_cls else None,
+        },
+        context="Struct load metadata",
+    )
+    state = _collective_call(
+        lambda: _read_bundle(path) if jax.process_index() == 0 else None,
+        context="Struct load",
+    )
+    if jax.process_count() > 1:
+        from jax.experimental import multihost_utils
 
-    root_payload: dict[str, Any] = {"manifest": None, "arrays": None, "error": None}
-    if dist.is_global_master():
-        try:
-            if not path.exists():
-                raise NeuralqxFileNotFoundError(path)
-
-            if path.is_file() and path.suffix == ".zip":
-                with zipfile.ZipFile(path, "r") as zf:
-                    with zf.open("manifest.json", "r") as file:
-                        manifest = json.load(io.TextIOWrapper(file, encoding="utf-8"))
-                    with zf.open("arrays.npz", "r") as file:
-                        raw = file.read()
-                        with np.load(io.BytesIO(raw), allow_pickle=False) as npz:
-                            arrays = {k: npz[k] for k in npz.files}
-            else:
-                manifest_path = path / "manifest.json"
-                arrays_path = path / "arrays.npz"
-                with manifest_path.open("r", encoding="utf-8") as file:
-                    manifest = json.load(file)
-                with np.load(arrays_path, allow_pickle=False) as npz:
-                    arrays = {k: npz[k] for k in npz.files}
-
-            if not isinstance(manifest, Mapping):
-                raise SerializationError("Malformed manifest payload.")
-            root_payload["manifest"] = manifest
-            root_payload["arrays"] = arrays
-        except Exception as exc:
-            root_payload["error"] = _serialize_dist_error(exc)
-
-    payload = dist.bcast(root_payload, root=0)
-    if not isinstance(payload, Mapping):
-        raise SerializationError(
-            f"Distributed load broadcast returned malformed payload: {payload!r}"
+        manifest = _broadcast_json(
+            {key: value for key, value in state.items() if key != "array_data"}
+            if state is not None
+            else None
         )
-    _reraise_dist_error(payload, context="Struct load")
-
-    dist.barrier("neuralqx:struct:load:post")
-
-    manifest = payload.get("manifest")
-    arrays = payload.get("arrays")
-    if not isinstance(manifest, Mapping):
-        raise SerializationError("Malformed manifest payload.")
-    if not isinstance(arrays, Mapping):
-        raise SerializationError("Malformed arrays payload.")
-
-    np_arrays = {k: np.asarray(v) for k, v in arrays.items()}
-    validate_array_manifest(manifest, np_arrays)
-    return decode_value(manifest["manifest"], np_arrays, expected_cls=expected_cls)
+        # Describe the actual buffers separately so malformed manifest metadata
+        # is rejected by the same decoder on every process, after broadcasting.
+        metadata = _broadcast_json(
+            {
+                name: {"shape": list(arr.shape), "dtype": str(arr.dtype)}
+                for name, arr in state["array_data"].items()
+            }
+            if state is not None
+            else None
+        )
+        arrays = {}
+        for name, meta in metadata.items():
+            arr = _collective_call(
+                lambda: (
+                    np.array(state["array_data"][name], copy=True, order="C")
+                    if state is not None
+                    else np.zeros(meta["shape"], dtype=meta["dtype"])
+                ),
+                context="Struct load buffer allocation",
+            )
+            # uint8 transport preserves int64 and float64 even with JAX X64 off.
+            buffer = arr.reshape(-1).view(np.uint8)
+            if buffer.size:
+                buffer = multihost_utils.broadcast_one_to_all(buffer)
+            arrays[name] = np.asarray(buffer).view(arr.dtype).reshape(arr.shape)
+        state = {**manifest, "array_data": arrays}
+    return _collective_call(
+        lambda: from_state_dict_impl(state, expected_cls=expected_cls),
+        context="Struct reconstruction",
+    )

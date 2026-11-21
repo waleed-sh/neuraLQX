@@ -451,6 +451,12 @@ class Struct(metaclass=StructMeta):
 
         Returns:
             Output location.
+
+        Notes:
+            Collective across JAX processes. All processes must call with the
+            same path and compatible metadata. Only process zero writes.
+            See :func:`neuralqx.utils.struct.io.export` for array gathering
+            and replacement behaviour.
         """
         return _io.export(self, path, overwrite=overwrite)
 
@@ -464,6 +470,12 @@ class Struct(metaclass=StructMeta):
 
         Returns:
             Reconstructed instance of ``cls``.
+
+        Notes:
+            Collective across JAX processes. All processes must call with the
+            same path. Loading reconstructs locally addressable arrays and
+            does not restore the original sharding. See
+            :func:`neuralqx.utils.struct.io.load` for details.
         """
         return typing.cast(Self, _io.load(path, expected_cls=cls))
 

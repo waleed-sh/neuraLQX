@@ -32,6 +32,8 @@ Struct I/O uses a two-part representation:
     - arrays: compressed array blobs stored separately for efficiency.
 """
 
+from __future__ import annotations
+
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -93,6 +95,10 @@ def to_state_dict(obj: Any) -> dict[str, Any]:
 
     Raises:
         SerializationError: if unsupported values are encountered and no adapter is registered.
+
+    Notes:
+        This is a local operation. Arrays must be fully addressable from the
+        calling process. Use :func:`export` to gather distributed global arrays.
     """
     return to_state_dict_impl(obj)
 
@@ -134,6 +140,18 @@ def export(obj: Any, path: str | Path, *, overwrite: bool = False) -> Path:
 
     Returns:
         Final output path.
+
+    Notes:
+        With multiple JAX processes, every process must call this function in
+        the same order with matching paths and serialised metadata. Global
+        arrays are gathered to complete host buffers. Process-local arrays are
+        saved from process zero. Only process zero writes the bundle.
+
+        Parent directories are created automatically. Completed output is
+        staged before replacement. ZIP replacement uses a filesystem rename.
+        Directory replacement restores the previous bundle on installation
+        failure, but is not atomic for concurrent readers. Use one writer per
+        destination.
     """
     return export_impl(obj, path, overwrite=overwrite)
 
@@ -154,5 +172,12 @@ def load(path: str | Path, *, expected_cls: type[Any] | None = None) -> Any:
         FileNotFoundError: If ``path`` does not exist.
         SerializationError: If bundle files are malformed, schema checks fail, or type resolution
             cannot be completed.
+
+    Notes:
+        All JAX processes must participate with the same path and type guard.
+        Process zero reads the files and broadcasts the array buffers. Every
+        process reconstructs locally addressable JAX arrays. Original device
+        placement and sharding are not restored, and the active JAX dtype
+        policy applies. Complete host buffers must fit in each process's memory.
     """
     return load_impl(path, expected_cls=expected_cls)
