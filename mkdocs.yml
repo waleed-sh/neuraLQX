@@ -128,10 +128,18 @@ nav:
       - Overview: developers/index.md
       - Profiling:
           - Overview: developers/profiling/index.md
-          - Profiling for scientists: developers/profiling/for-scientists.md
+          - Profiling for scientists:
+              - Overview: developers/profiling/for-scientists.md
+              - Profiling a simulation: developers/profiling/scientists/simulations.md
+              - Choosing what to record: developers/profiling/scientists/capture-options.md
+              - Profiling your own code: developers/profiling/scientists/custom-code.md
+              - Reading a profile: developers/profiling/scientists/reading-results.md
           - Instrumentation: developers/profiling/instrumentation.md
           - Profiler internals: developers/profiling/internals.md
-          - Traces and backends: developers/profiling/traces.md
+          - Traces and analysis: developers/profiling/traces.md
+          - Backends and telemetry: developers/profiling/backends.md
+          - Distributed profiling: developers/profiling/distributed.md
+          - Configuration reference: developers/profiling/configuration.md
       - Structs and pytrees:
           - Overview: developers/structs/index.md
           - Fields and static data: developers/structs/fields.md
