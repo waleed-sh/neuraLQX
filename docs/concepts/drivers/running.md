@@ -128,4 +128,4 @@ For `iter` specifically, a larger `step_size` groups updates and can round the t
 
 Check the objective and its scale on a small problem before increasing the graph or representation cutoff. Choose sample counts from the quality of the statistics, and choose [chunk sizes](../vqs/batching.md) from memory and execution behaviour. They are different controls.
 
-Then add [monitoring](monitoring.md) and [periodic state snapshots](checkpointing.md). For hardware setup and placement, continue with [distributed simulations](../../distributed/index.md). The driver interface remains the coordination point, while the state and JAX execution configuration determine where arrays and calculations live.
+Then add [monitoring](monitoring.md) and [periodic state snapshots](checkpointing.md). For hardware setup and placement, continue with [distributed simulations](../../distributed/jax-parallelism.md). The driver interface remains the coordination point, while the state and JAX execution configuration determine where arrays and calculations live.

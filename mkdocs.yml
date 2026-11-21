@@ -183,12 +183,13 @@ nav:
           - Development environment: developers/contributing/environment.md
           - Testing: developers/contributing/testing.md
   - Distributed simulations:
-      - Overview: distributed/index.md
       - JAX parallelism: distributed/jax-parallelism.md
+      - Sharding in neuraLQX: distributed/sharding.md
       - CPU: distributed/cpu.md
       - Single GPU: distributed/single-gpu.md
       - Multiple GPUs: distributed/multi-gpu.md
       - Multiple nodes and GPUs: distributed/multi-node.md
+      - Parallelism configuration: distributed/configuration.md
       - Troubleshooting: distributed/troubleshooting.md
   - Tutorials:
       - Overview: tutorials/index.md
@@ -196,7 +197,6 @@ nav:
       - Working with graphs: tutorials/notebooks/graphs.ipynb
       - Custom components: tutorials/notebooks/custom-components.ipynb
   - API reference:
-      - Overview: api/index.md
       - Changelog: api/changelog.md
       - Contributing to neuraLQX: api/contributing.md
       - Public API:

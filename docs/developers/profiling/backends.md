@@ -32,7 +32,7 @@ The optional NVIDIA profiling dependencies can be installed with the package's p
 pip install 'neuralqx[profile-nvidia]'
 ```
 
-This extra provides the NVTX package and NVIDIA management bindings. It does not install a GPU driver, configure JAX for CUDA, or install Nsight. Use the hardware-specific [simulation guides](../../distributed/index.md) for execution setup before enabling these additional measurements.
+This extra provides the NVTX package and NVIDIA management bindings. It does not install a GPU driver, configure JAX for CUDA, or install Nsight. Use the hardware-specific [simulation guides](../../distributed/single-gpu.md) for execution setup before enabling these additional measurements.
 
 ## Selecting a telemetry provider
 

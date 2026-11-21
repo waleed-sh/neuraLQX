@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560" role="img" aria-labelledby="title desc">
+<title id="title">Two hosts, two processes, eight global devices</title>
+<desc id="desc">Each of two hosts runs one Python process controlling four GPUs. The processes cooperate in one global calculation, each owning four local shards.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b" font-size="21">
+<rect x="0" y="0" width="800" height="560" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="32" y="48" font-size="29" fill="#18363b" font-weight="bold" text-anchor="start">Two hosts, one global calculation</text>
+<text x="32" y="82" font-size="21" fill="#18363b" font-weight="normal" text-anchor="start">2 Python processes · 4 local GPUs each · 8 devices in total</text>
+<rect x="24" y="114" width="362" height="345" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="205" y="148" font-size="25" fill="#18363b" font-weight="bold" text-anchor="middle">Host 0</text>
+<rect x="47" y="168" width="316" height="50" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="205" y="200" font-size="23" fill="white" font-weight="normal" text-anchor="middle">Python process 0</text>
+<rect x="47" y="245" width="152" height="76" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="123" y="275" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 0</text>
+<text x="123" y="302" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="211" y="245" width="152" height="76" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="287" y="275" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 1</text>
+<text x="287" y="302" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="47" y="343" width="152" height="76" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="123" y="373" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 2</text>
+<text x="123" y="400" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="211" y="343" width="152" height="76" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="287" y="373" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 3</text>
+<text x="287" y="400" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="414" y="114" width="362" height="345" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="595" y="148" font-size="25" fill="#18363b" font-weight="bold" text-anchor="middle">Host 1</text>
+<rect x="437" y="168" width="316" height="50" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="595" y="200" font-size="23" fill="white" font-weight="normal" text-anchor="middle">Python process 1</text>
+<rect x="437" y="245" width="152" height="76" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="513" y="275" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 4</text>
+<text x="513" y="302" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="601" y="245" width="152" height="76" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="677" y="275" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 5</text>
+<text x="677" y="302" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="437" y="343" width="152" height="76" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="513" y="373" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 6</text>
+<text x="513" y="400" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<rect x="601" y="343" width="152" height="76" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="677" y="373" font-size="23" fill="#18363b" font-weight="bold" text-anchor="middle">GPU 7</text>
+<text x="677" y="400" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Local shard</text>
+<path d="M385 192 L414 192" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="24" y="484" width="752" height="52" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="518" font-size="22" fill="white" font-weight="normal" text-anchor="middle">Global sample shape on both processes: (64, 16, 4)</text>
+</g></svg>

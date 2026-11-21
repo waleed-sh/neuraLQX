@@ -180,4 +180,4 @@ A time-budget callback can store a `time.monotonic()` deadline in `run_started` 
 
 Callbacks run on every participating JAX process. A condition that changes control flow must therefore produce the same decision everywhere. A local deadline, process-specific metric, or external stop request needs coordination before some processes stop while others enter collective work. The [live-monitoring callback](built-in.md#choose-the-display-frequency-and-lifetime) handles its browser stop request by broadcasting it.
 
-Keep collective measurements and state saves outside process-zero-only conditions. Restrict only ordinary host output, such as printing or writing a non-collective scalar log, when appropriate. The [distributed simulation guide](../../distributed/index.md) provides the broader execution context.
+Keep collective measurements and state saves outside process-zero-only conditions. Restrict only ordinary host output, such as printing or writing a non-collective scalar log, when appropriate. The [distributed simulation guide](../../distributed/multi-node.md) provides the broader execution context.

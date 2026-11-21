@@ -6,7 +6,7 @@ title: Distributed profiling
 
 A distributed simulation has several timelines. Each process observes its own host work, may submit work to several devices, and reads a monotonic clock whose numerical origin need not match another process's clock. A useful combined profile must preserve rank identity and establish a defensible relationship between those clocks.
 
-neuraLQX separates profiling coordination from the numerical computation. The profiler does not initialise JAX distributed execution, add JAX or MPI collectives to annotations, or decide how the variational state is sharded. Configure the simulation first through the [distributed simulation guides](../../distributed/index.md), then let profiling observe that execution.
+neuraLQX separates profiling coordination from the numerical computation. The profiler does not initialise JAX distributed execution, add JAX or MPI collectives to annotations, or decide how the variational state is sharded. Configure the simulation first through the [distributed simulation guides](../../distributed/multi-node.md), then let profiling observe that execution.
 
 ## Establish the process identity
 
