@@ -157,8 +157,11 @@ nav:
           - Composition: developers/operators/composition.md
       - Custom Hilbert spaces:
           - Overview: developers/hilbert/index.md
+          - Defining spaces: developers/hilbert/construction.md
           - State representation: developers/hilbert/states.md
           - Constraints: developers/hilbert/constraints.md
+          - Random state generation: developers/hilbert/random.md
+          - Proposal moves: developers/hilbert/proposals.md
           - Indexing and enumeration: developers/hilbert/indexing.md
       - Custom samplers:
           - Overview: developers/samplers/index.md
