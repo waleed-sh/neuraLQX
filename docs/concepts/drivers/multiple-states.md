@@ -46,13 +46,58 @@ F_{ij}
 \left[\operatorname{Re}R_{ij}(x,y)\right].
 $$
 
-The estimator evaluates each network on configurations drawn from both states. It differentiates both the explicit amplitude ratios and the sampling distributions, following the same distinction developed in [expectations and gradients](../vqs/expectations.md#why-differentiating-a-sampled-mean-is-not-sufficient).
+The estimator evaluates each network on configurations drawn from both states. Under Born sampling, its gradient includes the effect of both the explicit amplitude ratios and the sampling distributions, following the distinction developed in [expectations and gradients](../vqs/expectations.md#why-differentiating-a-sampled-mean-is-not-sufficient).
 
 The current pair routine pairs the two flattened batches and uses the smaller available sample count. Extra configurations in the longer batch do not enter that pair estimate. Similar sample counts avoid wasting this work. Use distinct random seeds and independently evolving chains for the different states.
 
-This pair estimator is intended for ordinary Born batches with `machine_pow=2`. It does not apply the density corrections used by the VQS [importance sampling interface](../samplers/importance.md). Use ordinary Born sampling for joint overlap penalties rather than assuming that an alternative proposal is automatically corrected here.
+## Importance sampling and normalization
 
-Although the exact fidelity lies between zero and one, a noisy estimate of these amplitude ratios need not. The overlap routine also flattens the chain axes before constructing its statistics. Its reported uncertainty is therefore not a replacement for checking mixing and stability across larger batches and independent calculations.
+The overlap routine also supports non-Born sampling. The correction is necessary because averaging $R_{ij}$ under different distributions does not generally give the squared normalized overlap. Each state may use a different proposal, provided that its proposal covers its own wavefunction's Born support.
+
+Let $\widetilde q_i(x)$ and $\widetilde q_j(y)$ be the unnormalised densities that generated the two batches, and write $Q(x,y)=\widetilde q_i(x)\widetilde q_j(y)$. Define
+
+$$
+\begin{aligned}
+A_{ij}(x,y)
+&=\frac{\operatorname{Re}\!\left[
+\psi_i(x)^*\psi_j(x)\psi_j(y)^*\psi_i(y)
+\right]}{Q(x,y)},\\[6pt]
+B_{ij}(x,y)
+&=\frac{|\psi_i(x)|^2|\psi_j(y)|^2}{Q(x,y)}.
+\end{aligned}
+$$
+
+The normalized overlap and its finite-batch estimate are then
+
+$$
+\begin{aligned}
+F_{ij}
+&=\frac{\mathbb E_{q_iq_j}[A_{ij}]}{\mathbb E_{q_iq_j}[B_{ij}]},\\[6pt]
+\widehat F_{ij}
+&=\frac{\sum_r A_{ij}(x_r,y_r)}{\sum_r B_{ij}(x_r,y_r)}.
+\end{aligned}
+$$
+
+Unknown normalization constants in the proposal densities cancel. With ordinary Born sampling, $B_{ij}$ is constant and this reduces to the unweighted paired estimator above. With nonconstant weights, it is a self-normalized ratio estimator and has the usual finite-batch bias. Larger effective sample sizes reduce that bias, but importance sampling does not by itself guarantee lower variance.
+
+[`fidelity_expect_and_grad_joint`](../../api/public/neuralqx/driver/multi_vmc/index.md#neuralqx.driver.multi_vmc.fidelity_expect_and_grad_joint) reads the frozen density attached to each [importance-sampled batch](../samplers/importance.md). This includes densities modified by operator blurring. If an adaptive exponent has changed since the batch was collected, the stored density still describes the batch actually being used. Without an explicit measure, the routine infers the density from that state's `machine_pow` and current wavefunction.
+
+During differentiation, the proposal densities are held fixed and both physical numerator and normalization are differentiated,
+
+$$
+\partial_\theta\widehat F_{ij}
+=\frac{\sum_r\partial_\theta A_{ij,r}
+-\widehat F_{ij}\sum_r\partial_\theta B_{ij,r}}
+{\sum_r B_{ij,r}}.
+$$
+
+This gives the Born result independently of the proposal exponent. Under Born sampling it is equivalent to the direct-plus-score gradient described above. An additional sampling-score term must not be added to this density-weighted derivative.
+
+The implementation forms amplitude products before dividing by the sampling density. It therefore avoids multiplying zero Born weights by undefined wavefunction ratios when operator blurring samples an exact node. The model must still have well-defined derivatives on the configurations being evaluated, as discussed in the [importance sampling guide](../samplers/importance.md#reach-configurations-connected-by-an-operator).
+
+For a joint calculation whose energies and overlaps both retain their Born interpretation, use the supported `ImportanceSampling` interface with the sampler's default `machine_pow=2`. Changing `machine_pow` alone is corrected by the overlap routine, but does not opt the individual energy estimators into the VQS importance-sampling machinery. Supply external importance batches with `state.set_samples(..., log_density=...)` so their generating density is available.
+
+Although the exact fidelity lies between zero and one, a noisy paired estimate need not. With importance weights, reported variances and error bars describe the ratio estimator's influence values. The overlap routine also flattens the chain axes before constructing its statistics. Its reported uncertainty is therefore not a replacement for checking mixing and stability across larger batches and independent calculations.
 
 ## Run two states
 

@@ -27,9 +27,9 @@ from neuralqx.jax.differentiation import vjp as neuralqx_vjp
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.profile._instrumentation import instrument
 from neuralqx.profile._instrumentation import region
+from neuralqx.sampler.importance import WeightedLocalEstimators
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.stats import Stats
-from neuralqx.utils.stats import statistics
 from neuralqx.vqs.estimators.utils import flatten_samples
 from neuralqx.vqs.estimators.utils import validate_operator_hilbert
 
@@ -201,13 +201,43 @@ class MultiVMCDriver(AbstractVariationalDriver):
 
 
 def fidelity_expect_and_grad_joint(state_i: Any, state_j: Any) -> tuple[Stats, Any]:
-    """Estimate the pair overlap penalty and gradients for two states."""
+    r"""Estimate squared normalized overlap and its physical parameter gradients.
+
+    Independent configurations from each state are paired up to the shorter
+    batch length. The numerator and Born normalization are divided by the
+    joint sampling density. Explicit importance measures, including operator
+    blurring, take precedence over the sampler's ``machine_pow``.
+
+    Sampling densities are held fixed during differentiation. Both physical
+    numerator and normalization derivatives are included, so the objective
+    remains $|\langle\psi_i|\psi_j\rangle|^2/(Z_i Z_j)$ for non-Born
+    proposals as well. Each proposal must cover its state's Born support.
+
+    Args:
+        state_i: First variational state with its current sample batch and
+            framework variables. Importance batches must carry their density.
+        state_j: Second variational state on the same Hilbert space. Its
+            configurations must be sampled independently of the first state.
+
+    Returns:
+        A pair containing overlap statistics and a gradient dictionary with
+        keys ``i`` and ``j``. Error bars describe the ratio estimator's
+        influence values. Self-normalization introduces the usual finite-batch
+        ratio bias for nonconstant weights. Ordinary Born batches recover the
+        unweighted paired estimator and its gradient.
+
+    Raises:
+        ValueError: Hilbert spaces differ, a batch is empty, or an explicit
+            importance batch has no matching density information.
+    """
     if state_i.hilbert != state_j.hilbert:
         raise NeuralqxValueError(
             "Orthogonality penalties require matching Hilbert spaces."
         )
     sigma_i = state_i.samples
     sigma_j = state_j.samples
+    measure_i = state_i.sampling_measure_for(sigma_i)
+    measure_j = state_j.sampling_measure_for(sigma_j)
     return _fidelity_expect_and_grad_joint_kernel(
         state_i.apply_variables_kernel,
         state_i.merge_variables_kernel,
@@ -224,6 +254,8 @@ def fidelity_expect_and_grad_joint(state_i: Any, state_j: Any) -> tuple[Stats, A
         state_j.machine_pow,
         state_i.chunk_size,
         state_j.chunk_size,
+        None if measure_i is None else measure_i.log_density,
+        None if measure_j is None else measure_j.log_density,
     )
 
 
@@ -255,12 +287,22 @@ def _fidelity_expect_and_grad_joint_kernel(
     machine_pow_j: Any,
     chunk_size_i: int | None,
     chunk_size_j: int | None,
+    log_density_i: Any | None = None,
+    log_density_j: Any | None = None,
 ) -> tuple[Stats, Any]:
     flat_i, _shape_i = flatten_samples(sigma_i, hilbert_size)
     flat_j, _shape_j = flatten_samples(sigma_j, hilbert_size)
     n_samples = min(flat_i.shape[0], flat_j.shape[0])
+    if n_samples == 0:
+        raise NeuralqxValueError(
+            "Orthogonality penalties require nonempty sample batches."
+        )
     flat_i = flat_i[:n_samples]
     flat_j = flat_j[:n_samples]
+    if log_density_i is not None:
+        log_density_i = jnp.asarray(log_density_i).reshape(-1)[:n_samples]
+    if log_density_j is not None:
+        log_density_j = jnp.asarray(log_density_j).reshape(-1)[:n_samples]
     parameters = {"i": params_i, "j": params_j}
 
     def logpsi_i(params: Any, states: Any) -> jax.Array:
@@ -271,37 +313,40 @@ def _fidelity_expect_and_grad_joint_kernel(
         variables = merge_j(params, model_state_j)
         return apply_batched(apply_j, variables, states, chunk_size=chunk_size_j)
 
-    def values_for_params(params: Any) -> jax.Array:
+    def objective_for_params(params: Any):
         li_x = logpsi_i(params["i"], flat_i)
         li_y = logpsi_i(params["i"], flat_j)
         lj_x = logpsi_j(params["j"], flat_i)
         lj_y = logpsi_j(params["j"], flat_j)
-        values = jnp.exp(lj_x + li_y - li_x - lj_y)
-        return jnp.real(values)
+        density_i = (
+            jnp.asarray(machine_pow_i) * li_x.real
+            if log_density_i is None
+            else log_density_i
+        )
+        density_j = (
+            jnp.asarray(machine_pow_j) * lj_y.real
+            if log_density_j is None
+            else log_density_j
+        )
+        density = jax.lax.stop_gradient(density_i + density_j)
 
-    def log_pdf_for_params(params: Any) -> jax.Array:
-        li_x = logpsi_i(params["i"], flat_i)
-        lj_y = logpsi_j(params["j"], flat_j)
-        return jnp.asarray(machine_pow_i) * jnp.real(li_x) + jnp.asarray(
-            machine_pow_j
-        ) * jnp.real(lj_y)
+        # Form amplitude products before division by the proposal density.
+        # Ratios of wavefunctions would create 0 * inf at sampled nodes.
+        log_numerator = jnp.conj(li_x) + lj_x + jnp.conj(lj_y) + li_y - density
+        log_denominator = 2 * li_x.real + 2 * lj_y.real - density
+        shift = jax.lax.stop_gradient(
+            jnp.maximum(jnp.max(log_numerator.real), jnp.max(log_denominator))
+        )
+        shift = jnp.where(jnp.isfinite(shift), shift, 0)
+        numerator = jnp.exp(log_numerator - shift).real
+        denominator = jnp.exp(log_denominator - shift)
+        return jnp.sum(numerator) / jnp.sum(denominator), (numerator, denominator)
 
-    values, values_pullback = neuralqx_vjp(
-        values_for_params, parameters, conjugate=True
+    objective, pullback, (numerator, denominator) = neuralqx_vjp(
+        objective_for_params, parameters, conjugate=True, has_aux=True
     )
-    stats = statistics(values)
-    direct_grad = values_pullback(jnp.ones_like(values) / values.size)[0]
-
-    log_pdf, score_pullback = neuralqx_vjp(
-        log_pdf_for_params, parameters, conjugate=True
-    )
-    centered = values - stats.mean
-    score_grad = score_pullback((centered / values.size).astype(log_pdf.dtype))[0]
-    return stats, _tree_add(direct_grad, score_grad)
-
-
-def _tree_add(left: Any, right: Any) -> Any:
-    return jax.tree_util.tree_map(lambda a, b: a + b, left, right)
+    gradient = pullback(jnp.ones_like(objective))[0]
+    return WeightedLocalEstimators(numerator, denominator).to_stats(), gradient
 
 
 def _tree_add_scaled(left: Any, right: Any, scale: float) -> Any:
