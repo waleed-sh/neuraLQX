@@ -172,7 +172,51 @@ def planned_amplitude_values(
     return total, abs(amplitude) ** 2
 
 
-@partial(jax.jit, static_argnames=("apply", "squared", "chunk_size", "axis_name"))
+@partial(jax.jit, static_argnames=("apply", "chunk_size", "axis_name"))
+def _amplitude_reference(
+    apply, variables, samples, log_density, *, chunk_size, axis_name
+):
+    logs = apply_batched(apply, variables, samples, chunk_size=chunk_size)
+    shift = jax.lax.stop_gradient(jnp.max(2 * logs.real - log_density) / 2)
+    if axis_name is not None:
+        shift = jax.lax.pmax(shift, axis_name)
+    reference = 0.5 * log_density + jnp.where(jnp.isfinite(shift), shift, 0)
+    return jnp.exp(logs - reference), reference
+
+
+@partial(jax.jit, static_argnames=("apply", "square", "chunk_size", "rematerialize"))
+def _amplitude_term(
+    apply,
+    variables,
+    samples,
+    connection,
+    amplitude,
+    reference,
+    coefficient,
+    *,
+    square,
+    chunk_size,
+    rematerialize=True,
+):
+    targets, mels, owners = connection
+    if owners is None:
+        owners = jnp.repeat(jnp.arange(len(samples)), targets.shape[1])
+    targets = targets.reshape((-1, samples.shape[-1]))
+    mels = mels.reshape((-1,))
+    targets = jnp.where((mels != 0)[:, None], targets, samples[owners])
+
+    def action(variables):
+        connected = apply_connected(
+            apply, variables, samples, targets, owners, chunk_size=chunk_size
+        )
+        values = mels * jnp.exp(jnp.where(mels != 0, connected - reference[owners], 0))
+        return jnp.zeros(len(samples), values.dtype).at[owners].add(values)
+
+    acted = (jax.checkpoint(action) if rematerialize else action)(variables)
+    value = abs(acted) ** 2 if square else jnp.conj(amplitude) * acted
+    return coefficient * value
+
+
 def amplitude_values(
     apply,
     variables,
@@ -186,38 +230,31 @@ def amplitude_values(
     axis_name=None,
 ):
     """Evaluate a numerator and a Born normalizer with a common stable scale."""
-    logs = apply_batched(apply, variables, samples, chunk_size=chunk_size)
-    logw = 2 * logs.real - log_density
-    shift = jax.lax.stop_gradient(jnp.max(logw) / 2)
-    if axis_name is not None:
-        shift = jax.lax.pmax(shift, axis_name)
-    shift = jnp.where(jnp.isfinite(shift), shift, 0)
-    reference = 0.5 * log_density + shift
-    amplitude = jnp.exp(logs - reference)
+    amplitude, reference = _amplitude_reference(
+        apply,
+        variables,
+        samples,
+        log_density,
+        chunk_size=chunk_size,
+        axis_name=axis_name,
+    )
     denominator = abs(amplitude) ** 2
-    dtype = jnp.result_type(logs if not all(squared) else logs.real, coefficients)
+    dtype = jnp.result_type(
+        amplitude if not all(squared) else amplitude.real, coefficients
+    )
     total = jnp.zeros(len(samples), dtype=dtype)
-    for i, (targets, mels, owners) in enumerate(connections):
-        if owners is None:
-            owners = jnp.repeat(jnp.arange(len(samples)), targets.shape[1])
-        targets = targets.reshape((-1, samples.shape[-1]))
-        mels = mels.reshape((-1,))
-        targets = jnp.where((mels != 0)[:, None], targets, samples[owners])
-
-        # Rematerialize connected activations during the pullback instead of
-        # retaining the forward activations of every operator term.
-        def action(variables, targets, mels, owners):
-            connected = apply_connected(
-                apply, variables, samples, targets, owners, chunk_size=chunk_size
-            )
-            values = mels * jnp.exp(
-                jnp.where(mels != 0, connected - reference[owners], 0)
-            )
-            return jnp.zeros(len(samples), values.dtype).at[owners].add(values)
-
-        acted = jax.checkpoint(action)(variables, targets, mels, owners)
-        value = abs(acted) ** 2 if squared[i] else jnp.conj(amplitude) * acted
-        total = total + coefficients[i] * value
+    for i, connection in enumerate(connections):
+        total = total + _amplitude_term(
+            apply,
+            variables,
+            samples,
+            connection,
+            amplitude,
+            reference,
+            coefficients[i],
+            square=squared[i],
+            chunk_size=chunk_size,
+        )
     return total, denominator
 
 

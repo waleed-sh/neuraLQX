@@ -1069,8 +1069,12 @@ class VariationalState(AbstractVariationalState):
         from neuralqx.sampler.importance.measure import TemperedApply
 
         config = getattr(self.sampler, "importance_sampling", None)
+        # Adaptation returns a strongly typed real scalar. Start with the same
+        # type so its first update does not recompile the sampling program.
         self._importance_exponent = (
-            self.machine_pow if config is None else jnp.asarray(config.exponent)
+            self.machine_pow
+            if config is None
+            else jnp.asarray(config.exponent, dtype=jnp.result_type(float))
         )
         self._sample_measure = None
         self._importance_weight_cache = None
