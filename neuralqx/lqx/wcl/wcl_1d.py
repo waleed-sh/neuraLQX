@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from neuralqx.lqx.base import LQXModel
 from neuralqx.operator.prebuilt import wcl
 from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
 
 
@@ -163,22 +165,33 @@ class LqxWCL1D(LQXModel):
     gauss = gauss_constraint
     """Alias for `gauss_constraint`."""
 
-    def curvature_constraint(self, loops: list[Any] | None = None):
-        r"""Sum $2I-H_\alpha-H_\alpha^\dagger$ over the selected loops and gauge copies.
+    def get_curvature_constraint(
+        self, loops: Iterable[Any] | None = None, *, normalize: bool = False
+    ):
+        r"""Construct $\sum_\alpha(2I-H_\alpha-H_\alpha^\dagger)$ for one U(1) copy.
+
+        Each term equals $(H_\alpha-I)(H_\alpha^\dagger-I)$ for the cyclic
+        holonomy. The default sum preserves the single component BF model's
+        normalization. This objective already contains the squared defect.
 
         Args:
-            loops: Loop list to include. `None` selects all dressed minimal loops.
+            loops: Loops to include. None selects all dressed minimal loops.
+            normalize: Divide by the number of selected loops when true.
 
         Returns:
             result (ComputationalOperator): A Hermitian positive-semidefinite operator. An empty loop list gives
                 the zero operator on this Hilbert space.
         """
-        selected = self.graph.dressed_minimal_loops() if loops is None else loops
+        if not isinstance(normalize, bool):
+            raise NeuralqxTypeError("normalize must be a bool.")
+        selected = tuple(self.graph.dressed_minimal_loops() if loops is None else loops)
         result = None
         for loop in selected:
             term = 2.0 * self.one_minus_half_holonomy(loop)
             result = term if result is None else result + term
-        return self.identity(0.0) if result is None else result
+        if result is None:
+            return self.identity(0.0)
+        return (1.0 / len(selected)) * result if normalize else result
 
     def get_euclidean_constraint(self, loops: list[Any] | None = None):
         """Construct the BF curvature constraint used as this model's Euclidean component.
@@ -190,7 +203,7 @@ class LqxWCL1D(LQXModel):
             result (ComputationalOperator): The sum of loop-curvature terms.
                 An empty selection gives the zero operator.
         """
-        return self.curvature_constraint(loops)
+        return self.get_curvature_constraint(loops)
 
     def thiemann_regularized_constraint(self, *args, **kwargs):
         """Raise `NotImplementedError` because the single-copy BF model has no Thiemann constraint."""

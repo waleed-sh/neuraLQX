@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from neuralqx.operator.prebuilt import wcl
@@ -26,6 +27,7 @@ from neuralqx.operator.prebuilt.utils import require_gauge_dimensions
 from neuralqx.operator.prebuilt.utils import require_nonplanar_graph
 from neuralqx.operator.prebuilt.utils import require_u1_hilbert
 from neuralqx.utils.errors import NeuralqxNotImplementedError
+from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
 
 from .wcl_1d import LqxWCL1D
@@ -157,22 +159,33 @@ class LqxWCL4D(LqxWCL1D):
             adjoint_flag=adjoint,
         )
 
-    def curvature_constraint(self, loops: list[Any] | None = None):
-        r"""Sum $2I-H_\alpha-H_\alpha^\dagger$ over the selected loops and gauge copies.
+    def get_curvature_constraint(
+        self, loops: Iterable[Any] | None = None, *, normalize: bool = True
+    ):
+        r"""Construct $N^{-1}\sum_{\alpha,c}(2I-H_{\alpha,c}-H_{\alpha,c}^\dagger)$.
+
+        The average is over the N selected loops, with a sum over all three
+        gauge copies. Each term is the squared defect
+        $(H_{\alpha,c}-I)(H_{\alpha,c}^\dagger-I)$ of a cyclic holonomy.
+        It can be minimized directly without another square.
 
         Args:
-            loops: Loop list to include. `None` selects all dressed minimal loops.
+            loops: Loops to include. None selects all dressed minimal loops.
+            normalize: Average over loops when true. False returns the sum.
 
         Returns:
             result (ComputationalOperator): A Hermitian positive-semidefinite operator. An empty loop list gives
                 the zero operator on this Hilbert space.
         """
-        selected = self.graph.dressed_minimal_loops() if loops is None else loops
-        result = self.identity(2.0 * len(selected) * self.gauge_dimensions)
-        for loop in selected:
-            h = self.minimal_loop_holonomy(loop, dimension=3)
-            result = result - h - h.adjoint
-        return result
+        if not isinstance(normalize, bool):
+            raise NeuralqxTypeError("normalize must be a bool.")
+        selected = tuple(self.graph.dressed_minimal_loops() if loops is None else loops)
+        result = self._sum_operators(
+            2.0 * self.one_minus_half_holonomy(loop, copy=copy)
+            for loop in selected
+            for copy in range(self.gauge_dimensions)
+        )
+        return (1.0 / len(selected)) * result if normalize and selected else result
 
     def gauss_constraint(self, *, modular: bool = False):
         """Construct the total squared Gauss-law violation over all vertices and copies.

@@ -20,6 +20,7 @@ A method beginning with `get_` constructs an operator. It can take arguments suc
 | --- | --- | --- |
 | `euclidean_constraint` | `get_euclidean_constraint(...)` | Euclidean component supplied by the model |
 | `lorentzian_constraint` | `get_lorentzian_constraint(...)` | Lorentzian component, when implemented |
+| `curvature_constraint` | `get_curvature_constraint(...)` | Separate objective measuring loop holonomy defects |
 | `constraint` | `get_constraint()` | Total of the available selected components |
 | `quadratic_constraint` | `get_quadratic_constraint(...)` | Positive quadratic objective built from the selected total |
 | `area` | `get_area(...)` | Area for a chosen surface |
@@ -28,6 +29,8 @@ A method beginning with `get_` constructs an operator. It can take arguments suc
 | `mass` | `get_mass(...)` | Mass observable, if a subclass supplies one |
 
 On first access, a property calls its factory without arguments and caches the result. Subsequent accesses return that selected object. The supplied models can generally construct default constraints this way. Geometric observables usually require an explicit region, so select them before reading the corresponding property.
+
+Curvature is supplied by the [WCL models](u1.md#curvature-and-the-single-component-model) and [SU(2) model](su2.md#curvature-objective). The base class, QR model, and spherical model leave its factory unimplemented. These curvature objectives already contain squared holonomy defects and can be passed directly to a variational calculation.
 
 ```python
 import neuralqx as nqx
@@ -94,11 +97,13 @@ True
 
 You can also assign a complete linear operator to `model.constraint`. This is useful when a study uses a different combination of terms. `get_constraint()` still constructs the automatic component sum when called explicitly. It neither returns nor overwrites your total override.
 
-The linear component and total properties accept [`ComputationalOperator`](../../api/public/neuralqx/operator/index.md#neuralqx.operator.ComputationalOperator) instances. A quadratic objective is a separate kind of object and belongs in `quadratic_constraint`, not in a linear component.
+The component, curvature, and total properties accept [`ComputationalOperator`](../../api/public/neuralqx/operator/index.md#neuralqx.operator.ComputationalOperator) instances. A lazy quadratic marker is a separate kind of object and belongs in `quadratic_constraint`, not in these properties.
 
 ## What changes when you make a new selection
 
 Selections have dependencies. Assigning either `euclidean_constraint` or `lorentzian_constraint` clears the cached total and quadratic objective. This also clears an explicitly assigned total. Assigning `constraint` clears the quadratic objective. Assigning an observable such as `volume` does not clear the constraints.
+
+The curvature selection is independent. Assigning `curvature_constraint` changes neither the total nor its quadratic objective. In `LqxWCL1D`, the default Euclidean and curvature factories construct the same BF expression, but their property selections remain independent. Assign `model.constraint = model.curvature_constraint` explicitly if a calculation should use that selected operator as its total.
 
 Consequently, set the components first, then any total override, and finally any quadratic override. That order follows the construction itself.
 

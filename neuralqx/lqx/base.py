@@ -42,7 +42,7 @@ class LQXModel:
     r"""Common operator interface for discrete loop-quantum-gravity models.
 
     Every model exposes assignable `euclidean_constraint`, `lorentzian_constraint`,
-    `area`, `volume`, `holonomy`, `mass`, `constraint`, and `quadratic_constraint`
+    `curvature_constraint`, `area`, `volume`, `holonomy`, `mass`, `constraint`, and `quadratic_constraint`
     properties. A property constructs and caches its default on first access.
     The corresponding `get_...` method constructs an operator with explicit
     parameters without replacing that selection. Assign None to a property
@@ -62,7 +62,8 @@ class LQXModel:
     Explicit assignments to `constraint` and `quadratic_constraint` override
     their automatic definitions. Replacing either linear component clears
     both derived selections. Replacing the total clears its quadratic
-    selection. Geometric properties have independent selections.
+    selection. Curvature and geometric properties have independent selections.
+    Curvature is a separate objective and is not added to the automatic total.
 
     Prebuilt geometric factories require an explicit vertex, surface, edge,
     or loop where the operator needs one. Such properties remain unset until
@@ -93,6 +94,9 @@ class LQXModel:
 
     _lorentzian_constraint: ComputationalOperator | None
     """Selected or cached Lorentzian component, with None requesting its default."""
+
+    _curvature_constraint: ComputationalOperator | None
+    """Selected or cached curvature objective, independent of the total constraint."""
 
     _area: AbstractOperator | None
     """Selected area operator, or None before default construction."""
@@ -133,6 +137,7 @@ class LQXModel:
             )
         self._euclidean_constraint = None
         self._lorentzian_constraint = None
+        self._curvature_constraint = None
         self._area = None
         self._volume = None
         self._holonomy = None
@@ -166,6 +171,20 @@ class LQXModel:
     def lorentzian_constraint(self, operator: ComputationalOperator | None) -> None:
         """Select a Lorentzian component and clear the total and quadratic selections."""
         self._set_operator("lorentzian_constraint", operator)
+
+    @property
+    def curvature_constraint(self) -> ComputationalOperator:
+        """Selected curvature objective, lazily constructed by get_curvature_constraint.
+
+        The supplied WCL and SU(2) factories already measure squared holonomy
+        defects. Use this operator directly as a variational objective.
+        """
+        return self._get_cached_operator("curvature_constraint")
+
+    @curvature_constraint.setter
+    def curvature_constraint(self, operator: ComputationalOperator | None) -> None:
+        """Select curvature independently, or assign None to restore its default."""
+        self._set_operator("curvature_constraint", operator)
 
     @property
     def area(self) -> AbstractOperator:
@@ -260,6 +279,16 @@ class LQXModel:
     def get_area(self, *args: Any, **kwargs: Any) -> AbstractOperator:
         """Construct an area operator, or raise NotImplementedError for this model."""
         self._not_implemented("area")
+
+    def get_curvature_constraint(
+        self, *args: Any, **kwargs: Any
+    ) -> ComputationalOperator:
+        """Construct a curvature objective, or raise NotImplementedError for this model.
+
+        Override this method to supply the model's loop selection and
+        normalization. Calling the factory does not replace any selection.
+        """
+        self._not_implemented("curvature_constraint")
 
     def get_volume(self, *args: Any, **kwargs: Any) -> AbstractOperator:
         """Construct a volume operator, or raise NotImplementedError for this model."""
@@ -460,7 +489,13 @@ class LQXModel:
         """Require an operator on this Hilbert space and composable linear constraints."""
         expected = (
             ComputationalOperator
-            if name in ("euclidean_constraint", "lorentzian_constraint", "constraint")
+            if name
+            in (
+                "euclidean_constraint",
+                "lorentzian_constraint",
+                "curvature_constraint",
+                "constraint",
+            )
             else AbstractOperator
         )
         if not isinstance(operator, expected):

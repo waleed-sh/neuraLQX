@@ -151,6 +151,36 @@ True
 
 The returned entries are matrix rows $\langle\sigma|O|\sigma'\rangle$. Padding has zero matrix elements. If several contributions lead to the same configuration, their amplitudes are added when evaluating the operator action.
 
+### Curvature objective
+
+The cached `model.curvature_constraint` property supplies
+
+$$
+F_J=\frac{1}{N}\sum_{\alpha\in\mathcal L}
+\left(I-\frac12\widehat W_\alpha\right),
+\qquad N=|\mathcal L|.
+$$
+
+The default set contains all distinct dressed minimal loops. On K5 these are the ten triangles. Use `model.get_curvature_constraint(loops=[...])` for a chosen set, or `normalize=False` to obtain the sum instead of the average. An empty set returns zero. The factory uses the same cutoff and compilation budget as `get_holonomy`.
+
+This objective already contains the square of the matrix holonomy defect. Before projection,
+
+$$
+\frac14\operatorname{tr}_{1/2}
+\left[(h_\alpha-I_2)(h_\alpha^\dagger-I_2)\right]
+=1-\frac12\operatorname{tr}_{1/2}h_\alpha.
+$$
+
+Projection is applied after this simplification. Multiplying separately projected matrix holonomies would give a different cutoff prescription. The resulting $F_J$ is Hermitian and positive semidefinite, so it can be minimized directly. Its flat target is $\langle\widehat W_\alpha\rangle=2$ for each loop. Calling `.squared()` would instead minimize $F_J^2$.
+
+```python
+objective = model.curvature_constraint
+selected_loops = model.graph.dressed_minimal_loops()[:2]
+model.curvature_constraint = model.get_curvature_constraint(loops=selected_loops)
+```
+
+Curvature is a separate selection from the model's Euclidean gravitational constraint. See [model structure](structure.md#what-changes-when-you-make-a-new-selection) for how selections affect the total and quadratic constraints.
+
 ### Open edge matrix components
 
 An open holonomy carries magnetic indices and is not an observable within the invariant basis. `model.edge_holonomy(edge, two_a=1, two_b=1)` constructs [`EdgeHolonomyOperator`](../../api/public/neuralqx/operator/prebuilt/su2/index.md#neuralqx.operator.prebuilt.su2.EdgeHolonomyOperator) on a companion [`SU2PeterWeylHilbert`](../../api/public/neuralqx/hilbert/index.md#neuralqx.hilbert.SU2PeterWeylHilbert), with the same graph and edge cutoff,
