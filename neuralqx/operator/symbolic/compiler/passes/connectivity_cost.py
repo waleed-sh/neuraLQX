@@ -106,7 +106,7 @@ class SymbolicConnectivityCostPass(AbstractSymbolicPass):
 
     Analysis keys written:
         ``"connectivity_cost"`` - deterministic cost estimates and strategies.
-        ``"dsl_diagnostics"`` - lint findings including ``NKDSL-W401`` when shown.
+        ``"dsl_diagnostics"`` - lint findings including ``NQXDSL-W401`` when shown.
 
     The pass preserves the requested deduplication semantics. Diagnostics obey
     the same visibility and strictness options as the DSL diagnostics pass.
@@ -128,7 +128,7 @@ class SymbolicConnectivityCostPass(AbstractSymbolicPass):
         ):
             return {"enabled": True, **cost}
         diagnostic = DSLDiagnostic.create(
-            code="NKDSL-W401",
+            code="NQXDSL-W401",
             severity="warning",
             operator_name=context.ir.operator_name,
             message=(

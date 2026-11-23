@@ -40,7 +40,7 @@ class ConstantFalsePredicateRule(AbstractDiagnosticRule):
             if term.predicate.op == "const" and not bool(term.predicate.args[0]):
                 diagnostics.append(
                     DSLDiagnostic.create(
-                        code="NKDSL-W101",
+                        code="NQXDSL-W101",
                         severity="warning",
                         message=(
                             "Term predicate is constant false; this term never emits connected states."
@@ -75,7 +75,7 @@ class DuplicateEmissionRule(AbstractDiagnosticRule):
                 continue
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-W103",
+                    code="NQXDSL-W103",
                     severity="warning",
                     message=(
                         f"Term contains {duplicates} duplicate emission branch(es) "
@@ -108,7 +108,7 @@ class MaxConnHintLowerBoundRule(AbstractDiagnosticRule):
                 continue
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-W104",
+                    code="NQXDSL-W104",
                     severity="warning",
                     message=(
                         f"max_conn_size_hint={hint} is lower than static upper bound "
@@ -144,7 +144,7 @@ class MissingBranchTagRule(AbstractDiagnosticRule):
                 continue
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-I201",
+                    code="NQXDSL-I201",
                     severity="info",
                     message=(
                         f"Multi-emission term has {missing}/{len(emissions)} branch(es) without "

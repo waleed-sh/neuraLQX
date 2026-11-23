@@ -51,7 +51,7 @@ class UnresolvedFreeSymbolsRule(AbstractDiagnosticRule):
         )
         return (
             DSLDiagnostic.create(
-                code="NKDSL-E001",
+                code="NQXDSL-E001",
                 severity="error",
                 message=f"Unresolved free symbol(s): {shown}{suffix}.",
                 operator_name=context.ir.operator_name,
@@ -80,7 +80,7 @@ class StaticIndexBoundsRule(AbstractDiagnosticRule):
                     continue
                 diagnostics.append(
                     DSLDiagnostic.create(
-                        code="NKDSL-E002",
+                        code="NQXDSL-E002",
                         severity="error",
                         message=(
                             f"{op_name} uses flat index {flat_index}, but hilbert_size is "
@@ -134,7 +134,7 @@ class PotentialZeroDivisionRule(AbstractDiagnosticRule):
                 continue
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-E003",
+                    code="NQXDSL-E003",
                     severity="error",
                     message=(
                         f"Detected {hits} division expression(s) whose denominator is a runtime "

@@ -23,10 +23,10 @@ from neuralqx.operator.symbolic.compiler.diagnostics.models import (
 )
 
 LINTING_DOCS_INDEX_URL = (
-    "https://neuralqx.readthedocs.io/en/latest/concepts/operators/symbolic/"
+    "https://neuralqx.readthedocs.io/en/latest/concepts/operators/symbolic/diagnostics/"
 )
 LINTING_DOCS_MESSAGES_URL = (
-    "https://neuralqx.readthedocs.io/en/latest/concepts/operators/symbolic/"
+    "https://neuralqx.readthedocs.io/en/latest/concepts/operators/symbolic/messages/"
 )
 
 
@@ -34,7 +34,7 @@ def linting_docs_url_for_code(code: str) -> str:
     """Builds a stable linting documentation URL for one diagnostic code.
 
     Args:
-        code: Lint diagnostic code such as ``"NKDSL-E001"``.
+        code: Lint diagnostic code such as ``"NQXDSL-E001"``.
 
     Returns:
         Absolute documentation URL pointing to the code subsection.

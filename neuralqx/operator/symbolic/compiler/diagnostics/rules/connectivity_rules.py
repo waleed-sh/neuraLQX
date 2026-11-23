@@ -123,7 +123,7 @@ class GeneratedConnectivityValidityRule(AbstractDiagnosticRule):
         if samples is None or samples.size == 0:
             return (
                 DSLDiagnostic.create(
-                    code="NKDSL-I303",
+                    code="NQXDSL-I303",
                     severity="info",
                     message=(
                         "Skipped sampled connectivity checks because no source states "
@@ -263,7 +263,7 @@ class GeneratedConnectivityValidityRule(AbstractDiagnosticRule):
         if support_lookup is None:
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-I301",
+                    code="NQXDSL-I301",
                     severity="info",
                     message=(
                         "Skipped exact Hilbert-support membership checks because "
@@ -280,7 +280,7 @@ class GeneratedConnectivityValidityRule(AbstractDiagnosticRule):
         for term_name in sorted(evaluation_failures):
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-I302",
+                    code="NQXDSL-I302",
                     severity="info",
                     message=(
                         f"Skipped {evaluation_failures[term_name]} sampled branch evaluation(s) "
@@ -301,7 +301,7 @@ class GeneratedConnectivityValidityRule(AbstractDiagnosticRule):
         for term_name in sorted(illegal_counts):
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-W303",
+                    code="NQXDSL-W303",
                     severity="warning",
                     message=(
                         f"Generated connected states contain illegal local basis values "
@@ -320,7 +320,7 @@ class GeneratedConnectivityValidityRule(AbstractDiagnosticRule):
         for term_name in sorted(constraint_counts):
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-W302",
+                    code="NQXDSL-W302",
                     severity="warning",
                     message=(
                         f"Generated connected states violate Hilbert constraints "
@@ -342,7 +342,7 @@ class GeneratedConnectivityValidityRule(AbstractDiagnosticRule):
         for term_name in sorted(outside_support_counts):
             diagnostics.append(
                 DSLDiagnostic.create(
-                    code="NKDSL-W301",
+                    code="NQXDSL-W301",
                     severity="warning",
                     message=(
                         f"Generated connected states fall outside the Hilbert state space "
