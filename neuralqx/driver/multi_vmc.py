@@ -50,7 +50,7 @@ class MultiVMCDriver(AbstractVariationalDriver):
         variational_states: Any,
         preconditioner: Any | None = None,
         orthogonality_strength: float = 1.0,
-        loss_name: str = "Energy",
+        loss_name: str = "Constraint",
     ) -> None:
         states = tuple(variational_states)
         if not states:

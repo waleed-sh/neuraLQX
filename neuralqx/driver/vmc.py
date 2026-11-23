@@ -38,7 +38,7 @@ class VMC(AbstractVariationalDriver):
         *,
         variational_state: Any,
         preconditioner: Any | None = None,
-        loss_name: str = "Energy",
+        loss_name: str = "Constraint",
     ) -> None:
         validate_operator_hilbert(variational_state, hamiltonian)
         super().__init__(variational_state, loss_name=loss_name)
