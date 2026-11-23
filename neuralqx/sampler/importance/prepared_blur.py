@@ -41,6 +41,30 @@ def _support(operator, states):
     return plan, degree
 
 
+@partial(jax.jit, static_argnames=("chunk_size",))
+def _degree_blocks(operator, states, *, chunk_size):
+    """Count reverse degrees in bounded device blocks without preparing targets."""
+    width = min(len(states), chunk_size)
+    padding = (-len(states)) % width
+    blocks = jnp.pad(states, ((0, padding), (0, 0)), mode="edge").reshape(
+        (-1, width, states.shape[-1])
+    )
+    return jax.lax.map(operator.get_conn_offdiagonal_degrees, blocks).reshape(-1)[
+        : len(states)
+    ]
+
+
+def _degrees(operator, states, chunk_size):
+    if callable(getattr(operator, "get_conn_offdiagonal_degrees", None)):
+        return _degree_blocks(operator, states, chunk_size=chunk_size)
+    return jnp.concatenate(
+        [
+            _support(operator, states[start : start + chunk_size])[1]
+            for start in range(0, len(states), chunk_size)
+        ]
+    )
+
+
 @jax.jit
 def _draw(states, targets, ids, owners, active, degree, key, probability):
     if not len(targets):
@@ -59,11 +83,10 @@ def _draw(states, targets, ids, owners, active, degree, key, probability):
 
 @partial(jax.jit, static_argnames=("n",))
 def _incoming(logs, degrees, ids, owners, active, exponent, probability, *, n):
-    masses = (
-        exponent * logs[ids]
-        - jnp.log(jnp.maximum(degrees[ids], 1))
-        + jnp.log(probability)
-    )
+    # Integer degree arrays otherwise make log(degree) use float32 even when
+    # the model and density are evaluated in float64.
+    degree = jnp.maximum(degrees[ids], 1).astype(jnp.result_type(logs, exponent))
+    masses = exponent * logs[ids] - jnp.log(degree) + jnp.log(probability)
     masses = jnp.where(active, masses, -jnp.inf)
     maximum = jax.ops.segment_max(masses, owners, n)
     safe = jnp.where(jnp.isfinite(maximum), maximum, 0)
@@ -84,6 +107,8 @@ def _local(spec, operators, apply, variables, samples, exponent, key, model_chun
         chosen = jax.random.randint(term_key, (len(original),), 0, len(operators))
         result = original
         for i, (_, outgoing) in enumerate(operators):
+            if outgoing.is_diagonal:
+                continue
             plan, degree = _support(outgoing, original)
             moved = _draw(
                 original,
@@ -100,21 +125,25 @@ def _local(spec, operators, apply, variables, samples, exponent, key, model_chun
         dtype = jnp.result_type(logs, exponent)
         terms, derivatives = [], []
         for incoming, outgoing in operators:
-            _, degree = _support(outgoing, result)
+            if outgoing.is_diagonal:
+                # Retain the component's mixture weight, including identity
+                # terms. Only its unnecessary connectivity work is skipped.
+                terms.append(exponent * logs)
+                derivatives.append(jnp.where(jnp.isfinite(logs), logs, 0))
+                continue
+            plan, incoming_degree = _support(incoming, result)
+            degree = (
+                incoming_degree
+                if incoming is outgoing
+                else _degrees(outgoing, result, spec.chunk_size)
+            )
             self_log = exponent * logs + jnp.log(
                 jnp.where(degree > 0, 1 - spec.probability, 1.0)
             )
-            plan, _ = _support(incoming, result)
             if plan.n_unique:
                 # Evaluate each distinct reverse source once. Padding uses a
                 # valid state and never contributes to the density.
-                degrees = []
-                for begin in range(0, len(plan.states), spec.chunk_size):
-                    _, local_degree = _support(
-                        outgoing, plan.states[begin : begin + spec.chunk_size]
-                    )
-                    degrees.append(local_degree)
-                reverse_degree = jnp.concatenate(degrees)
+                reverse_degree = _degrees(outgoing, plan.states, spec.chunk_size)
                 neighbor_logs = apply_batched(
                     apply, variables, plan.states, chunk_size=model_chunk_size
                 ).real

@@ -28,6 +28,7 @@ from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.frameworks import FrameworkApply
 from neuralqx.utils.frameworks import static_training_kwargs
 
+from ._diagnostics import mismatch_message
 from .collective import agree
 from .collective import collective_call
 from .errors import CheckpointError
@@ -222,18 +223,38 @@ def _state_description(manifest):
     return description
 
 
-def _check_component(saved, current, label):
+def _check_component(saved, current, label, *, hint=None):
     actual = component_description(current)
     if saved["recipe"] is not None:
         if saved["recipe"] != actual["recipe"]:
             raise CheckpointError(
-                f"The target {label} configuration differs from the checkpoint."
+                mismatch_message(
+                    f"The target {label} configuration differs from the checkpoint.",
+                    saved["recipe"],
+                    actual["recipe"],
+                    path=label,
+                    hint=hint,
+                )
             )
     elif saved["class"] != actual["class"]:
-        raise CheckpointError(f"The target {label} type differs from the checkpoint.")
+        raise CheckpointError(
+            mismatch_message(
+                f"The target {label} type differs from the checkpoint.",
+                saved["class"],
+                actual["class"],
+                path=f"{label}.type",
+                hint=hint,
+            )
+        )
     elif saved.get("definition") != actual.get("definition"):
         raise CheckpointError(
-            f"The target {label} callable differs from the checkpoint."
+            mismatch_message(
+                f"The target {label} callable differs from the checkpoint.",
+                saved.get("definition"),
+                actual.get("definition"),
+                path=f"{label}.callable",
+                hint=hint,
+            )
         )
 
 
@@ -280,9 +301,15 @@ def _restore_template(state, manifest, sampler_mode):
             ),
         }
         for name, shape in expected_shapes.items():
-            if leaves[f"['sampler_state']['{name}']"]["shape"] != shape:
+            saved_shape = leaves[f"['sampler_state']['{name}']"]["shape"]
+            if saved_shape != shape:
                 raise CheckpointError(
-                    f"Saved sampler {name} shape disagrees with its chain configuration."
+                    mismatch_message(
+                        f"Saved sampler {name} shape disagrees with its chain configuration.",
+                        saved_shape,
+                        shape,
+                        path=f"sampler_state.{name}.shape",
+                    )
                 )
         if state._sampler_state is not None:
             rule_state = state._sampler_state.rule_state
@@ -304,7 +331,14 @@ def _restore_template(state, manifest, sampler_mode):
     if description["cached_samples"]:
         item = leaves["['samples']"]
         if not item["shape"] or item["shape"][-1] != state.hilbert.size:
-            raise CheckpointError("Saved samples have the wrong Hilbert dimension.")
+            raise CheckpointError(
+                mismatch_message(
+                    "Saved samples have the wrong Hilbert dimension.",
+                    item["shape"][-1] if item["shape"] else None,
+                    state.hilbert.size,
+                    path="samples.configuration_size",
+                )
+            )
         placement = replica
         if item["shape"] and item["shape"][0] % sample_partition_count() == 0:
             placement = sample_batch_sharding(len(item["shape"])) or replica
@@ -364,30 +398,75 @@ def load_variational_state(
                 "sampler_seed is only used with sampler_mode='restart'."
             )
         if state.framework.name != description["framework"]:
-            raise CheckpointError("The saved and target model frameworks differ.")
+            raise CheckpointError(
+                mismatch_message(
+                    "The saved and target model frameworks differ.",
+                    description["framework"],
+                    state.framework.name,
+                    path="model.framework",
+                )
+            )
         if not _model_from_recipe:
             _check_component(description["model"], _model(state), "model")
         _check_component(description["hilbert"], state.hilbert, "Hilbert space")
         if state.hilbert.size != description["hilbert_size"]:
-            raise CheckpointError("The saved and target Hilbert dimensions differ.")
+            raise CheckpointError(
+                mismatch_message(
+                    "The saved and target Hilbert dimensions differ.",
+                    description["hilbert_size"],
+                    state.hilbert.size,
+                    path="Hilbert space.size",
+                )
+            )
         if sampler_mode == "continue":
+            restart_hint = (
+                "To load the wavefunction with different sampler settings, use "
+                "sampler_mode='restart' and provide sampler_seed. "
+                "This starts new chains instead of continuing the saved ones."
+            )
             if (
                 description.get("importance") is not None
             ) != state.importance_sampling_enabled:
+                importance = description.get("importance")
+                saved_policy = (
+                    {"importance_sampling": None, "operator_blur": None}
+                    if importance is None
+                    else importance.get("policy")
+                )
                 raise CheckpointError(
-                    "Saved and target importance-sampling policies differ."
+                    mismatch_message(
+                        "Saved and target importance-sampling policies differ.",
+                        saved_policy,
+                        _importance_policy(state),
+                        path="sampler",
+                        hint=restart_hint,
+                    )
                 )
             importance = description.get("importance")
             if importance is not None and importance.get("policy") is not None:
                 if importance["policy"] != _importance_policy(state):
                     raise CheckpointError(
-                        "The target importance-sampling configuration differs from the checkpoint."
+                        mismatch_message(
+                            "The target importance-sampling configuration differs from the checkpoint.",
+                            importance["policy"],
+                            _importance_policy(state),
+                            path="sampler",
+                            hint=restart_hint,
+                        )
                     )
             if sample_partition_count() != description["sample_partitions"]:
                 raise CheckpointError(
-                    "The number of sample partitions changed. Use sampler_mode='restart' with sampler_seed to start new random streams."
+                    mismatch_message(
+                        "The number of sample partitions changed.",
+                        description["sample_partitions"],
+                        sample_partition_count(),
+                        path="sampler.sample_partitions",
+                        hint=restart_hint,
+                    )
                 )
-            _check_component(description["sampler"], state.sampler, "sampler")
+            _check_component(
+                description["sampler"], state.sampler, "sampler", hint=restart_hint
+            )
         settings = decode_config(description["settings"])
         if (
             not isinstance(settings, dict)

@@ -26,6 +26,9 @@ from jax.sharding import PartitionSpec
 from neuralqx.jax.sharding.arrays import place_global_array
 from neuralqx.jax.sharding.arrays import with_weak_type
 
+from ._diagnostics import _MISSING
+from ._diagnostics import differences
+from ._diagnostics import mismatch_report
 from .collective import agree
 from .collective import collective_call
 from .errors import CheckpointError
@@ -198,14 +201,36 @@ def restore_targets(template, schema):
     if actual != schema:
         old = {v["path"]: v for v in schema["leaves"]}
         new = {v["path"]: v for v in actual["leaves"]}
-        differences = [
-            path
-            for path in sorted(old.keys() | new.keys())
-            if old.get(path) != new.get(path)
-        ]
-        detail = ", ".join(differences[:8]) or "pytree container types"
+
+        def details():
+            for path in sorted(old.keys() | new.keys()):
+                # Storage shapes and dtypes are derived from the logical leaf
+                # metadata. Avoid repeating them unless they alone differ.
+                fields = ("kind", "shape", "dtype", "weak_type", "key_impl")
+                a = (
+                    {k: old[path][k] for k in fields if k in old[path]}
+                    if path in old
+                    else _MISSING
+                )
+                b = (
+                    {k: new[path][k] for k in fields if k in new[path]}
+                    if path in new
+                    else _MISSING
+                )
+                if a != b:
+                    yield from differences(a, b, f"state{path}")
+                elif old[path] != new[path]:
+                    yield from differences(old[path], new[path], f"state{path}")
+            if old == new:
+                yield from differences(
+                    schema["structure"], actual["structure"], "state.structure"
+                )
+
         raise CheckpointError(
-            f"Checkpoint and target state differ at {detail}. Shapes and dtypes must match exactly."
+            mismatch_report(
+                "Checkpoint and target state differ. Shapes, dtypes and structure must match exactly.",
+                details(),
+            )
         )
     targets = {}
     for index, (value, item) in enumerate(

@@ -28,6 +28,7 @@ import jax
 from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
 
+from ._diagnostics import mismatch_message
 from .errors import ReconstructionError
 
 
@@ -264,9 +265,19 @@ def decode_config(value):
         return array[()] if value.get("scalar") else array
     if kind == "component":
         codec = _BY_NAME.get(value["name"])
-        if codec is None or codec.version != value["version"]:
+        if codec is None:
             raise ReconstructionError(
-                f"Missing codec or unsupported codec version for {value['name']!r}."
+                f"Missing reconstruction codec for {value['name']!r} "
+                f"(saved version={value['version']}). Register that codec before loading."
+            )
+        if codec.version != value["version"]:
+            raise ReconstructionError(
+                mismatch_message(
+                    f"Unsupported reconstruction codec version for {value['name']!r}.",
+                    value["version"],
+                    codec.version,
+                    path="codec.version",
+                )
             )
         return codec.decode(decode_config(value["config"]))
     if kind == "activation":
@@ -278,7 +289,15 @@ def decode_config(value):
             or spec.supports_complex != value["supports_complex"]
         ):
             raise ReconstructionError(
-                f"The activation contract for {spec.name!r} has changed."
+                mismatch_message(
+                    f"The activation contract for {spec.name!r} has changed.",
+                    {key: value[key] for key in ("elementwise", "supports_complex")},
+                    {
+                        "elementwise": spec.elementwise,
+                        "supports_complex": spec.supports_complex,
+                    },
+                    path=f"activation.{spec.name}",
+                )
             )
         return spec.function
     if kind == "reim":
