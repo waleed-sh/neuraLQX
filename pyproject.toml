@@ -2,7 +2,6 @@
 requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
-
 [project]
 name = "neuraLQX"
 dynamic = ["version"]
@@ -116,6 +115,9 @@ docs = [
 
 [tool.hatch.version]
 path = "neuralqx/_version.py"
+
+[tool.hatch.build.force-include]
+"neuralqx/_version.py" = "neuralqx/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

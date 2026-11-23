@@ -46,6 +46,7 @@ from .embedding import outgoing_residual
 
 # Prebuilt operators import the public base classes above.
 from . import prebuilt  # isort: skip
+from . import symbolic  # isort: skip
 
 __all__ = [
     "AbstractOperator",
@@ -72,4 +73,5 @@ __all__ = [
     "penalty_linear_scale",
     "penalty_local_value_coefficients",
     "prebuilt",
+    "symbolic",
 ]
