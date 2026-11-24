@@ -67,6 +67,24 @@ nav:
       - Operators:
           - Overview: concepts/operators/index.md
           - Constructing operators: concepts/operators/construction.md
+          - Symbolic operators:
+              - Overview: concepts/operators/symbolic/index.md
+              - Defining an operator: concepts/operators/symbolic/first-operator.md
+              - Site selectors and expressions: concepts/operators/symbolic/expressions.md
+              - Iterators and graph structure: concepts/operators/symbolic/iterators.md
+              - Emissions and matrix elements: concepts/operators/symbolic/emissions.md
+              - Conditions and comparisons: concepts/operators/symbolic/conditions.md
+              - Configuration updates:
+                  - Overview: concepts/operators/symbolic/updates/index.md
+                  - Shifts and transport: concepts/operators/symbolic/updates/shifts.md
+                  - Modular shifts: concepts/operators/symbolic/updates/modular.md
+                  - Writing and rearranging labels: concepts/operators/symbolic/updates/writes.md
+                  - Update chains and conditions: concepts/operators/symbolic/updates/chaining.md
+              - Algebra and adjoints: concepts/operators/symbolic/algebra.md
+              - Hilbert spaces and admissibility: concepts/operators/symbolic/spaces.md
+              - Diagnostics and errors: concepts/operators/symbolic/diagnostics.md
+              - Diagnostic messages: concepts/operators/symbolic/messages.md
+              - Reading the intermediate representation: concepts/operators/symbolic/ir.md
           - Applying operators: concepts/operators/application.md
           - Operator algebra: concepts/operators/algebra.md
           - Squared estimators: concepts/operators/squared-estimators.md
@@ -156,6 +174,16 @@ nav:
           - Operator contracts: developers/operators/contracts.md
           - Connectivity: developers/operators/connectivity.md
           - Composition: developers/operators/composition.md
+      - Symbolic compiler:
+          - Overview: developers/symbolic/index.md
+          - Language and intermediate representation: developers/symbolic/ir.md
+          - Compilation pipeline: developers/symbolic/pipeline.md
+          - Connectivity analysis: developers/symbolic/connectivity.md
+          - Kernel planning: developers/symbolic/kernels.md
+          - JAX lowering and execution: developers/symbolic/lowering.md
+          - Caching and configuration: developers/symbolic/configuration.md
+          - Compiler diagnostics: developers/symbolic/diagnostics.md
+          - Extending the language and compiler: developers/symbolic/extensions.md
       - Custom Hilbert spaces:
           - Overview: developers/hilbert/index.md
           - Defining spaces: developers/hilbert/construction.md

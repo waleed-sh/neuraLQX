@@ -26,6 +26,7 @@ This separation matters when debugging. A calculation can execute successfully w
 | Represent parameters, numerical state, and fixed metadata | [Structs and pytrees](structs/index.md) |
 | Implement an observable estimator or its derivative | [Custom estimators](estimators/index.md) |
 | Define a new matrix free operator action | [Custom operators](operators/index.md) |
+| Inspect or extend symbolic operator compilation | [Symbolic compiler](symbolic/index.md) |
 | Define allowed configurations and constraints | [Custom Hilbert spaces](hilbert/index.md) |
 | Change how configurations are proposed and sampled | [Custom samplers](samplers/index.md) |
 | Implement a different wavefunction ansatz | [Custom networks](networks/index.md) |

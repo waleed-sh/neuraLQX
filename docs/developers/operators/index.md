@@ -8,6 +8,8 @@ A custom operator describes a new observable, constraint, or dynamical term on a
 
 The operator infrastructure is matrix free. A computational operator calculates the required matrix rows from configurations without allocating the full Hilbert space matrix. Small local matrices, recoupling tables, and precomputed graph data can still be useful ingredients. Matrix free refers to avoiding the global matrix, whose dimensions grow with the complete Hilbert space.
 
+These pages develop the direct JAX implementation route. For actions expressible as conditions, label updates, and scalar matrix elements, the [symbolic interface](../../concepts/operators/symbolic/index.md) can generate that implementation. The separate [symbolic compiler guides](../symbolic/index.md) explain its intermediate representation, analyses, lowering, and extension points. A compiled symbolic operator obeys the same native contracts described here.
+
 If your expression can already be built from the [supplied operators](../../concepts/operators/prebuilt.md), use their algebra first. A new class becomes useful when the elementary action is missing, or when a fused implementation can evaluate an existing expression more directly.
 
 ## Choose the interface that matches the action

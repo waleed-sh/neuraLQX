@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="490" viewBox="0 0 800 490" role="img" aria-labelledby="title desc">
+<title id="title">From a physical rule to sampled connections</title>
+<desc id="desc">A Python symbolic definition becomes immutable IR and a native compiled operator. During a calculation, that operator accepts sampled configurations and returns connected configurations and matrix elements without building a dense matrix.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b">
+<rect x="0" y="0" width="800" height="490" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="30" y="47" font-size="28" fill="#18363b" font-weight="bold" text-anchor="start">From a physical rule to sampled connections</text>
+<text x="30" y="85" font-size="20" fill="#18363b" font-weight="normal" text-anchor="start">Define and compile once for this operator</text>
+<rect x="30" y="113" width="220" height="133" rx="10" fill="#83c5be" stroke="#006d77" stroke-width="2"/>
+<text x="140" y="150" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">Definition</text>
+<text x="140" y="188" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Sites and conditions</text>
+<text x="140" y="217" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Updates and coefficients</text>
+<rect x="290" y="113" width="220" height="133" rx="10" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="400" y="150" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">IR</text>
+<text x="400" y="188" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Ordered terms</text>
+<text x="400" y="217" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Inspectable expressions</text>
+<rect x="550" y="113" width="220" height="133" rx="10" fill="#ffddd2" stroke="#006d77" stroke-width="2"/>
+<text x="660" y="150" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">Native operator</text>
+<text x="660" y="188" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Static connection shape</text>
+<text x="660" y="217" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Generated JAX kernel</text>
+<path d="M255 180 L283 180" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M515 180 L543 180" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="30" y="296" font-size="20" fill="#18363b" font-weight="normal" text-anchor="start">Reuse the operator throughout the calculation</text>
+<rect x="30" y="320" width="740" height="138" rx="10" fill="white" stroke="none" stroke-width="2"/>
+<text x="145" y="365" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Sampled source</text>
+<text x="145" y="394" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">σ with N labels</text>
+<rect x="295" y="340" width="210" height="89" rx="10" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="374" font-size="21" fill="white" font-weight="normal" text-anchor="middle">Connection kernel</text>
+<text x="400" y="403" font-size="21" fill="white" font-weight="normal" text-anchor="middle">A[σ, σ′]</text>
+<text x="656" y="365" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Targets σ′</text>
+<text x="656" y="394" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Matrix elements</text>
+<path d="M245 383 L283 383" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M516 383 L557 383" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+</g></svg>

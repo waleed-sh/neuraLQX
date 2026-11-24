@@ -43,6 +43,16 @@ Matrix free describes the representation of the full operator. Individual implem
 
 Explicit [matrix conversion](application.md#matrices-batches-and-memory) remains available for small-space checks. You do not need that conversion before passing an operator to a variational state or driver.
 
+## Two ways to define an operator
+
+When a physical action is not already available among the [supplied operators](prebuilt.md), you can define it in two ways. Both produce matrix free operators that use the same expectations, algebra, and driver interfaces.
+
+The [symbolic interface](symbolic/index.md) describes the action through iteration domains, conditions, configuration updates, and matrix elements. For example, you can iterate over graph edges, shift the relevant charges, and attach a coefficient written as a mathematical expression. The compiler generates the JAX connectivity code, including batching and the combination of repeated targets. This is a useful starting point when you know the physical rule and want to express it without implementing a kernel.
+
+The [direct implementation interface](../../developers/operators/index.md) lets you write the JAX action yourself as a computational operator. It gives you control over specialised numerical algorithms, local tables, and execution strategies that do not fit the symbolic language. It also makes you responsible for the connectivity contract, including shapes, padding, and matrix-row conventions.
+
+These approaches can be used together. A compiled symbolic operator can be added to a supplied volume operator or composed with a custom kernel. Choose how to implement each elementary action, then use the common [operator algebra](algebra.md) to construct the calculation.
+
 ## A first operator
 
 [`NumberOperator`](../../api/public/neuralqx/operator/prebuilt/wcl/index.md#neuralqx.operator.prebuilt.wcl.NumberOperator) measures one U(1) edge charge. Here we inspect its action on a single configuration.
@@ -95,7 +105,7 @@ An operator's `.hilbert` identifies its basis. `.dtype` describes its matrix ele
 
 ## How this section is organised
 
-Start with [constructing operators](construction.md) to select a Hilbert space, use supplied constructors, and build combinations. Continue with [applying operators](application.md) for connected configurations, local estimators, and expectations, then [operator algebra](algebra.md) for sums, products, adjoints, and local constraint grouping.
+Start with [constructing operators](construction.md) to select a Hilbert space, use supplied constructors, and build combinations. For a new action, the [symbolic operator guides](symbolic/index.md) develop a definition from its first matrix row through updates, conditions, and compiler diagnostics. Continue with [applying operators](application.md) for connected configurations, local estimators, and expectations, then [operator algebra](algebra.md) for sums, products, adjoints, and local constraint grouping.
 
 The [squared estimator page](squared-estimators.md) develops the factorised norm calculation in detail. [Penalties and objectives](penalties.md) shows how to turn measurements into optimisation terms. [Restricted spaces and residuals](restricted-spaces.md) explains what changes when a state lives inside a larger operator space.
 

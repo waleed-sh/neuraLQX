@@ -8,6 +8,8 @@ neuraLQX keeps package settings in [`nqx.config`](../api/public/neuralqx/config/
 
 Most calculations can start with the defaults. Change a setting when you need a particular execution layout, a diagnostic recording, or an explicit numerical policy. Settings such as the number of samples, network width, learning rate, and model evaluation chunk size belong to the objects you construct. Their arguments are explained in the [core concepts](../concepts/index.md), rather than being global configuration variables.
 
+The [symbolic operator compiler](../concepts/operators/symbolic/index.md) has a separate options object and configuration namespace, `neuralqx.operator.symbolic.config`. Its [configuration reference](../developers/symbolic/configuration.md) lists every symbolic compiler option and debug setting, including their defaults and environment bindings.
+
 ## Reading and changing settings
 
 ### Python configuration

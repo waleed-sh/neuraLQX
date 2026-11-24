@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="470" viewBox="0 0 800 470" role="img" aria-labelledby="title desc">
+<title id="title">Emissions add matrix elements at equal targets</title>
+<desc id="desc">Four emissions start from source (1, 0). Two reach target (0, 1) with coefficients 2 and 3, giving 5. Two remain at (1, 0) with coefficients minus 1 and plus 1, which cancel. One active connection remains.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b">
+<rect x="0" y="0" width="800" height="470" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="30" y="47" font-size="28" fill="#18363b" font-weight="bold" text-anchor="start">Emissions add matrix elements at equal targets</text>
+<text x="30" y="85" font-size="20" fill="#18363b" font-weight="normal" text-anchor="start">Each emission starts from the same source configuration</text>
+<rect x="30" y="209" width="150" height="95" rx="10" fill="#83c5be" stroke="#006d77" stroke-width="2"/>
+<text x="105" y="246" font-size="24" fill="#18363b" font-weight="normal" text-anchor="middle">Source</text>
+<text x="105" y="275" font-size="24" fill="#18363b" font-weight="normal" text-anchor="middle">(1, 0)</text>
+<rect x="280" y="119" width="200" height="55" rx="10" fill="#ffddd2" stroke="#006d77" stroke-width="2"/>
+<text x="380" y="154" font-size="23" fill="#18363b" font-weight="normal" text-anchor="middle">(0, 1)     +2</text>
+<path d="M180 257 L222 257 L222 147 L271 147" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="280" y="195" width="200" height="55" rx="10" fill="#ffddd2" stroke="#006d77" stroke-width="2"/>
+<text x="380" y="230" font-size="23" fill="#18363b" font-weight="normal" text-anchor="middle">(0, 1)     +3</text>
+<path d="M180 257 L222 257 L222 223 L271 223" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="280" y="271" width="200" height="55" rx="10" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="380" y="306" font-size="23" fill="#18363b" font-weight="normal" text-anchor="middle">(1, 0)     −1</text>
+<path d="M180 257 L222 257 L222 299 L271 299" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="280" y="347" width="200" height="55" rx="10" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="380" y="382" font-size="23" fill="#18363b" font-weight="normal" text-anchor="middle">(1, 0)     +1</text>
+<path d="M180 257 L222 257 L222 375 L271 375" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="595" y="158" width="175" height="94" rx="10" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="682" y="193" font-size="23" fill="white" font-weight="normal" text-anchor="middle">(0, 1)</text>
+<text x="682" y="222" font-size="23" fill="white" font-weight="normal" text-anchor="middle">2 + 3 = 5</text>
+<rect x="595" y="305" width="175" height="94" rx="10" fill="white" stroke="#e29578" stroke-width="2"/>
+<text x="682" y="340" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">−1 + 1 = 0</text>
+<text x="682" y="369" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">No active entry</text>
+<path d="M480 147 L531 147 L531 204 L585 204" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M480 223 L531 223 L531 204 L585 204" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M480 299 L531 299 L531 351 L585 351" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M480 375 L531 375 L531 351 L585 351" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="400" y="441" font-size="22" fill="#18363b" font-weight="normal" text-anchor="middle">Four contributions, one nonzero connection</text>
+</g></svg>

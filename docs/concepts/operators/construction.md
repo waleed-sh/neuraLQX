@@ -8,6 +8,8 @@ Constructing an operator means choosing its Hilbert space and the physical argum
 
 For most calculations, you can start with a supplied operator and use the [operator algebra](algebra.md) to build the expression you need. An [LQX model](../lqx/index.md) offers another route to the same operators when several choices should be organised together.
 
+For a new action, the [symbolic operator guides](symbolic/index.md) show how to declare sites, conditions, configuration updates, and matrix elements. The compiler handles the native JAX connection interface. If the action needs a directly written numerical kernel, follow the [custom operator guides](../../developers/operators/index.md). Both approaches produce matrix free computational operators that use the algebra and measurement interfaces described here.
+
 ## Start from the Hilbert space
 
 Every operator belongs to a specific Hilbert space. Sharing a graph or a configuration width is not enough to make two operators compatible. The charge range, gauge restrictions, basis labels, and layout determine the space on which the action is defined.

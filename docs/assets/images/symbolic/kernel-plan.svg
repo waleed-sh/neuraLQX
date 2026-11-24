@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="570" viewBox="0 0 800 570" role="img" aria-labelledby="title desc">
+<title id="title">Separate scalar work from target construction</title>
+<desc id="desc">Instantiated symbolic actions supply guards and amplitudes to scalar batches, and ordered updates to coordinate maps. Target representatives are constructed once per equivalent class. Assembly adds colliding amplitudes and compacts the native padded arrays with separate batch, connection, and coordinate axes.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b">
+<rect x="0" y="0" width="800" height="570" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="30" y="47" font-size="28" fill="#18363b" font-weight="bold" text-anchor="start">Separate scalar work from target construction</text>
+<rect x="30" y="93" width="740" height="75" rx="10" fill="#83c5be" stroke="#006d77" stroke-width="2"/>
+<text x="400" y="125" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">R instantiated actions</text>
+<text x="400" y="153" font-size="20" fill="#18363b" font-weight="normal" text-anchor="middle">Term × iterator row × emission</text>
+<path d="M202 172 L202 218" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M597 172 L597 218" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="30" y="229" width="345" height="136" rx="10" fill="white" stroke="#006d77" stroke-width="2"/>
+<rect x="425" y="229" width="345" height="136" rx="10" fill="#ffddd2" stroke="#e29578" stroke-width="2"/>
+<text x="202" y="264" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">Scalar expressions</text>
+<text x="202" y="302" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Guards and amplitudes</text>
+<text x="202" y="331" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Batch matching templates</text>
+<text x="597" y="264" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">Target expressions</text>
+<text x="597" y="302" font-size="20" fill="#18363b" font-weight="normal" text-anchor="middle">Changed coordinates</text>
+<text x="597" y="331" font-size="20" fill="#18363b" font-weight="normal" text-anchor="middle">Representatives of equal targets</text>
+<path d="M202 369 L202 397 L300 397 L300 422" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M597 369 L597 397 L500 397 L500 422" fill="none" stroke="#006d77" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="170" y="432" width="460" height="111" rx="10" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="467" font-size="24" fill="white" font-weight="bold" text-anchor="middle">Assemble connections</text>
+<text x="400" y="501" font-size="20" fill="white" font-weight="normal" text-anchor="middle">Sum equal targets and compact</text>
+<text x="400" y="530" font-size="20" fill="white" font-weight="normal" text-anchor="middle">Targets (..., K, N)    Elements (..., K)</text>
+</g></svg>
