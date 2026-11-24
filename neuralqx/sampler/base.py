@@ -96,7 +96,7 @@ class AbstractSampler(Struct, metaclass=StructABCMeta):
         object.__setattr__(self, "operator_blur", blur)
         if not isinstance(self.hilbert, DiscreteHilbertSpace):
             raise NeuralqxTypeError(
-                "Samplers currently require a DiscreteHilbertSpace; "
+                "Samplers currently require a DiscreteHilbertSpace, "
                 f"got {type(self.hilbert).__name__}."
             )
         machine_pow = jnp.asarray(self.machine_pow)
@@ -120,8 +120,16 @@ class AbstractSampler(Struct, metaclass=StructABCMeta):
 
     @property
     def sample_device_count(self) -> int:
-        """Number of devices used for sample-axis work."""
-        return int(jax.device_count()) if self.sample_sharding_enabled else 1
+        """Number of independent chain groups, excluding cooperating tensor workers."""
+        count = int(jax.device_count())
+        if count <= 1:
+            return count
+        if not self.sample_sharding_enabled:
+            return 1
+        from neuralqx.jax.sharding import sample_partition_count
+        from neuralqx.jax.tensor_parallel import network_sharding_enabled
+
+        return sample_partition_count() if network_sharding_enabled() else count
 
     def log_probability(
         self,

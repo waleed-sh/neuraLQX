@@ -27,6 +27,7 @@ from jax.sharding import PartitionSpec
 from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 from neuralqx.jax.mesh import logical_axis_name
+from neuralqx.jax.sharding.arrays import place_global_array
 
 
 def operator_terms_shardings(
@@ -37,9 +38,16 @@ def operator_terms_shardings(
     """Return shardings that partition only the leading operator-term axis."""
     if not bool(config.get("operator_sharding_enabled")):
         return None, None
-    mesh = create_device_mesh(
-        active_axes=("operators",),
-        axis_sizes={"operators": int(jax.device_count())},
+    from neuralqx.jax.tensor_parallel import network_sharding_enabled
+    from neuralqx.jax.tensor_parallel import tensor_mesh
+
+    mesh = (
+        tensor_mesh()
+        if network_sharding_enabled()
+        else create_device_mesh(
+            active_axes=("operators",),
+            axis_sizes={"operators": int(jax.device_count())},
+        )
     )
     if mesh is None:
         return None, None
@@ -73,7 +81,7 @@ def place_operator_terms(
         return xp, mel
 
     xp, mel = _pad_terms_for_sharding(xp, mel, xp_sharding)
-    return jax.device_put(xp, xp_sharding), jax.device_put(mel, mel_sharding)
+    return place_global_array(xp, xp_sharding), place_global_array(mel, mel_sharding)
 
 
 def _pad_terms_for_sharding(

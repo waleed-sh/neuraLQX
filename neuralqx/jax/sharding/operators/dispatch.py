@@ -26,6 +26,8 @@ from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec
 from neuralqx.jax.distributed.coordinator import plan_distributed_execution
 from neuralqx.jax.shard_map import shard_map
+from neuralqx.jax.shard_map import varying_over
+from neuralqx.jax.sharding.arrays import place_global_array
 from neuralqx.jax.sharding.samples import place_sample_batch
 from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
@@ -106,6 +108,20 @@ def sharded_operator_term_values(
         chunk_size=operator_streaming_chunk_size,
     )
 
+    logpsi_states = place_sample_batch(states) if plan.uses_sample_axis else states
+    if any(not bool(getattr(term.operator, "is_diagonal", False)) for term in terms):
+        logpsi = apply_batched(
+            apply_variables,
+            variables,
+            logpsi_states,
+            chunk_size=chunk_size,
+        )
+        common_dtype = jnp.result_type(common_dtype, logpsi.dtype)
+    else:
+        logpsi = jnp.zeros((states.shape[0],), dtype=common_dtype)
+    logpsi = _place_logpsi(logpsi.astype(common_dtype), plan)
+    states = _place_states(states, plan)
+
     branches = tuple(
         _operator_term_branch(
             term,
@@ -122,22 +138,16 @@ def sharded_operator_term_values(
         *branches,
         _zero_operator_term_branch(),
     )
-    logpsi_states = place_sample_batch(states) if plan.uses_sample_axis else states
-    if any(not bool(getattr(term.operator, "is_diagonal", False)) for term in terms):
-        logpsi = apply_batched(
-            apply_variables,
-            variables,
-            logpsi_states,
-            chunk_size=chunk_size,
-        )
-    else:
-        logpsi = jnp.zeros((states.shape[0],), dtype=common_dtype)
-    logpsi = _place_logpsi(logpsi, plan)
-    states = _place_states(states, plan)
 
     def local_term_values(
         local_term_indices, local_states, local_logpsi, local_variables
     ):
+        # Different workers select different branches. Establish local copies
+        # before control flow so reverse mode reduces shared cotangents once.
+        local_states, local_logpsi, local_variables = varying_over(
+            (local_states, local_logpsi, local_variables), plan.operator_axis
+        )
+
         def one_term(index):
             return jax.lax.switch(
                 index,
@@ -178,7 +188,7 @@ def _scheduled_operator_term_indices(
 
 def _place_term_indices(plan: DistributedPlan) -> jax.Array:
     sharding = NamedSharding(plan.mesh, PartitionSpec(plan.operator_axis))
-    return jax.device_put(plan.term_indices, sharding)
+    return place_global_array(plan.term_indices, sharding)
 
 
 def _place_states(states: jax.Array, plan: DistributedPlan) -> jax.Array:
@@ -186,7 +196,7 @@ def _place_states(states: jax.Array, plan: DistributedPlan) -> jax.Array:
         return states
     assert plan.sample_axis is not None
     sharding = NamedSharding(plan.mesh, PartitionSpec(plan.sample_axis, None))
-    return jax.device_put(states, sharding)
+    return place_global_array(states, sharding)
 
 
 def _place_logpsi(logpsi: jax.Array, plan: DistributedPlan) -> jax.Array:
@@ -194,7 +204,7 @@ def _place_logpsi(logpsi: jax.Array, plan: DistributedPlan) -> jax.Array:
         return logpsi
     assert plan.sample_axis is not None
     sharding = NamedSharding(plan.mesh, PartitionSpec(plan.sample_axis))
-    return jax.device_put(logpsi, sharding)
+    return place_global_array(logpsi, sharding)
 
 
 def _dispatch_specs(

@@ -33,11 +33,22 @@ def shard_map(
     """Return a shard-mapped function using the JAX 0.9+ public API when present."""
     public_shard_map = getattr(jax, "shard_map", None)
     if public_shard_map is not None:
+        from neuralqx.jax.tensor_parallel import network_sharding_enabled
+        from neuralqx.jax.tensor_parallel import tensor_axis_name
+
+        # Tensor axes retain global shapes and compiler-managed collectives.
+        # Existing in/out specs describe only the manually partitioned work.
+        manual_axes = (
+            set(mesh.axis_names) - {tensor_axis_name()}
+            if network_sharding_enabled() and tensor_axis_name() in mesh.axis_names
+            else set()
+        )
         return public_shard_map(
             fn,
             mesh=mesh,
             in_specs=in_specs,
             out_specs=out_specs,
+            axis_names=manual_axes,
         )
 
     from jax.experimental.shard_map import shard_map as experimental_shard_map
@@ -45,4 +56,17 @@ def shard_map(
     return experimental_shard_map(fn, mesh, in_specs, out_specs)
 
 
-__all__ = ["shard_map"]
+def varying_over(tree: Any, axes: str | tuple[str, ...]) -> Any:
+    """Give replicated inputs independent cotangents on manual work axes.
+
+    Use this before control flow whose branch varies between work shards.
+    The transpose then sums contributions once when returning to a replicated
+    input. JAX 0.9 exposes this operation as ``pvary`` and later versions expose
+    it through ``pcast``.
+    """
+    if hasattr(jax.lax, "pcast"):
+        return jax.lax.pcast(tree, axes, to="varying")
+    return jax.lax.pvary(tree, axes)
+
+
+__all__ = ["shard_map", "varying_over"]

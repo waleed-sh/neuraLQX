@@ -22,7 +22,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import jax
-from neuralqx.jax.sharding import place_parameters
 from neuralqx.utils.struct import Struct
 from neuralqx.utils.struct import StructABCMeta
 from neuralqx.utils.typing import Variables
@@ -73,9 +72,13 @@ class AbstractModelFramework(Struct, metaclass=StructABCMeta):
         """Build framework variables from parameters and non-parameter state."""
 
     def place_variables(self, variables: Variables) -> Variables:
-        """Place parameter leaves according to neuraLQX parameter-sharding config."""
+        """Normalize the variable container while retaining array placements.
+
+        Tensor-parallel adapters override this hook to apply their model's
+        partition plan. Ordinary frameworks preserve user-supplied shardings.
+        """
         parameters, model_state = self.split_variables(variables)
-        return self.merge_variables(place_parameters(parameters), model_state)
+        return self.merge_variables(parameters, model_state)
 
     def parameters_from_variables(self, variables: Variables) -> Any:
         """Extract only trainable parameters."""

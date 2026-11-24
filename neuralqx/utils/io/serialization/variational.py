@@ -45,6 +45,10 @@ from .trees import replicated_sharding
 
 def _model(state):
     framework = state.framework
+    from neuralqx.utils.frameworks.tensor_parallel import TensorParallelFramework
+
+    if isinstance(framework, TensorParallelFramework):
+        framework = framework.base
     if framework.name == "flax.nnx":
         from flax import nnx
 

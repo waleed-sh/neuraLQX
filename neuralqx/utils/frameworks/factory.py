@@ -36,7 +36,44 @@ def as_framework(
     init_fn: Callable[..., Any] | None = None,
     expects_variables: bool = False,
 ) -> tuple[AbstractModelFramework, Any | None]:
-    """Return ``(framework, maybe_variables)`` for supported model inputs."""
+    """Return ``(framework, maybe_variables)`` for supported model inputs.
+
+    Initialized NNX models return their split variables. Linen modules and
+    JAX callables return ``None`` until their initializer is called. When
+    ``network_sharding_enabled`` is set, a tensor adapter selects and validates
+    parameter layouts while preserving the model's ordinary global function.
+    ``TensorParallel(model, parameter_rules)`` supplies explicit overrides for
+    custom networks and remains usable when tensor parallelism is disabled.
+    """
+    from neuralqx.jax.tensor_parallel import network_sharding_enabled
+    from neuralqx.nn.parallel import TensorParallel
+
+    rules = ()
+    if isinstance(model, TensorParallel):
+        rules = tuple(model.parameter_rules.items())
+        init_fn = model.init_fn if model.init_fn is not None else init_fn
+        if model.expects_variables is not None:
+            expects_variables = model.expects_variables
+        model = model.model
+    if network_sharding_enabled():
+        from .tensor_parallel import TensorParallelFramework
+        from .tensor_parallel import wrap_tensor_parallel
+
+        if isinstance(model, TensorParallelFramework):
+            return model, None
+        base, variables = _as_framework(
+            model,
+            apply_fn=apply_fn,
+            init_fn=init_fn,
+            expects_variables=expects_variables,
+        )
+        return wrap_tensor_parallel(base, variables, model, rules)
+    return _as_framework(
+        model, apply_fn=apply_fn, init_fn=init_fn, expects_variables=expects_variables
+    )
+
+
+def _as_framework(model=None, *, apply_fn=None, init_fn=None, expects_variables=False):
     if isinstance(model, AbstractModelFramework):
         return model, None
 
@@ -49,7 +86,7 @@ def as_framework(
     if isinstance(candidate, ProjectedCallable):
         from .projected import ProjectedFramework
 
-        base, variables = as_framework(
+        base, variables = _as_framework(
             apply_fn=candidate.model,
             init_fn=init_fn,
             expects_variables=expects_variables,

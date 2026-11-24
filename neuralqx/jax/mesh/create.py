@@ -25,6 +25,8 @@ import numpy as np
 
 import jax
 from jax.sharding import Mesh
+from neuralqx.jax.tensor_parallel import network_sharding_enabled
+from neuralqx.jax.tensor_parallel import tensor_mesh
 from neuralqx.utils.errors import NeuralqxValueError
 
 from .config import active_logical_axes
@@ -45,6 +47,14 @@ def create_device_mesh(
     consumes exactly the supplied devices, so accidental partial-device meshes
     do not silently leave accelerators idle.
     """
+    if (
+        active_axes is None
+        and axis_names is None
+        and axis_sizes is None
+        and devices is None
+        and network_sharding_enabled()
+    ):
+        return tensor_mesh()
     logical_axes = tuple(active_logical_axes() if active_axes is None else active_axes)
     if not logical_axes:
         return None

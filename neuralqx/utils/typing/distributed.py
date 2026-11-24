@@ -40,7 +40,7 @@ class DistributedAxis(Enum):
 
     SAMPLES = "samples"
     OPERATORS = "operators"
-    PARAMETERS = "parameters"
+    TENSOR = "tensor"
 
 
 @unique
@@ -62,7 +62,8 @@ class DistributedLayoutKind(Enum):
     SAMPLE = "sample"
     OPERATOR = "operator"
     OPERATOR_SAMPLE = "operator_sample"
-    PARAMETER_REPLICATED = "parameter_replicated"
+    TENSOR = "tensor"
+    SAMPLE_TENSOR = "sample_tensor"
 
 
 @unique
@@ -173,6 +174,14 @@ class DistributedPlan:
     term_indices: jax.Array | None = None
     """Optional scheduled operator-term indices for the plan."""
 
+    batch_axes: tuple[str, ...] = ()
+    """Physical axes splitting distinct samples in this phase.
+
+    With tensor parallelism, sampling and force evaluation can fold the sample
+    and operator axes together. Operator dispatch uses only the sample axis.
+    Tensor workers cooperate on the same samples and never add observations.
+    """
+
     @classmethod
     def disabled(cls, phase: DistributedPhase) -> DistributedPlan:
         """Return a no-distribution plan for ``phase``.
@@ -197,7 +206,7 @@ class DistributedPlan:
     @property
     def uses_sample_axis(self) -> bool:
         """Whether the plan has a nontrivial sample axis."""
-        return self.partitions(DistributedAxis.SAMPLES) > 1
+        return self.sample_partitions > 1
 
     @property
     def operator_axis(self) -> str:
@@ -217,6 +226,12 @@ class DistributedPlan:
     @property
     def sample_partitions(self) -> int:
         """Number of sample-axis partitions."""
+        if self.layout is DistributedLayoutKind.TENSOR:
+            return 1
+        if self.batch_axes and self.mesh is not None:
+            from math import prod
+
+            return prod(int(self.mesh.shape[name]) for name in self.batch_axes)
         return self.partitions(DistributedAxis.SAMPLES)
 
     def axis_name(self, axis: DistributedAxis) -> str:

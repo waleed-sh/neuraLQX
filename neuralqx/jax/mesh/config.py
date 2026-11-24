@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from neuralqx.config import config
 from neuralqx.utils.errors import NeuralqxValueError
 
-LOGICAL_AXIS_ORDER = ("samples", "parameters", "operators")
+LOGICAL_AXIS_ORDER = ("samples", "operators", "tensor")
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,8 +38,8 @@ def active_logical_axes() -> tuple[str, ...]:
     """Return logical mesh axes enabled by current neuraLQX config."""
     enabled = {
         "samples": bool(config.get("sample_sharding_enabled")),
-        "parameters": bool(config.get("parameter_sharding_enabled")),
         "operators": bool(config.get("operator_sharding_enabled")),
+        "tensor": bool(config.get("network_sharding_enabled")),
     }
     return tuple(axis for axis in LOGICAL_AXIS_ORDER if enabled[axis])
 
@@ -48,8 +48,8 @@ def configured_axis_names() -> dict[str, str]:
     """Return configured physical mesh names for each logical axis."""
     return {
         "samples": str(config.get("mesh_sample_axis_name")),
-        "parameters": str(config.get("mesh_parameter_axis_name")),
         "operators": str(config.get("mesh_operator_axis_name")),
+        "tensor": str(config.get("mesh_tensor_axis_name")),
     }
 
 
@@ -57,8 +57,8 @@ def configured_axis_sizes() -> dict[str, int | None]:
     """Return optional configured mesh sizes for each logical axis."""
     return {
         "samples": config.get("mesh_sample_axis_size"),
-        "parameters": config.get("mesh_parameter_axis_size"),
         "operators": config.get("mesh_operator_axis_size"),
+        "tensor": config.get("mesh_tensor_axis_size"),
     }
 
 

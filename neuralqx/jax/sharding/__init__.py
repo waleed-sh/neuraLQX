@@ -24,11 +24,6 @@ from .connected import place_operator_batch
 from .operators import operator_axis_partition_count
 from .operators import operator_terms_shardings
 from .operators import place_operator_terms
-from .parameters import constrain_parameters
-from .parameters import parameter_mesh
-from .parameters import parameter_sharding_enabled
-from .parameters import place_parameters
-from .parameters import replicated_parameter_sharding
 from .samples import can_shard_samples
 from .samples import make_sample_zeros
 from .samples import place_sample_batch
@@ -43,21 +38,16 @@ from .samples import shard_sample_keys
 __all__ = [
     "can_shard_samples",
     "connected_output_shardings",
-    "constrain_parameters",
     "is_distributed_array",
     "is_jax_array",
     "is_sharded_array",
     "make_sample_zeros",
     "operator_axis_partition_count",
     "operator_terms_shardings",
-    "parameter_mesh",
-    "parameter_sharding_enabled",
     "place_connected_outputs",
     "place_operator_batch",
     "place_operator_terms",
-    "place_parameters",
     "place_sample_batch",
-    "replicated_parameter_sharding",
     "sample_axis_name",
     "sample_batch_sharding",
     "sample_mesh",

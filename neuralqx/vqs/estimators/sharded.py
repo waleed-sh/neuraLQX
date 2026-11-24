@@ -29,16 +29,21 @@ def _parallel_preparation(shards):
     return len(shards) > 1 and all(s.device.platform == "gpu" for s in shards)
 
 
-def sample_layout(samples):
+def sample_layout(samples, *, allow_replicas=False):
     if isinstance(samples, jax.core.Tracer) or not isinstance(samples, jax.Array):
         return None
     layout = samples.sharding
-    if not isinstance(layout, NamedSharding) or layout.is_fully_replicated:
+    if not isinstance(layout, NamedSharding):
         return None
+    if layout.is_fully_replicated:
+        return layout if allow_replicas else None
     if not layout.spec or layout.spec[0] is None or any(layout.spec[1:]):
         return None
     axes = layout.spec[0] if isinstance(layout.spec[0], tuple) else (layout.spec[0],)
-    if np.prod([layout.mesh.shape[name] for name in axes]) != layout.mesh.size:
+    if (
+        not allow_replicas
+        and np.prod([layout.mesh.shape[name] for name in axes]) != layout.mesh.size
+    ):
         return None
     return layout
 
@@ -96,7 +101,7 @@ def _pad_connections(targets, amplitudes, owners, offset, *, capacity):
 
 
 def prepare_sharded_connections(operator, samples, prepare, **kwargs):
-    layout = sample_layout(samples)
+    layout = sample_layout(samples, allow_replicas=True)
     if layout is None:
         return None
     shards = samples.addressable_shards
@@ -116,14 +121,26 @@ def prepare_sharded_connections(operator, samples, prepare, **kwargs):
                 amplitudes = amplitudes.reshape(-1)
             return shard, targets, amplitudes, owners
 
-    if _parallel_preparation(shards):
-        rows = list(_device_executor(len(shards)).map(local, shards))
+    # Tensor workers share configurations. Prepare each local sample slice
+    # once, then copy its connectivity to the other local replicas. No model
+    # parameters are gathered or evaluated on a single tensor worker.
+    def index_key(shard):
+        return tuple((index.start, index.stop, index.step) for index in shard.index)
+
+    leaders = {}
+    for shard in shards:
+        leaders.setdefault(index_key(shard), shard)
+    unique_shards = list(leaders.values())
+    if _parallel_preparation(unique_shards):
+        rows = list(_device_executor(len(unique_shards)).map(local, unique_shards))
     else:
-        rows = [local(s) for s in shards]
+        rows = [local(s) for s in unique_shards]
     local_capacity = max(len(row[2]) for row in rows)
     local_size = shards[0].data.shape[0]
     partitions = samples.shape[0] // local_size
-    output_layout = NamedSharding(layout.mesh, P(layout.spec[0]))
+    output_layout = NamedSharding(
+        layout.mesh, P(layout.spec[0]) if layout.spec else P()
+    )
     capacity = local_capacity
     if not samples.is_fully_addressable:
         # Only a capacity is reduced across hosts. Connections never cross the
@@ -137,7 +154,7 @@ def prepare_sharded_connections(operator, samples, prepare, **kwargs):
             ],
         )
         capacity = int(jnp.max(counts))
-    buffers = [[], [], []]
+    prepared = {}
     for shard, targets, amplitudes, owners in rows:
         with jax.default_device(shard.device):
             padded = _pad_connections(
@@ -147,8 +164,11 @@ def prepare_sharded_connections(operator, samples, prepare, **kwargs):
                 shard.index[0].start or 0,
                 capacity=capacity,
             )
-        for result, array in zip(buffers, padded, strict=True):
-            result.append(array)
+        prepared[index_key(shard)] = padded
+    buffers = [[], [], []]
+    for shard in shards:
+        for result, array in zip(buffers, prepared[index_key(shard)], strict=True):
+            result.append(jax.device_put(array, shard.device))
     return tuple(
         jax.make_array_from_single_device_arrays(
             (capacity * partitions, *arrays[0].shape[1:]), output_layout, arrays

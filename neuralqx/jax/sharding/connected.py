@@ -43,7 +43,7 @@ def connected_output_shardings(
 
     spec = tuple(input_sharding.spec)
     if len(spec) < input_ndim:
-        spec = (None,) * (input_ndim - len(spec)) + spec
+        spec = spec + (None,) * (input_ndim - len(spec))
     if len(spec) != input_ndim:
         return None, None
     if spec[-1] is not None:
@@ -94,6 +94,8 @@ def place_operator_batch(states: Any) -> jax.Array:
 
 
 def _partition_count(spec: PartitionSpec, mesh_shape: dict[str, int]) -> int:
+    if not spec:
+        return 1
     axis = spec[0]
     if axis is None:
         return 1

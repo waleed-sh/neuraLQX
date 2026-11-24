@@ -27,6 +27,7 @@ and gradient code can use it without relying on a model's parameter names.
 from . import activations
 from . import layers
 from . import models
+from . import parallel
 from . import projectors
 from . import utils
 from .activations import activation
@@ -39,6 +40,11 @@ from .models import RBM
 from .models import AutoregressiveRNN
 from .models import Jastrow
 from .models import LogWavefunction
+from .parallel import TensorParallel
+from .parallel import TensorParallelPlan
+from .parallel import init_tensor_parallel
+from .parallel import register_tensor_parallel_rule
+from .parallel import tensor_parallel_plan
 from .utils import ConnectionPolicy
 from .utils.bridge import to_linen
 
@@ -51,13 +57,19 @@ __all__ = [
     "ConnectionPolicy",
     "Jastrow",
     "LogWavefunction",
+    "TensorParallel",
+    "TensorParallelPlan",
     "activation",
     "activations",
     "get_activation",
+    "init_tensor_parallel",
     "layers",
     "models",
+    "parallel",
     "projectors",
+    "register_tensor_parallel_rule",
     "reim",
+    "tensor_parallel_plan",
     "to_linen",
     "utils",
 ]

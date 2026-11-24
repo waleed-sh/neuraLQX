@@ -29,6 +29,9 @@ from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 from neuralqx.jax.mesh import logical_axis_name
 from neuralqx.jax.mesh import named_sharding
+from neuralqx.jax.tensor_parallel import network_sharding_enabled
+from neuralqx.jax.tensor_parallel import tensor_mesh
+from neuralqx.jax.tensor_parallel.mesh import sample_spec
 from neuralqx.utils.errors import NeuralqxValueError
 
 from .arrays import place_global_array
@@ -46,7 +49,9 @@ def sample_axis_name() -> str:
 
 
 def sample_mesh():
-    """Return the sample-only mesh used by sampler execution."""
+    """Return the sampling mesh, retaining cooperating tensor groups when enabled."""
+    if network_sharding_enabled():
+        return tensor_mesh()
     if not sample_sharding_enabled():
         return None
     return create_device_mesh(active_axes=("samples",))
@@ -58,11 +63,15 @@ def sample_partition_spec(ndim: int = 2) -> PartitionSpec:
         raise NeuralqxValueError(
             "sample sharding requires an array with at least one axis."
         )
+    if network_sharding_enabled():
+        return sample_spec(ndim)
     return PartitionSpec(sample_axis_name(), *((None,) * (int(ndim) - 1)))
 
 
 def sample_batch_sharding(ndim: int = 2) -> NamedSharding | None:
     """Return sharding for arrays whose leading axis is samples/chains."""
+    if network_sharding_enabled():
+        return NamedSharding(sample_mesh(), sample_partition_spec(ndim))
     if not sample_sharding_enabled():
         return None
     return named_sharding(
@@ -73,6 +82,16 @@ def sample_batch_sharding(ndim: int = 2) -> NamedSharding | None:
 
 def sample_partition_count(ndim: int = 1) -> int:
     """Return the number of partitions used along the leading sample axis."""
+    # A single-device sampler cannot partition its batch. Avoid constructing
+    # meshes repeatedly on this common serial path, while still validating
+    # explicit incompatible mesh sizes through the ordinary planner below.
+    if (
+        ndim > 0
+        and jax.device_count() == 1
+        and not network_sharding_enabled()
+        and config.get("mesh_sample_axis_size") in (None, 1)
+    ):
+        return 1
     sharding = sample_batch_sharding(ndim)
     if sharding is None:
         return 1
@@ -93,7 +112,9 @@ def place_sample_batch(samples: Any) -> Any:
     if sharding is None:
         return samples
     partitions = _partition_count(sharding.spec, sharding.mesh.shape)
-    if partitions <= 1 or samples.shape[0] % partitions != 0:
+    if (partitions <= 1 and not network_sharding_enabled()) or samples.shape[
+        0
+    ] % partitions != 0:
         return samples
     return place_global_array(samples, sharding)
 
@@ -105,7 +126,9 @@ def make_sample_zeros(shape: tuple[int, ...], dtype: Any) -> jax.Array:
     if sharding is None:
         return jnp.zeros(out_shape, dtype=dtype)
     partitions = _partition_count(sharding.spec, sharding.mesh.shape)
-    if partitions <= 1 or out_shape[0] % partitions != 0:
+    if (partitions <= 1 and not network_sharding_enabled()) or out_shape[
+        0
+    ] % partitions != 0:
         return jnp.zeros(out_shape, dtype=dtype)
     if hasattr(jax, "make_array_from_callback"):
         np_dtype = np.dtype(dtype)

@@ -370,52 +370,44 @@ def parse_optional_int_tuple(value: Any) -> tuple[int, ...] | None:
     )
 
 
-_SHARDING_AXIS_ORDER = ("samples", "parameters", "operators")
+_SHARDING_AXIS_ORDER = ("samples", "operators", "tensor")
 _SHARDING_AXIS_ALIASES = {
     "sample": "samples",
     "samples": "samples",
     "chain": "samples",
     "chains": "samples",
     "data": "samples",
-    "parameter": "parameters",
-    "parameters": "parameters",
-    "param": "parameters",
-    "params": "parameters",
-    "model": "parameters",
     "operator": "operators",
     "operators": "operators",
     "op": "operators",
     "ops": "operators",
+    "tensor": "tensor",
+    "tp": "tensor",
+    "network": "tensor",
+    "networks": "tensor",
 }
 _SHARDING_PRESETS = {
     "default": ("samples",),
     "sample": ("samples",),
     "samples": ("samples",),
     "data": ("samples",),
-    "parameter": ("samples", "parameters"),
-    "parameters": ("samples", "parameters"),
-    "param": ("samples", "parameters"),
-    "params": ("samples", "parameters"),
-    "sample_parameter": ("samples", "parameters"),
-    "samples_parameters": ("samples", "parameters"),
-    "sample_parameters": ("samples", "parameters"),
-    "samples_parameter": ("samples", "parameters"),
-    "full": ("samples", "parameters", "operators"),
-    "all": ("samples", "parameters", "operators"),
-    "sample_parameter_operator": ("samples", "parameters", "operators"),
-    "samples_parameters_operators": ("samples", "parameters", "operators"),
-    "sample_parameters_operators": ("samples", "parameters", "operators"),
-    "samples_parameter_operator": ("samples", "parameters", "operators"),
+    "full": ("samples", "operators", "tensor"),
+    "all": ("samples", "operators", "tensor"),
 }
 
 
 def parse_sharding_axes(value: Any) -> tuple[str, ...]:
     """Parses the high-level sharding policy into canonical mesh axes.
 
-    Accepted examples include ``"samples"``, ``"parameters"``,
-    ``"samples,parameters"``, ``"samples+parameters+operators"``, and
-    ``"all"``. Parameter/operator-only inputs are interpreted additively on
-    top of the default sample sharding.
+    Accepted examples include ``"samples"``, ``"samples,operators"``,
+    ``"tensor"``, and ``"samples,operators,tensor"``. Both ``"all"`` and
+    ``"full"`` enable all three modes. Tensor policies list exactly the desired
+    work axes, so ``"tensor"`` runs a single tensor group and
+    ``"operators,tensor"`` does not enable sample sharding.
+
+    For compatibility, the ``"operators"`` shorthand still enables sample
+    sharding. Set ``sample_sharding_enabled=False`` explicitly for operator-only
+    execution without tensor parallelism. The default remains ``"samples"``.
     """
     if value is None:
         return ("samples",)
@@ -438,10 +430,10 @@ def parse_sharding_axes(value: Any) -> tuple[str, ...]:
             parsed.add(_SHARDING_AXIS_ALIASES[item])
         except KeyError as exc:
             raise ConfigValidationError(
-                f"Unknown sharding axis {item!r}; expected samples, parameters, or operators."
+                f"Unknown sharding axis {item!r}. Expected samples, operators, or tensor."
             ) from exc
 
-    if parsed and "samples" not in parsed:
+    if parsed and "samples" not in parsed and "tensor" not in parsed:
         parsed.add("samples")
     return tuple(axis for axis in _SHARDING_AXIS_ORDER if axis in parsed)
 
@@ -665,7 +657,7 @@ class ConfigManager:
                     )
                 if raw not in allowed_set:
                     raise ConfigValidationError(
-                        f"Invalid enum value {raw!r}; expected one of {allowed}."
+                        f"Invalid enum value {raw!r}, expected one of {allowed}."
                     )
                 return raw
 
@@ -682,7 +674,7 @@ class ConfigManager:
             normalized = raw.strip().lower()
             if normalized not in canonical_set:
                 raise ConfigValidationError(
-                    f"Invalid enum value {raw!r}; expected one of {canonical}."
+                    f"Invalid enum value {raw!r}, expected one of {canonical}."
                 )
             return normalized
 
@@ -1132,7 +1124,7 @@ class ConfigManager:
 
         Returns:
             ``True`` if the option is runtime-mutable and not force-locked by
-            environment; otherwise ``False``.
+            environment, otherwise ``False``.
         """
         state = self._get_state(name)
         return (
@@ -1944,9 +1936,9 @@ class NeuralqxConfig(ConfigManager):
 
     sample_sharding_enabled: bool
 
-    parameter_sharding_enabled: bool
-
     operator_sharding_enabled: bool
+
+    network_sharding_enabled: bool
 
     operator_streaming_enabled: bool
 
@@ -1954,15 +1946,15 @@ class NeuralqxConfig(ConfigManager):
 
     mesh_sample_axis_name: str
 
-    mesh_parameter_axis_name: str
-
     mesh_operator_axis_name: str
+
+    mesh_tensor_axis_name: str
 
     mesh_sample_axis_size: int | None
 
-    mesh_parameter_axis_size: int | None
-
     mesh_operator_axis_size: int | None
+
+    mesh_tensor_axis_size: int | None
 
     # Experimental and feature gating.
     experimental: bool
@@ -2177,8 +2169,9 @@ def _register_default_options(cfg: ConfigManager) -> None:
         default=("samples",),
         doc=(
             "High-level sharding policy. Use 'samples' for sample-only sharding, "
-            "'parameters' or 'samples,parameters' for sample+parameter sharding, "
-            "and 'all' or 'samples,parameters,operators' for the full mesh."
+            "'tensor' for tensor parallelism alone, or 'samples,operators,tensor' "
+            "to combine the three execution modes. Both 'all' and 'full' enable "
+            "samples, operators, and tensor parallelism."
         ),
         value_type=tuple,
         parser=parse_sharding_axes,
@@ -2199,17 +2192,6 @@ def _register_default_options(cfg: ConfigManager) -> None:
         mutability=ConfigMutability.STARTUP,
     )
     cfg.define_bool(
-        "parameter_sharding_enabled",
-        default="parameters" in active_sharding_axes,
-        doc=(
-            "Shards model parameters across the parameter mesh axis. "
-            "Defaults to whether 'parameters' is active in sharding_axes."
-        ),
-        env_default="NEURALQX_PARAMETER_SHARDING_ENABLED",
-        role="distributed",
-        mutability=ConfigMutability.STARTUP,
-    )
-    cfg.define_bool(
         "operator_sharding_enabled",
         default="operators" in active_sharding_axes,
         doc=(
@@ -2220,6 +2202,44 @@ def _register_default_options(cfg: ConfigManager) -> None:
         env_default="NEURALQX_OPERATOR_SHARDING_ENABLED",
         role="distributed",
         mutability=ConfigMutability.STARTUP,
+    )
+    cfg.define_bool(
+        "network_sharding_enabled",
+        default="tensor" in active_sharding_axes,
+        doc=(
+            "Partition neural-network tensors across cooperating devices. "
+            "Composes with independent sample and operator sharding. "
+            "Use sharding_axes='tensor' for network parallelism alone."
+        ),
+        env_default=(
+            "NEURALQX_NETWORK_SHARDING_ENABLED",
+            "NEURALQX_TENSOR_PARALLEL_ENABLED",
+        ),
+        role="distributed",
+        mutability=ConfigMutability.STARTUP,
+    )
+    cfg.define_string(
+        "mesh_tensor_axis_name",
+        default="tensor",
+        doc="Mesh axis used for tensor-parallel model contractions.",
+        env_default="NEURALQX_MESH_TENSOR_AXIS_NAME",
+        role="distributed",
+        mutability=ConfigMutability.STARTUP,
+        validator=non_empty_string_validator,
+    )
+    cfg.define_optional_int(
+        "mesh_tensor_axis_size",
+        default=None,
+        doc=(
+            "Number of cooperating devices per model. None chooses a divisor "
+            "of the device count while retaining enabled sample and operator axes."
+        ),
+        env_default="NEURALQX_MESH_TENSOR_AXIS_SIZE",
+        role="distributed",
+        mutability=ConfigMutability.STARTUP,
+        validator=lambda value: (
+            None if value is None else positive_int_validator(value)
+        ),
     )
     cfg.define_bool(
         "operator_streaming_enabled",
@@ -2254,15 +2274,6 @@ def _register_default_options(cfg: ConfigManager) -> None:
         validator=non_empty_string_validator,
     )
     cfg.define_string(
-        "mesh_parameter_axis_name",
-        default="parameters",
-        doc="Logical mesh axis name for model-parameter sharding.",
-        env_default="NEURALQX_MESH_PARAMETER_AXIS_NAME",
-        role="distributed",
-        mutability=ConfigMutability.STARTUP,
-        validator=non_empty_string_validator,
-    )
-    cfg.define_string(
         "mesh_operator_axis_name",
         default="operators",
         doc="Logical mesh axis name for operator-work sharding.",
@@ -2279,20 +2290,6 @@ def _register_default_options(cfg: ConfigManager) -> None:
             "None lets mesh construction infer the remaining devices."
         ),
         env_default="NEURALQX_MESH_SAMPLE_AXIS_SIZE",
-        role="distributed",
-        mutability=ConfigMutability.STARTUP,
-        validator=lambda value: (
-            None if value is None else positive_int_validator(value)
-        ),
-    )
-    cfg.define_optional_int(
-        "mesh_parameter_axis_size",
-        default=None,
-        doc=(
-            "Device count for the parameter mesh axis. None lets mesh construction "
-            "infer the size when parameter sharding is active."
-        ),
-        env_default="NEURALQX_MESH_PARAMETER_AXIS_SIZE",
         role="distributed",
         mutability=ConfigMutability.STARTUP,
         validator=lambda value: (
@@ -2359,15 +2356,15 @@ def _register_default_options(cfg: ConfigManager) -> None:
 
     mesh_axis_names = (
         cfg.get("mesh_sample_axis_name", thread_local=False),
-        cfg.get("mesh_parameter_axis_name", thread_local=False),
         cfg.get("mesh_operator_axis_name", thread_local=False),
+        cfg.get("mesh_tensor_axis_name", thread_local=False),
     )
     if len(set(mesh_axis_names)) != len(mesh_axis_names):
         raise ConfigValidationError(
             "Mesh axis names must be unique. "
             f"Received sample={mesh_axis_names[0]!r}, "
-            f"parameter={mesh_axis_names[1]!r}, "
-            f"operator={mesh_axis_names[2]!r}."
+            f"operator={mesh_axis_names[1]!r}, "
+            f"tensor={mesh_axis_names[2]!r}."
         )
 
     manual_distributed_args = {
@@ -2437,7 +2434,7 @@ def _register_default_hooks(cfg: ConfigManager) -> None:
             _LOGGER.warning(
                 "neuraLQX: connection deduplication is experimental and may cause "
                 "slowdowns. Sorting, synchronization, and compilation overhead can "
-                "outweigh the saved network evaluations. Benchmark your workload; "
+                "outweigh the saved network evaluations. Benchmark your workload, "
                 "set experimental_connection_deduplication=False to disable it."
             )
 

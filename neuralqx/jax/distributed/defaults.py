@@ -21,6 +21,7 @@ import jax
 from neuralqx.config import config
 from neuralqx.jax.mesh import create_device_mesh
 from neuralqx.jax.mesh import logical_axis_name
+from neuralqx.jax.tensor_parallel import network_sharding_enabled
 from neuralqx.utils.errors import NeuralqxValueError
 from neuralqx.utils.typing import DistributedAxis
 from neuralqx.utils.typing import DistributedLayoutKind
@@ -42,6 +43,8 @@ def _sampling_plan(
     """Plan sample generation over all available devices."""
     if workload.request is DistributionRequest.DISABLED:
         return None
+    if network_sharding_enabled():
+        return _tensor_batch_plan(DistributedPhase.SAMPLING, workload)
     if (
         workload.request is DistributionRequest.CONFIG
         and not _sample_sharding_enabled()
@@ -63,6 +66,8 @@ def _gradient_force_plan(
     """Plan covariance-force and score-function pullbacks over samples."""
     if workload.request is DistributionRequest.DISABLED:
         return None
+    if network_sharding_enabled():
+        return _tensor_batch_plan(DistributedPhase.GRADIENT_FORCE, workload)
     if (
         workload.request is DistributionRequest.CONFIG
         and not _sample_sharding_enabled()
@@ -81,19 +86,16 @@ def _network_apply_plan(
     _coordinator: DistributedCoordinator,
     workload: DistributedWorkload,
 ) -> DistributedPlan | None:
-    """Plan model application, parameter leaves are currently replicated."""
+    """Plan tensor-parallel model execution when enabled at startup.
+
+    Sample batching has its own planner. Without tensor parallelism no separate
+    model-layout plan is needed and the existing array placements are retained.
+    """
     if workload.request is DistributionRequest.DISABLED:
         return None
-    if workload.request is DistributionRequest.CONFIG and not bool(
-        config.get("parameter_sharding_enabled")
-    ):
-        return None
-    return _axis_plan(
-        phase=DistributedPhase.NETWORK_APPLY,
-        layout=DistributedLayoutKind.PARAMETER_REPLICATED,
-        axes=_active_parameter_axes(),
-        axis_sizes={},
-    )
+    if network_sharding_enabled():
+        return _tensor_batch_plan(DistributedPhase.NETWORK_APPLY, workload)
+    return None
 
 
 @distributed_planner(DistributedPhase.OPERATOR_LOCAL_VALUES)
@@ -112,6 +114,9 @@ def _operator_local_values_plan(
         raise NeuralqxValueError(
             "Operator local-value planning requires operator costs."
         )
+
+    if network_sharding_enabled():
+        return _tensor_operator_plan(workload)
 
     device_count = int(jax.device_count())
     if device_count <= 1:
@@ -212,16 +217,6 @@ def _operator_axis_sizes(
     return max(candidates, key=lambda item: (item[0], item[1]))
 
 
-def _active_parameter_axes() -> tuple[DistributedAxis, ...]:
-    axes = []
-    if _sample_sharding_enabled():
-        axes.append(DistributedAxis.SAMPLES)
-    axes.append(DistributedAxis.PARAMETERS)
-    if bool(config.get("operator_sharding_enabled")):
-        axes.append(DistributedAxis.OPERATORS)
-    return tuple(axes)
-
-
 def _divisors(value: int) -> tuple[int, ...]:
     return tuple(
         candidate for candidate in range(1, int(value) + 1) if value % candidate == 0
@@ -230,6 +225,75 @@ def _divisors(value: int) -> tuple[int, ...]:
 
 def _sample_sharding_enabled() -> bool:
     return bool(config.get("sample_sharding_enabled"))
+
+
+def _tensor_operator_plan(workload):
+    from neuralqx.jax.tensor_parallel import tensor_axis_name
+    from neuralqx.jax.tensor_parallel import tensor_mesh
+
+    mesh = tensor_mesh()
+    sample = logical_axis_name("samples")
+    operator = logical_axis_name("operators")
+    tensor = tensor_axis_name()
+    op_count = int(mesh.shape[operator])
+    if op_count <= 1:
+        return None
+    sample_count = int(mesh.shape[sample])
+    use_samples = (
+        sample_count > 1
+        and workload.sample_count is not None
+        and workload.sample_count % sample_count == 0
+    )
+    return DistributedPlan(
+        phase=DistributedPhase.OPERATOR_LOCAL_VALUES,
+        layout=(
+            DistributedLayoutKind.OPERATOR_SAMPLE
+            if use_samples
+            else DistributedLayoutKind.OPERATOR
+        ),
+        mesh=mesh,
+        axis_names=(
+            (DistributedAxis.SAMPLES, sample),
+            (DistributedAxis.OPERATORS, operator),
+            (DistributedAxis.TENSOR, tensor),
+        ),
+        axis_partitions=(
+            (DistributedAxis.SAMPLES, sample_count if use_samples else 1),
+            (DistributedAxis.OPERATORS, op_count),
+            (DistributedAxis.TENSOR, int(mesh.shape[tensor])),
+        ),
+        term_indices=schedule_balanced_slots(workload.operator_costs, op_count),
+        batch_axes=(sample,) if use_samples else (),
+    )
+
+
+def _tensor_batch_plan(phase, workload):
+    from math import prod
+
+    from neuralqx.jax.tensor_parallel import tensor_mesh
+    from neuralqx.jax.tensor_parallel.mesh import sample_spec
+
+    mesh = tensor_mesh()
+    axes = (DistributedAxis.SAMPLES, DistributedAxis.OPERATORS, DistributedAxis.TENSOR)
+    spec = sample_spec()
+    batch_axes = spec[0] if spec else ()
+    count = prod(int(mesh.shape[name]) for name in batch_axes)
+    if workload.sample_count is not None and workload.sample_count % count:
+        batch_axes = ()
+    return DistributedPlan(
+        phase=phase,
+        layout=(
+            DistributedLayoutKind.SAMPLE_TENSOR
+            if batch_axes
+            else DistributedLayoutKind.TENSOR
+        ),
+        mesh=mesh,
+        axis_names=tuple((axis, logical_axis_name(axis.value)) for axis in axes),
+        axis_partitions=tuple(
+            (axis, int(mesh.shape[logical_axis_name(axis.value)])) for axis in axes
+        ),
+        batch_axes=batch_axes,
+    )
 
 
 __all__ = []

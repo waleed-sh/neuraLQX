@@ -27,6 +27,7 @@ import jax
 from neuralqx.hilbert.su2 import SU2GaugeInvariantHilbert
 from neuralqx.hilbert.u1 import U1GaugeInvariantHilbert
 from neuralqx.jax.sharding import place_sample_batch
+from neuralqx.profile._instrumentation import instrument
 from neuralqx.sampler._samples import n_batches as resolve_n_batches
 from neuralqx.sampler._samples import n_chains_per_device as resolve_n_chains_per_device
 from neuralqx.sampler._samples import resolve_n_chains
@@ -78,10 +79,15 @@ class MetropolisSampler(AbstractSampler):
     """Whether resetting the sampler also redraws the chain configurations."""
 
     n_chains: int | None = field(static=True, default=None)
-    """Total number of Markov chains across the configured sample devices."""
+    """Total number of independent Markov chains across sampling groups."""
 
     n_chains_per_device: int | None = field(static=True, default=None)
-    """Per-device chain count, used as an alternative to the total chain count."""
+    """Chains per sampling group, as an alternative to the total chain count.
+
+    A group is one device without tensor parallelism. With tensor parallelism,
+    cooperating tensor workers share these chains and do not multiply their
+    count. Independent sample and operator groups can each run their own chains.
+    """
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -113,12 +119,12 @@ class MetropolisSampler(AbstractSampler):
             n_chains=self.n_chains,
             n_chains_per_device=self.n_chains_per_device,
             sample_sharding=self.sample_sharding_enabled,
-            device_count=jax.device_count(),
+            device_count=self.sample_device_count,
         )
         n_chains_per_device = resolve_n_chains_per_device(
             n_chains=n_chains,
             sample_sharding=self.sample_sharding_enabled,
-            device_count=jax.device_count(),
+            device_count=self.sample_device_count,
         )
         object.__setattr__(self, "sweep_size", sweep_size)
         object.__setattr__(self, "n_chains", n_chains)
@@ -129,9 +135,10 @@ class MetropolisSampler(AbstractSampler):
         return resolve_n_batches(
             n_chains=int(self.n_chains),
             sample_sharding=self.sample_sharding_enabled,
-            device_count=jax.device_count(),
+            device_count=self.sample_device_count,
         )
 
+    @instrument("sampler.initialize", detail="developer", category="neuralqx.sampling")
     def _init_state(
         self,
         apply_fn: Callable[[Any, jax.Array], jax.Array],
@@ -197,6 +204,7 @@ class MetropolisSampler(AbstractSampler):
         sigma = random_state_sharded(self, apply_fn, parameters, state, key_random)
         return state.replace(sigma=sigma)
 
+    @instrument("sampler.reset", detail="developer", category="neuralqx.sampling")
     def _reset(
         self,
         apply_fn: Callable[[Any, jax.Array], jax.Array],
@@ -259,6 +267,9 @@ class MetropolisSampler(AbstractSampler):
         state = ensure_finite_support(self, apply_fn, parameters, state)
         return sample_next(self, apply_fn, parameters, state)
 
+    @instrument(
+        "sampler.chain_dispatch", detail="developer", category="neuralqx.sampling"
+    )
     def _sample_chain(
         self,
         apply_fn: Callable[[Any, jax.Array], jax.Array],
