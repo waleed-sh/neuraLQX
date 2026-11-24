@@ -42,7 +42,7 @@ Implement [`AbstractModelFramework`](../../api/public/neuralqx/utils/frameworks/
 | `split_variables(variables)` | Return `(parameters, model_state)`. |
 | `merge_variables(parameters, model_state=None)` | Reconstruct complete variables from those parts. |
 
-For supported variables $v$, merging the split must preserve the represented function and parameter structure. The inherited `place_variables` applies neuraLQX parameter placement to the trainable tree and merges it with fixed state. It does not provide a custom distribution strategy for arbitrary fixed arrays. An adapter needing specialised placement must implement and test it explicitly.
+For supported variables $v$, merging the split must preserve the represented function and parameter structure. The inherited `place_variables` normalizes the variable container while retaining supplied array placements. When tensor mode is enabled, a composed tensor adapter places trainable arrays according to a validated partition plan and replicates fixed array collections. Its constraints also apply during ordinary and connected evaluation. See [tensor partition rules](tensor-rules.md) for the planning contract. An adapter needing other specialized placement must implement and test it explicitly.
 
 `apply_connected` has a correct ordinary-evaluation fallback. Override it only when exact connected-state reuse is available. Set `has_projector=True` when the adapter implements amplitude projection that can introduce exact nodes. This metadata is used by support-sensitive consumers, so it must describe the actual model rather than merely its output dtype.
 

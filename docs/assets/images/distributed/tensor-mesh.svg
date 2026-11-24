@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="650" viewBox="0 0 800 650" role="img" aria-labelledby="title desc">
+<title id="title">Eight devices in four tensor groups</title>
+<desc id="desc">A two-by-two sample and operator grid. Each cell contains two tensor workers. Weights repeat across cells and are split inside each cell. During operator evaluation, each cell receives its sample subset and term group.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b" font-size="21">
+<rect x="0" y="0" width="800" height="650" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="32" y="48" font-size="29" fill="#18363b" font-weight="bold" text-anchor="start">Samples 2 · Operators 2 · Tensor 2</text>
+<text x="32" y="83" font-size="22" fill="#18363b" font-weight="normal" text-anchor="start">Each box is one cooperating pair of devices</text>
+<text x="246" y="133" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Sample coordinate 0</text>
+<text x="594" y="133" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Sample coordinate 1</text>
+<rect x="82" y="162" width="328" height="176" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="246" y="193" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Operator coordinate 0</text>
+<rect x="97" y="210" width="144" height="75" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="169" y="239" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 0</text>
+<text x="169" y="267" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 0</text>
+<rect x="251" y="210" width="144" height="75" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="323" y="239" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 1</text>
+<text x="323" y="267" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 1</text>
+<text x="246" y="316" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Both workers see the same inputs</text>
+<rect x="430" y="162" width="328" height="176" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="594" y="193" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Operator coordinate 0</text>
+<rect x="445" y="210" width="144" height="75" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="517" y="239" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 0</text>
+<text x="517" y="267" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 0</text>
+<rect x="599" y="210" width="144" height="75" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="671" y="239" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 1</text>
+<text x="671" y="267" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 1</text>
+<text x="594" y="316" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Both workers see the same inputs</text>
+<rect x="82" y="360" width="328" height="176" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="246" y="391" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Operator coordinate 1</text>
+<rect x="97" y="408" width="144" height="75" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="169" y="437" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 0</text>
+<text x="169" y="465" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 0</text>
+<rect x="251" y="408" width="144" height="75" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="323" y="437" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 1</text>
+<text x="323" y="465" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 1</text>
+<text x="246" y="514" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Both workers see the same inputs</text>
+<rect x="430" y="360" width="328" height="176" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="594" y="391" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Operator coordinate 1</text>
+<rect x="445" y="408" width="144" height="75" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="517" y="437" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 0</text>
+<text x="517" y="465" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 0</text>
+<rect x="599" y="408" width="144" height="75" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="671" y="437" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor 1</text>
+<text x="671" y="465" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">Weight shard 1</text>
+<text x="594" y="514" font-size="18" fill="#18363b" font-weight="normal" text-anchor="middle">Both workers see the same inputs</text>
+<rect x="32" y="571" width="736" height="52" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="604" font-size="21" fill="white" font-weight="normal" text-anchor="middle">Weight shards differ within a pair and repeat across pairs</text>
+</g></svg>

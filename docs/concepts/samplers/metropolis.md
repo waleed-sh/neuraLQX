@@ -71,7 +71,7 @@ In a [`VariationalState`](../../api/public/neuralqx/vqs/index.md#neuralqx.vqs.Va
 
 `n_discard_per_chain` counts discarded stored points, so a discard of $B$ points costs $B\times\text{sweep size}$ attempted moves per chain. It is applied on every explicit `state.sample()` call. Its default is zero, so choose a discard deliberately for your problem.
 
-You can alternatively specify `n_chains_per_device`. Do not supply both chain-count arguments. With neither supplied, the default is 16 chains per participating sample device. Device placement and larger runs are covered in [distributed simulations](../../distributed/sharding.md).
+You can alternatively specify `n_chains_per_device`. Do not supply both chain-count arguments. With neither supplied, the default is 16 chains per independent sampling group. With tensor parallelism, several cooperating devices share one such group and do not multiply its chain count. `sampler.sample_device_count` reports the number of independent groups. Device placement and larger runs are covered in [distributed simulations](../../distributed/sharding.md).
 
 ## Sampling an explicit wavefunction
 

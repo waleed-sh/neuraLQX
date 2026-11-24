@@ -22,6 +22,7 @@ print("Local devices:", jax.local_devices())
 print("Global device count:", jax.device_count())
 print("Sample sharding:", nqx.config.sample_sharding_enabled)
 print("Operator sharding:", nqx.config.operator_sharding_enabled)
+print("Tensor parallelism:", nqx.config.network_sharding_enabled)
 ```
 
 In a multi-process job, run this on every process with the intended distributed environment, just as you would run the simulation. Running it separately without joining the job only reports that separate process's devices. Keep the outputs when reporting an issue, together with the launch command and relevant configuration values.
@@ -52,11 +53,29 @@ Cluster proxy settings can also interfere with runtime communication. JAX's [`in
 
 ## Shape or mesh errors
 
-Start with the default mesh sizes. The standard sampler and estimator planners choose phase-specific layouts, while generic mesh helpers require their shape product to match the device count. Manually setting one mesh axis to a fraction of the available devices can conflict with a sample-only helper. See [mesh names and sizes](configuration.md#mesh-names-and-sizes).
+With tensor mode enabled, the sample, operator, and tensor sizes describe a persistent mesh and must multiply to the global device count. Disabled work axes must be one or unset. For example, a tensor size of two on four devices requires another enabled work axis to use the remaining factor of two. A tensor-only launch on those devices requires a tensor size of four.
 
-Inspect the resolved chain count and `state.samples.shape`. The sampler rounds chain counts upward to device divisibility, and the requested sample count is adjusted to a multiple of that resolved chain count. An input shape copied from a different device count may no longer describe the actual batch.
+Without tensor mode, standard sample and operator planners can select their own phase-specific sizes. Leave generic overrides unset unless you are deliberately using that lower-level interface. See [mesh names and sizes](configuration.md#mesh-names-and-sizes).
 
-For externally supplied batches, a placement helper can leave an indivisible batch unchanged rather than shard it. Do not infer placement only from an enabled flag. Inspect `array.sharding` and each addressable shard's index and shape. Keep the Hilbert configuration axis complete unless the particular operator explicitly implements another layout.
+Inspect the resolved chain count and `state.samples.shape`. Chains are rounded upward to divisibility by the independent sampling-group count. Tensor workers inside one group do not increase this count. The requested number of samples is adjusted to a multiple of the resolved chain count.
+
+For externally supplied batches, an indivisible leading dimension can remain unpartitioned. Inspect `array.sharding` and addressable shard indices rather than inferring layout from a flag. Keep the physical configuration width complete even when internal network features are tensor-partitioned.
+
+## Tensor layout validation fails
+
+A valid mesh does not establish that every model tensor can be split over it. Inspect [`tensor_parallel_plan(model)`](tensor-parallelism/models.md#inspect-a-plan-before-allocating-a-large-network) before allocating a large network. The selected dimension must divide the tensor group size. Reduce that size, choose a compatible architecture width, or deliberately select another dimension through [explicit rules](tensor-parallelism/custom-models.md#specify-the-contraction-pair-explicitly).
+
+If construction reports that no parameter can be tensor-partitioned, the plan has no eligible distributed weight. Custom NNX parameters without recognized layer or architecture rules remain replicated. Supply rules for the meaningful contraction dimensions instead of enabling tensor mode around an entirely replicated model.
+
+An explicit path that matches no parameter is an error. Paths refer to the trainable tree without `params/`, and NNX container indices appear as slash-separated components. Inspect plan paths before writing overrides. A supported weight specification uses the tensor axis in at most one array dimension.
+
+Layer metadata can also fail during initialization if its named axis has no active mesh. Construct annotated models under the intended mesh, using the [metadata example](tensor-parallelism/custom-models.md#put-partition-metadata-on-a-layer). A shape-first factory must create a fresh deterministic model and use traceable array initializers.
+
+## Tensor mode uses more sample memory
+
+At a fixed device count, increasing the tensor group size leaves fewer independent groups for chains. Each tensor worker receives its group's configurations, so the local sample shard grows even while selected weights shrink. Operator evaluation can also replicate a sample subset across term groups.
+
+Use the [layout table](sharding.md#samples-and-chains) to calculate these holdings. Repeated indices in `addressable_shards` can be expected replication, not duplicated statistical observations. Do not multiply sample counts or divide gradients by the number of tensor workers.
 
 ## A job stalls during an expectation or save
 
@@ -70,9 +89,9 @@ A dense array conversion can be another source of trouble. A global array spanni
 
 Identify which allocation grows before changing the execution policy. Model parameter memory, optimiser state, samples, operator metadata, connected configurations, and differentiation intermediates have different scaling.
 
-Sample sharding reduces the number of chains stored on each device. It does not partition the network weights. Operator-only sharding may replicate the sample batch across devices. Enabling it can therefore increase sample storage per device even while reducing the operator work assigned to that device. Neural network TP and PP are not available in this release.
+Sample sharding reduces the number of chains stored on each device. It does not partition the network weights. Operator-only sharding may replicate the sample batch across devices. Enabling it can therefore increase sample storage per device even while reducing the operator work assigned to that device. Tensor parallelism partitions eligible network weights and contractions, while fixed collections and some small weights remain replicated.
 
-Use a smaller `chunk_size` for model-evaluation intermediates. Use operator streaming for connection-generation workspace. Neither promises that the complete connected output will fit, and neither changes the number of retained samples. If parameter memory itself is too large, reducing a sample chunk cannot fix it. The [VQS batching guide](../concepts/vqs/batching.md) explains these separate controls.
+Use a smaller `chunk_size` for model-evaluation intermediates. Use operator streaming for connection-generation workspace. Neither promises that the complete connected output will fit, and neither changes the number of retained samples. If weight memory itself is too large, reducing a sample chunk cannot fix it. Use [tensor placement](tensor-parallelism/index.md#what-memory-is-reduced) and [sharded initialization](tensor-parallelism/models.md#initialize-directly-into-shards), then inspect optimizer and derivative workspace separately. An already initialized full model may fail before the variational state gets an opportunity to partition it. The [VQS batching guide](../concepts/vqs/batching.md) explains these separate controls.
 
 An error immediately after startup may instead involve GPU preallocation or several processes claiming the same device. Check GPU binding and JAX's [allocation settings](https://docs.jax.dev/en/latest/gpu_memory_allocation.html). Changing the allocator can help with sharing, but it cannot make an oversized live set of arrays fit.
 
@@ -106,6 +125,8 @@ This measures repeated local-estimator evaluation for a fixed sample batch. It e
 ## Different hardware gives different numerical results
 
 Changing a device count can change the sampler's random stream partitioning. Floating-point summation also depends on reduction order, and different backends may select different kernels. A fixed seed is useful for reproducibility within a given setup, but it is not a guarantee of identical trajectories across device layouts.
+
+For a custom tensor model, first compare fixed-input log amplitudes and derivatives with an ordinary global reference. Check feature normalization and ensure output biases or partial contractions are not counted more than once. The [custom-network comparison](tensor-parallelism/custom-models.md#compare-values-and-derivatives) provides a runnable check.
 
 To compare estimator implementations, reuse the same sample batch as in the [operator-sharding comparison](sharding.md#inspect-and-compare-operator-execution). To compare full Monte Carlo calculations, examine uncertainties, autocorrelation, and repeated runs with appropriate numerical tolerances. Record precision, global sample counts, resolved chains, package versions, and the topology.
 

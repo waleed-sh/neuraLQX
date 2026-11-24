@@ -32,7 +32,7 @@ $$
 
 This deliberately simple objective makes it possible to inspect the distribution of work without introducing a large physical model. Its minimum is zero at the configuration with all charges zero. It is an unconstrained example, rather than a gravitational Hamiltonian or a gauge invariant calculation. The [U(1) Hilbert space guide](../concepts/hilbert/u1.md) explains how to choose the constraints required by your research problem.
 
-The graph, objective, network, optimiser, and total sample count stay the same in the [single GPU](single-gpu.md), [multiple GPU](multi-gpu.md), and [multiple node](multi-node.md) guides. Only the execution environment and launch change. The example is small enough to test on a laptop, so its timings should not be used as evidence that a larger device allocation is beneficial.
+The graph, objective, network, optimiser, and total sample count stay the same in the [single GPU](single-gpu.md), [multiple GPU](multi-gpu.md), and [multiple node](multi-node.md) guides. The execution environment and launch select sample, operator, and tensor parallelism without changing that scientific problem. The example is small enough to test on a laptop, so its timings should not be used as evidence that a larger device allocation is beneficial.
 
 Download [simulation.py](examples/simulation.py) and save it in your working directory. The complete script is shown below.
 
@@ -61,7 +61,11 @@ def build_calculation():
     objective = SumOperator(tuple(charge @ charge for charge in charges))
 
     sampler = nqx.sampler.MetropolisLocal(hilbert, n_chains=64)
-    model = nqx.nn.MLP(hilbert.size, hidden_features=(32, 32), complex_output=False, rngs=17)
+    model = nqx.nn.init_tensor_parallel(
+        lambda: nqx.nn.MLP(
+            hilbert.size, hidden_features=(32, 32), complex_output=False, rngs=17
+        )
+    )
     state = nqx.vqs.VariationalState(
         sampler,
         model,
@@ -87,6 +91,14 @@ def main():
         flush=True,
     )
     state, objective, driver = build_calculation()
+    if nqx.config.network_sharding_enabled:
+        from neuralqx.jax.tensor_parallel import tensor_mesh
+
+        if jax.process_index() == 0:
+            print("Tensor mesh:", dict(tensor_mesh().shape))
+    for path, value in jax.tree_util.tree_flatten_with_path(state.parameters)[0]:
+        if jax.process_index() == 0:
+            print(f"Weight {jax.tree_util.keystr(path)}: {value.shape}, {value.sharding}")
     driver.run(args.steps)
 
     # Every process participates in the expectation and any communication.
@@ -113,6 +125,8 @@ if __name__ == "__main__":
 The [`NumberOperator`](../api/public/neuralqx/operator/prebuilt/wcl/index.md#neuralqx.operator.prebuilt.wcl.NumberOperator) measures one edge charge. Each `charge @ charge` is an ordinary matrix free product, and [`SumOperator`](../api/public/neuralqx/operator/index.md#neuralqx.operator.SumOperator) keeps the four contributions available as separate terms. This choice will let us demonstrate [operator sharding](sharding.md#operator-terms) without changing the mathematical objective.
 
 [`MetropolisLocal`](../api/public/neuralqx/sampler/index.md#neuralqx.sampler.MetropolisLocal) supplies 64 chains. The [`MLP`](../api/public/neuralqx/nn/index.md#neuralqx.nn.MLP) represents a real log amplitude, while [`VariationalState`](../api/public/neuralqx/vqs/index.md#neuralqx.vqs.VariationalState) requests 1,024 samples across all chains. These are global counts. With 64 chains, the retained chain length is 16, and the sample array has shape `(64, 16, 4)`. The final dimension contains the complete edge configuration.
+
+[`init_tensor_parallel`](../api/public/neuralqx/nn/index.md#neuralqx.nn.init_tensor_parallel) calls the model factory normally when tensor mode is disabled. When enabled, it initializes directly into the distributed weight layout. The same script therefore supports models that need tensor partitioning during initialization. See [initialization and plans](tensor-parallelism/models.md).
 
 The model evaluation limit `chunk_size=128` controls how many configurations are processed in a model chunk. It does not select a device count or change the number of Markov chains. The [batching and chunking guide](../concepts/vqs/batching.md) explains the distinction.
 
@@ -141,6 +155,32 @@ JAX_PLATFORMS=cpu JAX_NUM_CPU_DEVICES=4 python simulation.py
 Now the global shape is still `(64, 16, 4)`, while each device owns `(16, 16, 4)`. All four devices belong to the same Python process and share the host's physical resources. This is useful for inspecting layouts and testing a parallel program. It does not simulate GPU performance or provide four additional CPUs.
 
 Choose the logical device count before JAX initialises its backend. Changing it inside an already running notebook is too late. Restart the kernel with the intended environment when testing another topology. The [JAX parallelism guide](jax-parallelism.md) explains global shapes, meshes, and local shards.
+
+## Exercise tensor parallelism locally
+
+Use the same script on four logical CPU devices, with two cooperating workers per model evaluation:
+
+```bash
+JAX_PLATFORMS=cpu JAX_NUM_CPU_DEVICES=4 \
+NEURALQX_SHARDING=samples,tensor \
+NEURALQX_MESH_TENSOR_AXIS_SIZE=2 \
+python simulation.py --steps 2
+```
+
+This resolves to a `(2,1,2)` sample/operator/tensor mesh. Each of the two independent groups owns 32 chains. Both tensor workers in a group see the same `(32,16,4)` sample shard, while holding different portions of the MLP's hidden weights. The script prints global weight shapes and shardings as well as the sample placement.
+
+To test all three axes together, start eight logical devices:
+
+```bash
+JAX_PLATFORMS=cpu JAX_NUM_CPU_DEVICES=8 \
+NEURALQX_SHARDING=samples,operators,tensor \
+NEURALQX_MESH_SAMPLE_AXIS_SIZE=2 \
+NEURALQX_MESH_OPERATOR_AXIS_SIZE=2 \
+NEURALQX_MESH_TENSOR_AXIS_SIZE=2 \
+python simulation.py --steps 2
+```
+
+The [combined layout figure](sharding.md#combined-operator-and-sample-layouts) shows this exact configuration. These commands exercise the execution paths on shared host hardware. Use them to validate a program and inspect shapes, then measure performance on the intended accelerator system.
 
 ## A CPU batch job
 

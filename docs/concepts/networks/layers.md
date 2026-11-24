@@ -6,7 +6,7 @@ title: Layers and activations
 
 The built-in wavefunctions are composed from reusable layers in [`neuralqx.nn.layers`](../../api/public/neuralqx/nn/layers/index.md) and functions in [`neuralqx.nn.activations`](../../api/public/neuralqx/nn/activations/index.md). You can use these pieces inside your own model, combine them with native Flax layers, or call the activation functions from pure JAX code.
 
-The wrappers retain the underlying JAX and Flax operations while adding consistent initialisation shortcuts, optional parameter-axis annotations, and capabilities used by exact connected-state evaluation. They do not automatically turn an arbitrary composition into a scalar log wavefunction.
+The wrappers retain the underlying JAX and Flax operations while adding consistent initialisation shortcuts, optional tensor partition annotations, and capabilities used by exact connected-state evaluation. They do not automatically turn an arbitrary composition into a scalar log wavefunction.
 
 ## Available layers
 
@@ -21,7 +21,7 @@ The wrappers retain the underlying JAX and Flax operations while adding consiste
 | [`Activation`](../../api/public/neuralqx/nn/layers/index.md#neuralqx.nn.layers.Activation) | Wraps a registered activation or callable as an NNX layer, with fixed keyword options. |
 | [`Sequential`](../../api/public/neuralqx/nn/layers/index.md#neuralqx.nn.layers.Sequential) | Applies modules and functions in order, retaining access to its constituent layers. |
 
-Native options such as initialisers, bias selection, dtypes, and contraction precision are accepted where supported by the underlying layer. `Linear` and `Conv` also accept `kernel_axes` and `bias_axes`, while `Embed` accepts `embedding_axes`. These annotate parameter dimensions. They do not choose a device mesh or move stages between devices by themselves.
+Native options such as initialisers, bias selection, dtypes, and contraction precision are accepted where supported by the underlying layer. `Linear` and `Conv` also accept `kernel_axes` and `bias_axes`, while `Embed` accepts `embedding_axes`. These annotate weight dimensions and override automatic tensor rules when tensor parallelism is enabled. Supported layers also have defaults, so an ordinary composition can participate without explicit annotations. See [custom networks with tensor parallelism](../../distributed/tensor-parallelism/custom-models.md) for a complete model, column and row layouts, initialization, and gradient checks. An annotation alone does not enable the execution policy.
 
 ## Compose features and a log-amplitude head
 

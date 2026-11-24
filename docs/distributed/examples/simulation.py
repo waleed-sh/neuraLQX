@@ -22,7 +22,11 @@ def build_calculation():
     objective = SumOperator(tuple(charge @ charge for charge in charges))
 
     sampler = nqx.sampler.MetropolisLocal(hilbert, n_chains=64)
-    model = nqx.nn.MLP(hilbert.size, hidden_features=(32, 32), complex_output=False, rngs=17)
+    model = nqx.nn.init_tensor_parallel(
+        lambda: nqx.nn.MLP(
+            hilbert.size, hidden_features=(32, 32), complex_output=False, rngs=17
+        )
+    )
     state = nqx.vqs.VariationalState(
         sampler,
         model,
@@ -48,6 +52,14 @@ def main():
         flush=True,
     )
     state, objective, driver = build_calculation()
+    if nqx.config.network_sharding_enabled:
+        from neuralqx.jax.tensor_parallel import tensor_mesh
+
+        if jax.process_index() == 0:
+            print("Tensor mesh:", dict(tensor_mesh().shape))
+    for path, value in jax.tree_util.tree_flatten_with_path(state.parameters)[0]:
+        if jax.process_index() == 0:
+            print(f"Weight {jax.tree_util.keystr(path)}: {value.shape}, {value.sharding}")
     driver.run(args.steps)
 
     # Every process participates in the expectation and any communication.

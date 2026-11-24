@@ -4,27 +4,44 @@ title: Sharding in neuraLQX
 
 # Sharding in neuraLQX
 
-neuraLQX distributes work at several stages of a variational calculation. The most useful distinction is between distributing configurations and distributing operator terms. Both preserve the same mathematical objective, but they place different data on each device and incur different communication costs.
+neuraLQX can distribute three different parts of a variational calculation. **Sample parallelism** assigns different configurations to independent workers. **Operator parallelism** assigns independent terms to different workers. **Tensor parallelism** makes several devices cooperate inside one network evaluation by partitioning its weights and contractions.
 
-The [JAX parallelism page](jax-parallelism.md) introduces meshes and global arrays. This page describes the policies implemented in neuraLQX v2.0.0. The [configuration reference](configuration.md) gives their exact settings, while the hardware guides demonstrate them with [one shared simulation](cpu.md#the-calculation-used-throughout-these-guides).
+The [JAX parallelism page](jax-parallelism.md) introduces meshes and global arrays. This page connects those concepts to sampling and estimation. The [tensor parallelism section](tensor-parallelism/index.md) develops network partitioning in detail, and the hardware guides carry [one shared simulation](cpu.md#the-calculation-used-throughout-these-guides) through these choices.
 
-## Sample and chain sharding
+| Execution axis | Work that differs across the axis | Information shared across the axis |
+| --- | --- | --- |
+| `samples` | Configurations or Markov chains | The same model weights |
+| `operators` | Scheduled operator terms during local-estimator evaluation | Configurations needed to combine those terms and the same model weights |
+| `tensor` | Portions of network tensors and contractions | The same configurations and the global model definition |
 
-Sample sharding is enabled by default. It is a form of data parallelism, with different configurations evaluated using the same model parameters. For the supplied Metropolis samplers, the leading chain dimension is divided across the visible JAX devices. Each device evolves its own subset of chains, stores complete configurations, and evaluates the network on those configurations. The time dimension within a chain and the configuration width stay together.
+An operator axis can also carry independent chains during sampling when sample sharding is enabled. The work assigned to an axis can therefore depend on the execution phase, while a tensor group continues to cooperate on each model evaluation.
 
-For a retained sample array with shape
+## Samples and chains
+
+Sample sharding is enabled by default. For the supplied Metropolis samplers, it divides the leading chain dimension while retaining each complete configuration and the time history within a chain. With a sample array of shape $(C,L,N)$, $C$ is the global chain count, $L$ is the retained chain length, and $N$ is the Hilbert space configuration width.
+
+Without tensor parallelism, the standard sample policy uses all $D$ devices as independent chain partitions. Each device holds $(C/D,L,N)$ when the chain count divides evenly. With tensor parallelism, cooperating workers receive the **same** chain data. On a mesh of sizes $(D_S,D_O,D_T)$, enabled sample sharding uses $D_S D_O$ independent groups, and each tensor worker holds
 
 $$
-(C,L,N),
+\left(\frac{C}{D_S D_O},L,N\right).
 $$
 
-$C$ is the global number of chains, $L$ the retained length of each chain, and $N$ the Hilbert space configuration width. With $D$ sample devices and divisible $C$, each device owns `(C / D, L, N)`. The total number of retained configurations is $CL$, regardless of how many devices store them.
+The total number of retained observations is always $CL$. Tensor replication does not increase this number. With sample sharding disabled, each group receives the complete chain batch instead.
 
-In the [shared example](cpu.md), `n_chains=64` and `n_samples=1024`. Four devices each own 16 chains and 256 retained configurations. Eight devices each own eight chains and 128 retained configurations. Neither launch multiplies the requested sample count by the number of devices.
+For the [shared example](cpu.md), $C=64$, $L=16$, and $N=4$:
 
-The sampler rounds a requested `n_chains` upward when necessary to make it divisible by the participating device count. The sample request is then adjusted to the nearest positive multiple of the resolved chain count, choosing the larger value on a tie. Inspect the resolved shape instead of assuming that an arbitrary request was used unchanged. With `n_chains_per_device`, the total chain count deliberately grows with the number of devices. See [scaling the workload](multi-gpu.md#fixed-work-and-growing-work).
+| Eight-device policy | Independent chain groups | Sample shard on each device | Replication of each chain shard |
+| --- | --- | --- | --- |
+| `samples` | 8 | `(8, 16, 4)` | None |
+| `samples,tensor` with tensor size 2 | 4 | `(16, 16, 4)` | Two tensor workers |
+| `samples,operators,tensor` with mesh `(2,2,2)` | 4 | `(16, 16, 4)` | Two tensor workers |
+| `tensor` with tensor size 8 | 1 | `(64, 16, 4)` | Eight tensor workers |
 
-The sampler splits random keys across sample partitions. In a coordinated multi-process run, use the same initial model and sampler seeds on all processes so they describe the same global state. Do not independently add the process number to the model seed. Different device counts can change key allocation and floating-point reductions, so identical seeds do not imply identical trajectories across hardware layouts.
+The sampler rounds a requested `n_chains` upward to divisibility by its independent sampling-group count. The sample request is then adjusted to the nearest positive multiple of the resolved chain count, choosing the larger value on a tie. Inspect the resolved shape rather than assuming an arbitrary request was used unchanged.
+
+The sampler property [`sample_device_count`](../api/public/neuralqx/sampler/base/index.md#neuralqx.sampler.base.AbstractSampler.sample_device_count) reports this independent count. In tensor mode, `n_chains_per_device` refers to chains per independent group, excluding the cooperating tensor workers. The [scaling example](multi-gpu.md#fixed-work-and-growing-work) uses that property when deliberately growing the statistical workload.
+
+All processes in a coordinated calculation should use the same initial model and sampler seeds. The sampler constructs the distributed random streams. Do not independently add a process ID to the model seed. Record the topology with the seeds, since changed layouts and floating-point reductions need not produce bitwise-identical trajectories.
 
 ## Operator terms
 
@@ -37,7 +54,7 @@ H_{\mathrm{loc}}(\sigma)
 \frac{\psi(\sigma')}{\psi(\sigma)}.
 $$
 
-The terms can be evaluated independently before their contributions are summed. Operator sharding distributes this term work. For supported [`ComputationalOperator`](../api/public/neuralqx/operator/index.md#neuralqx.operator.ComputationalOperator) terms, the device dispatch generates each assigned term's connections and evaluates its connected configurations on that device. The operators remain [matrix free](../concepts/operators/index.md#matrix-free-by-design).
+The terms can be evaluated independently before their contributions are summed. Operator sharding distributes this term work. For supported [`ComputationalOperator`](../api/public/neuralqx/operator/index.md#neuralqx.operator.ComputationalOperator) terms, the device dispatch generates each assigned term's connections and evaluates its connected configurations within the assigned device or tensor group. The operators remain [matrix free](../concepts/operators/index.md#matrix-free-by-design).
 
 Enable this policy before importing neuraLQX:
 
@@ -51,17 +68,29 @@ The default planner estimates term cost from `max_conn_size`, assigns terms to b
 
 ## Combined operator and sample layouts
 
-The layout is chosen for the execution phase. Sampling continues to use the devices as sample partitions even when operator sharding is enabled. Operator evaluation may then redistribute the batch onto an operator-only mesh or a mesh with both operator and sample axes.
+The treatment of execution phases depends on whether a tensor mesh is active.
 
-For $T$ computational terms on $D>1$ devices, the default operator planner uses all $D$ devices as operator partitions when $T\ge D$. The full sample batch is then replicated across those partitions, and each partition evaluates its assigned terms. With fewer terms, the planner tries a factorisation $D=D_O D_S$ where $D_O\le T$, $D_S>1$, and the flattened sample count is divisible by $D_S$. It chooses the candidate with the largest $D_O$. This combined layout requires sample sharding to be enabled. If no suitable factorisation exists, it uses the operator-only layout with padding.
+### With tensor parallelism
 
-![During sampling, eight devices own eight different chain groups. During evaluation of four operator terms, the same devices form four operator partitions and two sample partitions.](../assets/images/distributed/phase-layouts.svg)
+The sample/operator/tensor mesh remains fixed across phases. Sampling and gradient-force evaluation can distribute configurations over both outer work axes, while the innermost tensor workers cooperate on the same inputs. Operator evaluation uses its operator coordinate to choose terms and its sample coordinate to divide the batch.
 
-*The shared example on eight devices. Sampling partitions 64 chains eight ways. Operator evaluation partitions four terms and two halves of the flattened batch. Parameters are available on every device in both phases.*
+![On a fixed two-by-two-by-two mesh, sampling uses four independent chain groups with two tensor workers in each. Operator evaluation uses two sample partitions and two term groups, retaining those tensor pairs.](../assets/images/distributed/tensor-phases.svg)
 
-For the example's four squared-charge terms and 1,024 samples, four devices use four operator partitions with the entire sample batch available to each. Eight devices use four operator partitions and two sample partitions, each containing 512 configurations. The operator axis combines four contributions for each configuration. The final expectation then reduces over the configurations.
+*Eight devices, four operator terms, and 1,024 configurations. A box denotes a pair of tensor workers. The pair survives redistribution of the sample batch.*
 
-This redistribution is why the [generic mesh-size settings](configuration.md#mesh-names-and-sizes) are not a promise that one fixed mesh is used everywhere. The current sampling and operator planners make phase-specific choices. Keep the size overrides unset for the standard execution paths unless you are deliberately using a lower-level mesh interface.
+For the `(2,2,2)` mesh, sampling divides 64 chains into four groups of 16. Local-estimator evaluation instead assigns 512 flattened configurations to each sample partition and two operator terms to each operator partition. The operator contributions are combined for each configuration, then the statistical calculation reduces over configurations. Both tensor workers inside a pair participate in its model contractions.
+
+The operator planner uses the configured operator-axis size rather than rebuilding it from the term count. If that size is one, there is no cross-group operator dispatch. If it exceeds the term count, the scheduler can include idle slots. If a supplied flattened batch cannot divide the configured sample-axis size, the operator plan can retain a replicated batch instead of using that axis. Inspect actual placements for externally supplied batches.
+
+### Without tensor parallelism
+
+Sampling uses the device set as sample partitions. Operator evaluation chooses a separate phase layout from the workload. For $K$ computational terms on $D>1$ devices, the default planner uses all devices as operator partitions when $K\ge D$. With fewer terms and sample sharding enabled, it seeks $D=D_O D_S$ with $D_O\le K$, $D_S>1$, and sample count divisible by $D_S$, choosing the largest eligible $D_O$. If no such factorization exists, it uses an operator-only layout with padding.
+
+For the shared four-term example, four devices become four operator partitions with the full batch available to each. Eight devices become four operator partitions and two sample partitions. Sampling on those same eight devices still uses eight independent chain groups.
+
+![Without tensor parallelism, eight chain partitions are redistributed to four operator partitions and two sample partitions.](../assets/images/distributed/phase-layouts.svg)
+
+The tensor and non-tensor paths therefore have different mesh policies. The [configuration guide](configuration.md#mesh-names-and-sizes) explains when explicit size controls fix the execution mesh and when a planner makes a workload-dependent choice.
 
 ## Inspect and compare operator execution
 
@@ -93,13 +122,13 @@ Use a single process with multiple visible devices for this comparison. Four log
 
 The per-call `operator_sharding` option is accepted by [`local_estimators`](../api/public/neuralqx/vqs/estimators/index.md#neuralqx.vqs.estimators.local_estimators). It can request the computational operator path independently of the global default. A full VMC run uses the configuration because the driver calls the state without a per-call override. Related options can be grouped in [`LocalEstimatorOptions`](../api/public/neuralqx/vqs/estimators/index.md#neuralqx.vqs.estimators.LocalEstimatorOptions).
 
-## Parameters and neural network parallelism
+## Network tensors
 
-The current default execution uses complete model parameters for each sample or operator partition. Gradients combine information from the global calculation, and every process applies the same optimiser update. Parameter memory is therefore not divided by the sample-device count.
+Tensor parallelism is enabled with the `tensor` policy axis or the `network_sharding_enabled` flag. It partitions eligible trainable arrays and their contractions within a cooperating group. The [tensor overview](tensor-parallelism/index.md) derives the dense-layer decomposition and explains its communication.
 
-The setting `parameter_sharding_enabled` currently enables a placement helper that applies replicated `PartitionSpec()` placement. Despite the setting's name, it does not choose partitions of individual weight matrices or split a network into stages. Enabling `NEURALQX_SHARDING=all` does not make an oversized network fit by distributing its weights.
+Model weight shards are replicated over the sample and operator coordinates. A weight array with `P(None, "tensor")` is divided along its second dimension inside each group. A weight with `P()` is complete on every worker. Fixed model collections use replicated placement in the tensor adapter.
 
-**Neural network tensor parallelism (TP) and pipeline parallelism (PP) are under development and are not part of v2.0.0.** TP would partition operations and tensors within network layers. PP would place different stages of the network on different devices. Layer axis annotations alone do not implement either execution strategy. The [custom network guide](../developers/networks/parameters.md) explains how model parameters enter the framework, but these guides do not prescribe a supported TP or PP configuration for this release.
+The [built-in models](tensor-parallelism/models.md) provide architecture rules. You can also [compose supplied layers or define explicit rules](tensor-parallelism/custom-models.md) for your own network. Use direct sharded initialization when a full copy would not fit on one device. Pipeline parallelism is not part of the execution interface.
 
 ## Chunking and streaming
 

@@ -37,3 +37,7 @@ Begin with ordinary forward evaluation and a small space whose configuration lay
 For an optimised implementation, compare both values and derivatives against the ordinary forward path. A cache can preserve forward values while dropping parameter dependence from the gradient. This is especially important for [squared and non-Hermitian estimators](../estimators/gradients.md), where differentiation can pass through the connected wavefunction evaluations themselves.
 
 The pages that follow separate these responsibilities. [Model contracts](contracts.md) covers the numerical function, input domain, and projection behaviour. [Parameters and frameworks](parameters.md) covers ownership, fixed state, and adapter construction. [Connected-state evaluation](connections.md) develops an exact sparse update and tests its gradients and fallback behaviour.
+
+## Tensor partitioning
+
+Reusable architectures can supply [tensor partition rules](tensor-rules.md) that describe their contraction dimensions without replacing the model's global JAX function. The [custom tensor model guide](../../distributed/tensor-parallelism/custom-models.md) demonstrates supplied layers, explicit layouts, normalization, and fixed-input gradient checks.

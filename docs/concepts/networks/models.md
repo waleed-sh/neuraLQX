@@ -99,3 +99,7 @@ The MLP reuses its first affine layer. The RBM updates hidden fields and visible
 Automatic decisions include architecture-specific size checks and the relative number of sources and targets. Sparse-update limits are resource choices. If a chunk changes too many coordinates, the complete target evaluation is used. CNN and GNN locality also depends on the activation. A function that mixes all features can disable the local route.
 
 The cache belongs to one evaluation at one set of parameters. Gradients include both cached source features and their updates. No cache is carried across optimisation steps. The ordinary model remains the reference when [profiling](../../developers/profiling/for-scientists.md) whether reuse helps a particular workload.
+
+## Distributed network evaluation
+
+The supplied architectures include [tensor partition rules](../../distributed/tensor-parallelism/models.md) for distributing their weights and contractions across cooperating devices. Use the [tensor overview](../../distributed/tensor-parallelism/index.md) to distinguish this from distributing independent samples. You can inspect each selected weight layout and initialize a large model directly into its shards.

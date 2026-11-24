@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="820" viewBox="0 0 800 820" role="img" aria-labelledby="title desc">
+<title id="title">Tensor groups persist while work changes between VMC phases</title>
+<desc id="desc">Four pairs of tensor workers sample sixteen chains each. For operator evaluation, the same pairs evaluate two operator terms each on half of the global configuration batch.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b" font-size="21">
+<rect x="0" y="0" width="800" height="820" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="32" y="48" font-size="29" fill="#18363b" font-weight="bold" text-anchor="start">One fixed mesh, two work distributions</text>
+<text x="32" y="83" font-size="22" fill="#18363b" font-weight="normal" text-anchor="start">8 devices = 2 sample × 2 operator × 2 tensor workers</text>
+<text x="32" y="129" font-size="25" fill="#18363b" font-weight="bold" text-anchor="start">Sampling: 4 independent chain groups</text>
+<rect x="28" y="154" width="168" height="155" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="112" y="182" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Group 0</text>
+<rect x="40" y="199" width="68" height="42" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="74" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T0</text>
+<rect x="116" y="199" width="68" height="42" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="150" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T1</text>
+<text x="112" y="270" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">16 chains each</text>
+<text x="112" y="295" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">same within pair</text>
+<rect x="220" y="154" width="168" height="155" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="304" y="182" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Group 1</text>
+<rect x="232" y="199" width="68" height="42" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="266" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T0</text>
+<rect x="308" y="199" width="68" height="42" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="342" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T1</text>
+<text x="304" y="270" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">16 chains each</text>
+<text x="304" y="295" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">same within pair</text>
+<rect x="412" y="154" width="168" height="155" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="496" y="182" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Group 2</text>
+<rect x="424" y="199" width="68" height="42" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="458" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T0</text>
+<rect x="500" y="199" width="68" height="42" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="534" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T1</text>
+<text x="496" y="270" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">16 chains each</text>
+<text x="496" y="295" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">same within pair</text>
+<rect x="604" y="154" width="168" height="155" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="688" y="182" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Group 3</text>
+<rect x="616" y="199" width="68" height="42" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="650" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T0</text>
+<rect x="692" y="199" width="68" height="42" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="726" y="227" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">T1</text>
+<text x="688" y="270" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">16 chains each</text>
+<text x="688" y="295" font-size="17" fill="#18363b" font-weight="normal" text-anchor="middle">same within pair</text>
+<text x="400" y="343" font-size="22" fill="#18363b" font-weight="normal" text-anchor="middle">64 chains × 16 retained steps = 1,024 configurations</text>
+<path d="M400 362 L400 408" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<text x="32" y="449" font-size="24" fill="#18363b" font-weight="bold" text-anchor="start">Operator evaluation: 2 term groups × 2 sample groups</text>
+<rect x="28" y="475" width="360" height="87" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="208" y="503" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Term group 0 · sample half 0</text>
+<text x="208" y="529" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">2 tensor workers cooperate</text>
+<text x="208" y="552" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">2 terms on 512 configurations</text>
+<rect x="412" y="475" width="360" height="87" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="592" y="503" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Term group 0 · sample half 1</text>
+<text x="592" y="529" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">2 tensor workers cooperate</text>
+<text x="592" y="552" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">2 terms on 512 configurations</text>
+<rect x="28" y="578" width="360" height="87" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="208" y="606" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Term group 1 · sample half 0</text>
+<text x="208" y="632" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">2 tensor workers cooperate</text>
+<text x="208" y="655" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">2 terms on 512 configurations</text>
+<rect x="412" y="578" width="360" height="87" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="592" y="606" font-size="22" fill="#18363b" font-weight="bold" text-anchor="middle">Term group 1 · sample half 1</text>
+<text x="592" y="632" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">2 tensor workers cooperate</text>
+<text x="592" y="655" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">2 terms on 512 configurations</text>
+<path d="M400 678 L400 713" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="64" y="728" width="672" height="58" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="763" font-size="23" fill="white" font-weight="normal" text-anchor="middle">Combine terms, then form the global expectation</text>
+</g></svg>

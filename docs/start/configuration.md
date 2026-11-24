@@ -284,7 +284,7 @@ Passes the initialisation deadline to JAX. A larger value allows more time for a
 
 ## Sharding and device meshes
 
-The [sharding guide](../distributed/sharding.md) explains how samples, operator terms, and parameters are placed. The high-level policy establishes initial defaults for the three enable flags. Explicit flag environment values override those defaults.
+The [sharding guide](../distributed/sharding.md) explains how sample batches, operator terms, and neural-network tensors are distributed. The high-level policy establishes initial defaults for three enable flags. Explicit flag environment values override those defaults.
 
 ### `sharding_axes`
 
@@ -292,101 +292,126 @@ The [sharding guide](../distributed/sharding.md) explains how samples, operator 
 
 | Value | Initial policy |
 | --- | --- |
-| `"samples"` or `"default"` | Sample sharding enabled |
-| `"parameters"` or `"samples,parameters"` | Sample and parameter flags enabled |
-| `"operators"` or `"samples,operators"` | Sample and operator flags enabled |
-| `"all"`, `"full"`, or `"samples,parameters,operators"` | All three flags enabled |
+| `"samples"` or `"default"` | Sample sharding |
+| `"operators"` or `"samples,operators"` | Sample and operator sharding |
+| `"tensor"` | Tensor parallelism alone |
+| `"samples,tensor"` | Independent samples with cooperating tensor workers |
+| `"operators,tensor"` | Independent operator terms with cooperating tensor workers, no sample sharding |
+| `"all"`, `"full"`, or `"samples,operators,tensor"` | All three modes |
 | `"none"`, `"off"`, `"false"`, `"replicated"`, `""`, or `()` | All three flags disabled |
 | Python `None` | The default sample policy |
 
-Comma-separated, plus-separated, and space-separated axis names are accepted. Sample aliases are `sample`, `samples`, `chain`, `chains`, and `data`. Parameter aliases are `parameter`, `parameters`, `param`, `params`, and `model`. Operator aliases are `operator`, `operators`, `op`, and `ops`. The parser normalises their order to samples, parameters, operators and removes duplicates. Parameter-only or operator-only input always adds samples. [`parse_sharding_axes`](../api/public/neuralqx/config/index.md#neuralqx.config.parse_sharding_axes) also accepts combined preset spellings such as `sample_parameter`.
+Comma-separated, plus-separated, and space-separated axis names are accepted. Sample aliases are `sample`, `samples`, `chain`, `chains`, and `data`. Operator aliases are `operator`, `operators`, `op`, and `ops`. Tensor aliases are `tensor`, `tp`, `network`, and `networks`. [`parse_sharding_axes`](../api/public/neuralqx/config/index.md#neuralqx.config.parse_sharding_axes) removes duplicates and returns the order samples, operators, tensor.
 
-The individual defaults are derived **once, during configuration construction**. Assigning `sharding_axes` in Python afterwards updates this value but does not update the enable flags. Set those flags directly before constructing the simulation, or choose the high-level policy through the environment. For example, `nqx.config.set_many({"sample_sharding_enabled": True, "operator_sharding_enabled": True})` enables the two relevant policies before their consumers are created.
+Tensor policies enable exactly the work axes listed. In particular, `tensor` does not add samples, and `operators,tensor` does not add samples. The `operators` shorthand without tensor mode enables samples as well. To request operator-only execution without tensor mode, explicitly disable `sample_sharding_enabled`.
 
-**Python:** `nqx.config.sharding_axes = ("samples", "operators")`  
-**Environment:** `NEURALQX_SHARDING=samples,operators`  
-**Environment alias:** `NEURALQX_SHARDING_AXES=samples,operators`
+The individual defaults are derived **once, during configuration construction**. Assigning `sharding_axes` in Python afterwards updates the policy value but does not recompute the enable flags. Set those flags directly before constructing the simulation, or select the policy through the environment. See the [Python setup example](../distributed/configuration.md#sharding-policy).
+
+**Python:** `nqx.config.sharding_axes = ("samples", "operators", "tensor")`
+
+**Environment:** `NEURALQX_SHARDING=samples,operators,tensor`
+
+**Environment alias:** `NEURALQX_SHARDING_AXES=samples,operators,tensor`
 
 ### `sample_sharding_enabled`
 
 **Default:** `True` under the default policy, otherwise whether `"samples"` is in the initial `sharding_axes`. **When:** startup. **Values:** `True` or `False`.
 
-`True` enables supported sample and Markov-chain placement across the sample mesh axis. `False` disables that placement policy. It does not hide devices or force CPU execution. The [multiple-GPU example](../distributed/multi-gpu.md) shows the resulting global arrays and local shards.
+`True` distributes supported sample batches and Markov chains. With tensor mode enabled, independent chains use the sample and operator mesh coordinates together, while each chain is replicated inside its cooperating tensor group. `False` disables independent chain partitioning. It does not hide devices or select a backend. See [sample placement](../distributed/sharding.md#samples-and-chains).
 
-**Python:** `nqx.config.sample_sharding_enabled = False`  
+**Python:** `nqx.config.sample_sharding_enabled = False`
+
 **Environment:** `NEURALQX_SAMPLE_SHARDING_ENABLED=0`
-
-### `parameter_sharding_enabled`
-
-**Default:** `False` under the default policy, otherwise whether `"parameters"` is in the initial `sharding_axes`. **When:** startup. **Values:** `True` or `False`.
-
-`True` activates the parameter placement path, which currently uses **replicated parameters** in the standard implementation. `False` disables that explicit path. This flag does not divide network weight matrices or network layers between devices. Neural network tensor parallelism and pipeline parallelism are under development and are not part of this release. See [parameter placement](../distributed/sharding.md#parameters-and-neural-network-parallelism).
-
-**Python:** `nqx.config.parameter_sharding_enabled = True`  
-**Environment:** `NEURALQX_PARAMETER_SHARDING_ENABLED=1`
 
 ### `operator_sharding_enabled`
 
 **Default:** `False` under the default policy, otherwise whether `"operators"` is in the initial `sharding_axes`. **When:** startup. **Values:** `True` or `False`.
 
-`True` enables supported distribution of independent operator terms, including operator lists and [`SumOperator`](../api/public/neuralqx/operator/index.md#neuralqx.operator.SumOperator). `False` keeps that term-distribution path disabled. The planner chooses a layout from the actual term count and available devices, so enabling it does not imply that every workload will use several operator partitions. See [operator sharding](../distributed/sharding.md).
+`True` distributes supported independent operator terms, including operator lists and [`SumOperator`](../api/public/neuralqx/operator/index.md#neuralqx.operator.SumOperator). `False` disables that term-distribution path. Without tensor mode, the planner chooses operator and sample partition counts from the workload. With tensor mode, it uses the operator coordinate of the persistent tensor mesh. An operator axis of size one has no cross-group term dispatch. See [combined layouts](../distributed/sharding.md#combined-operator-and-sample-layouts).
 
-**Python:** `nqx.config.operator_sharding_enabled = True`  
+**Python:** `nqx.config.operator_sharding_enabled = True`
+
 **Environment:** `NEURALQX_OPERATOR_SHARDING_ENABLED=1`
+
+### `network_sharding_enabled`
+
+**Default:** `False` under the default policy, otherwise whether `"tensor"` is in the initial `sharding_axes`. **When:** startup. **Values:** `True` or `False`.
+
+`True` enables tensor partition planning, weight placement, and compiler-managed network contractions over the tensor axis. It also makes sampling and estimator planners retain the same tensor groups across execution phases. `False` uses ordinary framework placement without a tensor adapter. The flag does not create devices or start additional processes.
+
+Built-in architectures and supported layers supply default partition rules. Custom models can provide [explicit layouts](../distributed/tensor-parallelism/custom-models.md). A multi-worker plan must partition at least one trainable array, with exactly divisible dimensions. See [tensor parallelism](../distributed/tensor-parallelism/index.md) for its mathematical meaning and [direct distributed initialization](../distributed/tensor-parallelism/models.md#initialize-directly-into-shards) for large networks.
+
+**Python:** `nqx.config.network_sharding_enabled = True`
+
+**Environment:** `NEURALQX_NETWORK_SHARDING_ENABLED=1`
+
+**Environment alias:** `NEURALQX_TENSOR_PARALLEL_ENABLED=1`
 
 ### `mesh_sample_axis_name`
 
 **Default:** `"samples"`. **When:** startup. **Values:** nonempty strings distinct from the other two mesh axis names.
 
-Names the physical mesh axis corresponding to logical samples. Custom sharding specifications that refer to this axis must use the same name. This changes the label, not the number of devices assigned to it.
+Names the physical mesh axis corresponding to logical samples. Custom specifications that refer to this axis must use its configured name. This changes the label, not the device count.
 
-**Python:** `nqx.config.mesh_sample_axis_name = "chains"`  
+**Python:** `nqx.config.mesh_sample_axis_name = "chains"`
+
 **Environment:** `NEURALQX_MESH_SAMPLE_AXIS_NAME=chains`
-
-### `mesh_parameter_axis_name`
-
-**Default:** `"parameters"`. **When:** startup. **Values:** nonempty strings distinct from the other two mesh axis names.
-
-Names the physical mesh axis corresponding to logical parameters. Renaming it does not enable tensor or pipeline parallelism or change the current replicated parameter layout.
-
-**Python:** `nqx.config.mesh_parameter_axis_name = "weights"`  
-**Environment:** `NEURALQX_MESH_PARAMETER_AXIS_NAME=weights`
 
 ### `mesh_operator_axis_name`
 
 **Default:** `"operators"`. **When:** startup. **Values:** nonempty strings distinct from the other two mesh axis names.
 
-Names the physical mesh axis corresponding to logical operator work. Use a consistent name in any custom mesh or partition specification that consumes this configuration.
+Names the physical mesh axis corresponding to independent operator work. Use a consistent name in custom mesh specifications.
 
-**Python:** `nqx.config.mesh_operator_axis_name = "terms"`  
+**Python:** `nqx.config.mesh_operator_axis_name = "terms"`
+
 **Environment:** `NEURALQX_MESH_OPERATOR_AXIS_NAME=terms`
+
+### `mesh_tensor_axis_name`
+
+**Default:** `"tensor"`. **When:** startup. **Values:** nonempty strings distinct from the other two mesh axis names.
+
+Names the cooperating network axis. Explicit Flax metadata should use this physical name. The logical `"tensor"` entry in `TensorParallel` rules is translated to it by the planner. Renaming an axis does not change its size or enable the corresponding execution mode.
+
+**Python:** `nqx.config.mesh_tensor_axis_name = "features"`
+
+**Environment:** `NEURALQX_MESH_TENSOR_AXIS_NAME=features`
 
 ### `mesh_sample_axis_size`
 
 **Default:** `None`. **When:** startup. **Values:** `None` or a positive integer.
 
-`None` lets generic mesh construction infer the sample-axis size. A positive integer requests that many devices on the axis when it is active. The product of resolved axis sizes must match the supplied device count. Standard sampling and force planners request their own layouts and can override generic size choices, so this is not a global limit on the number of devices used. See [mesh names and sizes](../distributed/configuration.md#mesh-names-and-sizes).
+In tensor mode, `None` lets the persistent mesh infer the sample dimension and a positive integer fixes it. A disabled sample axis must have size one or be left unset. The resolved sample, operator, and tensor sizes must multiply to the global device count.
 
-**Python:** `nqx.config.mesh_sample_axis_size = 2`  
+Without tensor mode, standard sampling and force planners request their own sample layouts and can override generic mesh choices. This is not a global limit on visible devices. See [mesh names and sizes](../distributed/configuration.md#mesh-names-and-sizes).
+
+**Python:** `nqx.config.mesh_sample_axis_size = 2`
+
 **Environment:** `NEURALQX_MESH_SAMPLE_AXIS_SIZE=2`
-
-### `mesh_parameter_axis_size`
-
-**Default:** `None`. **When:** startup. **Values:** `None` or a positive integer.
-
-`None` allows inference for an active parameter axis in generic mesh construction. A positive integer supplies its size, subject to the total device count and the other axis sizes. This describes mesh geometry and does not imply that model parameters are partitioned along it.
-
-**Python:** `nqx.config.mesh_parameter_axis_size = 1`  
-**Environment:** `NEURALQX_MESH_PARAMETER_AXIS_SIZE=1`
 
 ### `mesh_operator_axis_size`
 
 **Default:** `None`. **When:** startup. **Values:** `None` or a positive integer.
 
-`None` allows inference for an active operator axis in generic mesh construction. A positive integer requests its size, subject to the total device count. Standard operator evaluation derives its phase layout from the workload and can override this value. Leave the size options at `None` when following the standard hardware guides.
+In tensor mode, fixes or infers the number of operator groups in the shared mesh. A disabled operator axis must have size one or be left unset. Fewer groups than terms assign several terms to each group. More groups than terms can introduce idle scheduled slots.
 
-**Python:** `nqx.config.mesh_operator_axis_size = 2`  
+Without tensor mode, standard operator planning chooses its phase layout from the workload and can override this generic setting. See [operator placement](../distributed/sharding.md#combined-operator-and-sample-layouts).
+
+**Python:** `nqx.config.mesh_operator_axis_size = 2`
+
 **Environment:** `NEURALQX_MESH_OPERATOR_AXIS_SIZE=2`
+
+### `mesh_tensor_axis_size`
+
+**Default:** `None`. **When:** startup. **Values:** `None` or a positive integer.
+
+Controls the number of cooperating devices per network evaluation when tensor mode is enabled. `None` infers a divisor of the available devices while respecting explicit sample and operator sizes. A positive integer requests that exact tensor group size. One retains the tensor execution path without dividing arrays between tensor workers.
+
+The full mesh must use every visible device. A tensor-only launch on eight devices therefore needs a tensor size of eight. To choose a smaller group, enable an independent sample or operator axis for the remaining devices. Weight dimensions selected by the plan must divide the tensor size exactly. The planner does not resize the model.
+
+**Python:** `nqx.config.mesh_tensor_axis_size = 2`
+
+**Environment:** `NEURALQX_MESH_TENSOR_AXIS_SIZE=2`
 
 ## Operator evaluation
 

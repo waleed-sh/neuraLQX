@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="430" viewBox="0 0 800 430" role="img" aria-labelledby="title desc">
+<title id="title">Column and row partitions use Flax weight ordering</title>
+<desc id="desc">Two views of a four-by-eight weight matrix. The column partition splits output features into two four-column blocks. The row partition splits input features into two two-row blocks.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b" font-size="21">
+<rect x="0" y="0" width="800" height="430" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="32" y="48" font-size="29" fill="#18363b" font-weight="bold" text-anchor="start">Two ways to partition a dense weight</text>
+<text x="32" y="83" font-size="22" fill="#18363b" font-weight="normal" text-anchor="start">Rows are input features. Columns are output features.</text>
+<rect x="30" y="109" width="350" height="255" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="205" y="144" font-size="25" fill="#18363b" font-weight="bold" text-anchor="middle">Column parallel</text>
+<text x="205" y="177" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Output features</text>
+<rect x="64" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="100" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="136" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="172" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="208" y="193" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="244" y="193" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="280" y="193" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="316" y="193" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="64" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="100" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="136" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="172" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="208" y="222" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="244" y="222" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="280" y="222" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="316" y="222" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="64" y="251" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="100" y="251" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="136" y="251" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="172" y="251" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="208" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="244" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="280" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="316" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="64" y="280" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="100" y="280" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="136" y="280" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="172" y="280" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="208" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="244" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="280" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="316" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="205" y="340" font-size="22" fill="#18363b" font-weight="normal" text-anchor="middle">P(None, &quot;tensor&quot;)</text>
+<rect x="420" y="109" width="350" height="255" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="595" y="144" font-size="25" fill="#18363b" font-weight="bold" text-anchor="middle">Row parallel</text>
+<text x="595" y="177" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Output features</text>
+<rect x="454" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="490" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="526" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="562" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="598" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="634" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="670" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="706" y="193" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="454" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="490" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="526" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="562" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="598" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="634" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="670" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="706" y="222" width="31" height="24" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<rect x="454" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="490" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="526" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="562" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="598" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="634" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="670" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="706" y="251" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="454" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="490" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="526" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="562" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="598" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="634" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="670" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<rect x="706" y="280" width="31" height="24" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="595" y="340" font-size="22" fill="#18363b" font-weight="normal" text-anchor="middle">P(&quot;tensor&quot;, None)</text>
+<rect x="132" y="387" width="22" height="22" rx="3" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="167" y="405" font-size="21" fill="#18363b" font-weight="normal" text-anchor="start">Tensor worker 0</text>
+<rect x="442" y="387" width="22" height="22" rx="3" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="477" y="405" font-size="21" fill="#18363b" font-weight="normal" text-anchor="start">Tensor worker 1</text>
+</g></svg>

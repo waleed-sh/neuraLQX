@@ -91,6 +91,49 @@ To enable operator work distribution, change the batch job to `NEURALQX_SHARDING
 
 Cross-node communication is usually more expensive than communication within one host. Operator sharding can replicate sample data across term partitions, and global gradients also require communication. Measure a representative calculation before scaling a job simply because more devices are available.
 
+## Tensor groups across the allocation
+
+Distributed initialization establishes the global device set. Tensor parallelism then partitions that set using the same policies as a single host. It does not require a separate tensor process launcher.
+
+Download [multi-node-tensor.sh](examples/multi-node-tensor.sh) for the complete two-node variant. It retains the two-process launch, coordinator, and four local GPU IDs from the preceding job, and selects:
+
+```bash
+export NEURALQX_SHARDING=samples,operators,tensor
+export NEURALQX_MESH_SAMPLE_AXIS_SIZE=2
+export NEURALQX_MESH_OPERATOR_AXIS_SIZE=2
+export NEURALQX_MESH_TENSOR_AXIS_SIZE=2
+```
+
+Submit with `sbatch multi-node-tensor.sh` beside the same worker and simulation files. Across eight GPUs, the resolved mesh is `(2,2,2)`. Sampling uses four independent groups of 16 chains. Every tensor pair contains two copies of its group's `(16,16,4)` sample shard and complementary weight shards. Operator evaluation assigns two terms and 512 configurations to each sample/operator coordinate.
+
+![A sample-by-operator grid contains four pairs of tensor workers. Weight shards repeat across pairs, while each pair cooperates on the same inputs.](../assets/images/distributed/tensor-mesh.svg)
+
+The mesh constructor uses JAX's topology-aware device ordering. Do not assume a tensor group stays inside a host solely because its size is smaller than the host's GPU count. Inspect the actual mapping inside the initialized job:
+
+```python
+import jax
+import neuralqx as nqx
+from neuralqx.jax.tensor_parallel import tensor_mesh
+
+assert nqx.config.network_sharding_enabled
+mesh = tensor_mesh()
+if jax.process_index() == 0:
+    print("Mesh:", dict(mesh.shape))
+    for sample in range(mesh.devices.shape[0]):
+        for operator in range(mesh.devices.shape[1]):
+            members = mesh.devices[sample, operator, :]
+            print(
+                "Sample", sample, "operator", operator,
+                [(device.process_index, device.id) for device in members],
+            )
+```
+
+The pair `(process_index, device.id)` identifies where each worker is controlled. This diagnostic uses device metadata and does not gather remote numerical buffers. A tensor group can span processes. When it does, the network's collectives cross that process boundary as well.
+
+Tensor communication occurs within layer contractions and their derivatives, so interconnect behavior can matter at a finer scale than a single reduction per optimization step. Favor a layout appropriate to the physical topology, verify its actual mapping, and profile representative model sizes. There is no guarantee that using every enabled mode at once gives the shortest step time.
+
+The other policies remain available. On eight GPUs, `samples,tensor` with tensor size four gives two independent groups of four cooperating workers. Tensor-only execution uses all eight workers for the same model evaluation. Keep widths divisible by the chosen tensor size and use [direct distributed initialization](tensor-parallelism/models.md#initialize-directly-into-shards) if a full model cannot be initialized on one device.
+
 ## One process per GPU
 
 Some sites prefer one scheduler task for each GPU. The same Python script can use that arrangement, but the process count and local-device settings change. For two nodes with four GPUs each, request eight tasks in total, four tasks per node, and one GPU per task. Set `NEURALQX_DISTRIBUTED_NUM_PROCESSES=8` and `NEURALQX_DISTRIBUTED_LOCAL_DEVICE_IDS=0` when Slurm makes only the assigned GPU visible to each task.
@@ -124,7 +167,7 @@ If an existing application already calls `jax.distributed.initialize()` itself, 
 
 ## Global arrays and process-local inspection
 
-Each process can inspect the global shape and sharding, but it does not own all global buffers. The example prints `state.samples.addressable_shards` so that each process reports only its own device indices and local shapes. Converting the entire distributed sample array with `np.asarray(state.samples)` is not a way to obtain all remote shards.
+Each process can inspect the global shape and sharding, but it does not own all global buffers. The example prints `state.samples.addressable_shards` so that each process reports only its own device indices and local shapes. Converting the entire distributed sample array with `np.asarray(state.samples)` is not a way to obtain all remote shards. Tensor replication also means several local shards can describe the same global sample indices. Do not concatenate or count every addressable shard as an independent batch.
 
 In code that constructs arrays from external data, use JAX's [distributed data-loading guidance](https://docs.jax.dev/en/latest/distributed_data_loading.html), including `jax.make_array_from_process_local_data` or callback-based construction where appropriate. Standard neuraLQX sampling already constructs its sample layout. You do not need to gather the chains onto process zero between VMC steps.
 

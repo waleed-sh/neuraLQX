@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="690" viewBox="0 0 800 690" role="img" aria-labelledby="title desc">
+<title id="title">Two tensor workers evaluate one two-layer network</title>
+<desc id="desc">The first weight is partitioned by output features, the second by input features. Each worker evaluates its hidden block. Partial outputs are summed, and the final bias is added once.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#006d77"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18363b" font-size="21">
+<rect x="0" y="0" width="800" height="690" rx="18" fill="#edf6f9" stroke="none" stroke-width="2"/>
+<text x="32" y="48" font-size="29" fill="#18363b" font-weight="bold" text-anchor="start">Partition features inside the network</text>
+<text x="32" y="83" font-size="22" fill="#18363b" font-weight="normal" text-anchor="start">One input batch X, two cooperating tensor workers</text>
+<rect x="240" y="110" width="320" height="60" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="148" font-size="20" fill="white" font-weight="normal" text-anchor="middle">X: same inputs on both workers</text>
+<path d="M400 170 L205 216" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="28" y="226" width="354" height="293" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="205" y="262" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor worker 0</text>
+<rect x="48" y="281" width="314" height="58" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="205" y="307" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">W0: output columns</text>
+<text x="205" y="330" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">X W + hidden bias</text>
+<path d="M205 342 L205 366" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<text x="205" y="394" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Elementwise activation</text>
+<path d="M205 406 L205 433" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="48" y="443" width="314" height="58" rx="8" fill="#83c5be" stroke="none" stroke-width="2"/>
+<text x="205" y="469" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">V0: matching input rows</text>
+<text x="205" y="492" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Partial output Y0</text>
+<path d="M205 519 L400 563" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M400 170 L595 216" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="418" y="226" width="354" height="293" rx="8" fill="white" stroke="#006d77" stroke-width="2"/>
+<text x="595" y="262" font-size="24" fill="#18363b" font-weight="bold" text-anchor="middle">Tensor worker 1</text>
+<rect x="438" y="281" width="314" height="58" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="595" y="307" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">W1: output columns</text>
+<text x="595" y="330" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">X W + hidden bias</text>
+<path d="M595 342 L595 366" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<text x="595" y="394" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Elementwise activation</text>
+<path d="M595 406 L595 433" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="438" y="443" width="314" height="58" rx="8" fill="#ffddd2" stroke="none" stroke-width="2"/>
+<text x="595" y="469" font-size="21" fill="#18363b" font-weight="bold" text-anchor="middle">V1: matching input rows</text>
+<text x="595" y="492" font-size="19" fill="#18363b" font-weight="normal" text-anchor="middle">Partial output Y1</text>
+<path d="M595 519 L400 563" stroke="#006d77" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="128" y="574" width="544" height="54" rx="8" fill="#006d77" stroke="none" stroke-width="2"/>
+<text x="400" y="608" font-size="25" fill="white" font-weight="normal" text-anchor="middle">Y = Y0 + Y1 + output bias</text>
+<text x="400" y="665" font-size="21" fill="#18363b" font-weight="normal" text-anchor="middle">Global widths stay unchanged. JAX supplies communication.</text>
+</g></svg>

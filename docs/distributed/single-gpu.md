@@ -57,7 +57,7 @@ If you are selecting one GPU on an unscheduled workstation, use:
 CUDA_VISIBLE_DEVICES=0 JAX_PLATFORMS=cuda python simulation.py
 ```
 
-The expected topology is one process and one visible device. The model, optimiser, and complete `(64, 16, 4)` sample batch fit on that device. neuraLQX's sample-sharding setting is enabled by default, but an axis of size one does not partition the batch. Operator sharding likewise has no cross-device work to distribute on a single GPU.
+The expected topology is one process and one visible device. The model, optimiser, and complete `(64, 16, 4)` sample batch fit on that device. neuraLQX's sample-sharding setting is enabled by default, but an axis of size one does not partition the batch. Operator sharding likewise has no cross-device work to distribute on a single GPU. Tensor mode can run with a group size of one, but it cannot reduce weight storage by partitioning across devices in this allocation. The [multiple GPU guide](multi-gpu.md#add-tensor-parallelism) introduces that step.
 
 The Python control flow still runs on the host. Compiled sampling, model evaluation, and numerical kernels run on the GPU. Repeatedly converting large arrays to NumPy, printing arrays, or asking for a scalar during every update can introduce transfers and synchronisation. The example prints diagnostics only at the beginning and end.
 
@@ -71,7 +71,7 @@ JAX normally reserves a substantial part of GPU memory when it first executes wo
 XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda python simulation.py
 ```
 
-Disabling preallocation changes memory allocation behaviour, not the memory needed by the arrays. It may also increase fragmentation. The [JAX memory guide](https://docs.jax.dev/en/latest/gpu_memory_allocation.html) explains the available policies. For an actual out-of-memory error, first identify whether model parameters, sample buffers, or connected-state evaluation dominate. [Chunking and operator streaming](sharding.md#chunking-and-streaming) address different temporary allocations.
+Disabling preallocation changes memory allocation behaviour, not the memory needed by the arrays. It may also increase fragmentation. The [JAX memory guide](https://docs.jax.dev/en/latest/gpu_memory_allocation.html) explains the available policies. For an actual out-of-memory error, first identify whether model parameters, sample buffers, or connected-state evaluation dominate. A model too large for one GPU may need [tensor parallelism](tensor-parallelism/index.md) and [direct sharded initialization](tensor-parallelism/models.md#initialize-directly-into-shards) on several GPUs. [Chunking and operator streaming](sharding.md#chunking-and-streaming) address different temporary allocations.
 
 ## A single GPU batch job
 
