@@ -203,6 +203,7 @@ nav:
           - Model contracts: developers/networks/contracts.md
           - Parameters and frameworks: developers/networks/parameters.md
           - Connected-state evaluation: developers/networks/connections.md
+          - Tensor partition rules: developers/networks/tensor-rules.md
       - Custom graphs:
           - Overview: developers/graphs/index.md
           - Graph contracts: developers/graphs/contracts.md
@@ -214,6 +215,10 @@ nav:
   - Distributed simulations:
       - JAX parallelism: distributed/jax-parallelism.md
       - Sharding in neuraLQX: distributed/sharding.md
+      - Tensor parallelism:
+          - Overview: distributed/tensor-parallelism/index.md
+          - Built-in networks and initialization: distributed/tensor-parallelism/models.md
+          - Custom networks and layers: distributed/tensor-parallelism/custom-models.md
       - CPU: distributed/cpu.md
       - Single GPU: distributed/single-gpu.md
       - Multiple GPUs: distributed/multi-gpu.md
