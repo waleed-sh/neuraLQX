@@ -23,6 +23,7 @@ from typing import Any
 import jax.numpy as jnp
 
 import jax
+from neuralqx.config import config
 from neuralqx.jax.differentiation import vjp as neuralqx_vjp
 from neuralqx.jax.differentiation.real import split_tree_to_real
 from neuralqx.jax.streaming import apply_batched
@@ -31,6 +32,9 @@ from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.embedding import contains_residual
 from neuralqx.operator.wrappers import PenaltyCost
+from neuralqx.profile._instrumentation import instrument
+from neuralqx.profile._instrumentation import operator_region
+from neuralqx.profile._instrumentation import region
 from neuralqx.utils.errors import NeuralqxNotImplementedError
 from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
@@ -58,6 +62,7 @@ from .forces import machine_pow_is_two
 from .penalties import penalty_expect_and_grad
 
 
+@instrument("gradient", detail="summary", category="neuralqx.gradient")
 def expect_and_grad(
     vstate: Any,
     operator: Any,
@@ -113,6 +118,7 @@ def expect_and_grad(
     return stats, grad
 
 
+@instrument("gradient.full_derivative", detail="detailed", category="neuralqx.gradient")
 def _expect_and_grad_noncovariance(
     vstate: Any,
     operator: Any,
@@ -152,22 +158,42 @@ def _expect_and_grad_noncovariance(
             f"Unexpected expect_and_grad keyword argument(s): {', '.join(sorted(kwargs))}."
         )
     validate_operator_hilbert(vstate, operator)
+    if expectation_transform is None and (
+        options.operator_sharding is True
+        or (
+            options.operator_sharding is None
+            and config.get("operator_sharding_enabled")
+        )
+    ):
+        from .squared import operator_squared_expect_and_grad
+
+        distributed = operator_squared_expect_and_grad(
+            vstate, operator, flat_samples, sample_shape, options
+        )
+        if distributed is not None:
+            return distributed
     if expectation_transform is None:
         terms = linear_operator_terms(operator)
         if any(isinstance(term.operator, PenaltyCost) for term in terms):
-            gradients = [
-                jax.tree_util.tree_map(
-                    lambda leaf, coefficient=term.coefficient: coefficient * leaf,
-                    expect_and_grad(
+            gradients = []
+            for index, term in enumerate(terms):
+                with operator_region(
+                    term.operator, index, operation="penalty_gradient"
+                ):
+                    gradient = expect_and_grad(
                         vstate,
                         term.operator,
                         samples=samples,
                         options=options,
                         use_covariance=False,
-                    )[1],
-                )
-                for term in terms
-            ]
+                    )[1]
+                    gradients.append(
+                        jax.tree_util.tree_map(
+                            lambda leaf, coefficient=term.coefficient: coefficient
+                            * leaf,
+                            gradient,
+                        )
+                    )
             total = gradients[0]
             for gradient in gradients[1:]:
                 total = _tree_add(total, gradient)
@@ -202,15 +228,18 @@ def _expect_and_grad_noncovariance(
     ):
         # Connections are independent of the network parameters. Prepare them
         # before AD so sparsity counts cannot synchronize between model passes.
-        connections = tuple(
-            prepare_discrete_connections(
-                term.operator,
-                flat_samples,
-                operator_streaming=options.operator_streaming,
-                operator_streaming_chunk_size=options.operator_streaming_chunk_size,
-            )
-            for term in squared_terms
-        )
+        connections = []
+        for index, term in enumerate(squared_terms):
+            with operator_region(term, index, operation="square_connections"):
+                connections.append(
+                    prepare_discrete_connections(
+                        term.operator,
+                        flat_samples,
+                        operator_streaming=options.operator_streaming,
+                        operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+                    )
+                )
+        connections = tuple(connections)
         layout = sample_layout(flat_samples)
         if layout is not None and any(
             isinstance(a, jax.Array)
@@ -290,11 +319,17 @@ def _expect_and_grad_noncovariance(
     # Real coordinates preserve both channels of a complex objective.
     # Reassembly gives dE/dx + i dE/dy for z=x+iy, also for mixed trees and
     # non-holomorphic models. Conjugating this pullback would change dE.
-    objective, pullback, values = neuralqx_vjp(
-        objective_for_params, coordinates, has_aux=True
-    )
+    with region(
+        "gradient.forward_linearize", detail="developer", category="neuralqx.gradient"
+    ):
+        objective, pullback, values = neuralqx_vjp(
+            objective_for_params, coordinates, has_aux=True
+        )
     stats = statistics(values.reshape(sample_shape))
-    gradient = reassemble(pullback(jnp.ones_like(objective))[0])
+    with region(
+        "gradient.backward_pullback", detail="developer", category="neuralqx.gradient"
+    ):
+        gradient = reassemble(pullback(jnp.ones_like(objective))[0])
     return stats, gradient
 
 
@@ -518,6 +553,7 @@ def _squared_values_and_grad(
     return values, gradient
 
 
+@instrument("gradient.biadjoint", detail="developer", category="neuralqx.gradient")
 def _expect_and_grad_biadjoint(
     vstate: Any,
     operator: Any,

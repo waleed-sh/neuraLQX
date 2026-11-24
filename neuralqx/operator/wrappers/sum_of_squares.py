@@ -51,6 +51,13 @@ class SumOfSquares(AbstractOperator):
     in the supplied order. Like `Squared`, this wrapper does not provide matrix
     conversion or padded connectivity.
 
+    Operator sharding schedules complete squared parents across workers and
+    sums their contributions. It composes with sampling and tensor parallelism
+    for ordinary Born estimators of computational parents. A single parent is
+    never split across operator workers. Python ``sum(A.squared() for A in
+    parents)`` and an explicit list or tuple of squared markers have the same
+    objective and support the same operator-parallel path.
+
     To represent $\sum_v H_v H_v^\dagger$, pass the adjoints of the local
     constraints. Passing the local constraints themselves gives
     $\sum_v H_v^\dagger H_v$.
@@ -82,6 +89,20 @@ class SumOfSquares(AbstractOperator):
     def __len__(self) -> int:
         """Number of separately squared parents."""
         return len(self.operators)
+
+    def __add__(self, other):
+        """Concatenate independent squares, preserving each parent's cross terms."""
+        if isinstance(other, Squared):
+            return SumOfSquares((*self.operators, other.operator))
+        if isinstance(other, SumOfSquares):
+            return SumOfSquares((*self.operators, *other.operators))
+        return NotImplemented
+
+    def __radd__(self, other):
+        """Accept zero as the starting value of a Python sum of groups."""
+        from neuralqx.operator._algebra import is_zero_scalar_like
+
+        return self if is_zero_scalar_like(other) else NotImplemented
 
     @property
     def dtype(self) -> jnp.dtype:

@@ -28,6 +28,8 @@ from neuralqx.jax.streaming import apply_batched
 from neuralqx.jax.streaming import apply_connected
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
+from neuralqx.operator._connect import streamed_connected_components
+from neuralqx.operator._policy import resolve_streaming_policy
 from neuralqx.profile._instrumentation import instrument
 from neuralqx.utils.errors import NeuralqxTypeError
 from neuralqx.utils.errors import NeuralqxValueError
@@ -400,7 +402,7 @@ def prepare_discrete_connections(
     packed = prepare_sharded_connections(
         operator,
         flat,
-        _prepare_local_connections,
+        partial(_prepare_local_connections, local=True),
         operator_streaming=operator_streaming,
         operator_streaming_chunk_size=operator_streaming_chunk_size,
     )
@@ -418,7 +420,7 @@ def prepare_discrete_connections(
     "operator.local_connectivity", detail="developer", category="neuralqx.operator"
 )
 def _prepare_local_connections(
-    operator, flat, *, operator_streaming, operator_streaming_chunk_size
+    operator, flat, *, operator_streaming, operator_streaming_chunk_size, local=False
 ):
     compact = getattr(operator, "get_conn_compact", None)
     packed = (
@@ -430,11 +432,25 @@ def _prepare_local_connections(
     )
     if packed is not None:
         return packed
-    x_primes, mels = operator.get_conn_padded(
-        flat,
-        use_streaming=operator_streaming,
-        chunk_size=operator_streaming_chunk_size,
-    )
+    local_stream = False
+    if local and is_computational_operator(operator):
+        local_stream, local_chunk_size = resolve_streaming_policy(
+            use_streaming=operator_streaming,
+            chunk_size=operator_streaming_chunk_size,
+        )
+    if local_stream:
+        # This batch and operator already belong to one sample shard. The
+        # public streaming entry point would place the batch on the global
+        # mesh again, conflicting with the operator's single-device arrays.
+        x_primes, mels = streamed_connected_components(
+            operator, flat, chunk_size=local_chunk_size
+        )
+    else:
+        x_primes, mels = operator.get_conn_padded(
+            flat,
+            use_streaming=operator_streaming,
+            chunk_size=operator_streaming_chunk_size,
+        )
     packed = compact_connections(x_primes, mels)
     if packed is not None:
         return packed

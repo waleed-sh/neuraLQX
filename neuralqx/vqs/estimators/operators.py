@@ -77,6 +77,29 @@ def discrete_linear_terms(operator: Any) -> tuple[OperatorTerm, ...] | None:
     return None
 
 
+def squared_operator_parents(operator: Any) -> tuple[Any, ...] | None:
+    """Return whole parents of a pure sum of squares, preserving its boundaries.
+
+    Accept the built-in marker, SumOfSquares, and nested explicit sequences.
+    A sum inside a parent is never flattened across the outer square.
+    """
+    from neuralqx.operator import Squared
+
+    if type(operator) is Squared:
+        return (operator.operator,)
+    if type(operator) is SumOfSquares:
+        return tuple(operator.operators)
+    if is_operator_sequence(operator):
+        parents = []
+        for item in operator:
+            group = squared_operator_parents(item)
+            if group is None:
+                return None
+            parents.extend(group)
+        return tuple(parents) if parents else None
+    return None
+
+
 def sequence_is_hermitian(operator: Any) -> bool:
     """Return whether all terms in an operator sequence are Hermitian."""
     return all(
@@ -139,4 +162,5 @@ __all__ = [
     "is_operator_sequence",
     "linear_operator_terms",
     "sequence_is_hermitian",
+    "squared_operator_parents",
 ]

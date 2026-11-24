@@ -22,6 +22,7 @@ from typing import Any
 import jax.numpy as jnp
 from plum import dispatch
 
+from neuralqx.config import config
 from neuralqx.operator import DiscreteOperator
 from neuralqx.operator import Squared
 from neuralqx.operator.embedding import contains_residual
@@ -80,6 +81,32 @@ def local_estimators(
         from .importance import importance_local_estimators
 
         return importance_local_estimators(vstate, operator, samples, options)
+    if options.operator_sharding is True or (
+        options.operator_sharding is None and config.get("operator_sharding_enabled")
+    ):
+        from neuralqx.jax.sharding.operators.squared import sharded_squared_values
+        from neuralqx.jax.sharding.operators.squared import squared_term_plan
+
+        from .operators import squared_operator_parents
+
+        parents = squared_operator_parents(operator)
+        if parents is not None:
+            flat = jnp.asarray(samples).reshape((-1, vstate.hilbert.size))
+            plan = squared_term_plan(
+                parents, len(flat), enabled=options.operator_sharding
+            )
+            if plan is not None:
+                values = sharded_squared_values(
+                    vstate.apply_variables_kernel,
+                    vstate.variables,
+                    flat,
+                    parents,
+                    plan,
+                    chunk_size=options.chunk_size,
+                    operator_streaming=options.operator_streaming,
+                    operator_streaming_chunk_size=options.operator_streaming_chunk_size,
+                )
+                return LocalEstimators(values.reshape(jnp.shape(samples)[:-1]))
     terms = discrete_linear_terms(operator)
     if is_operator_sequence(operator) or (terms is not None and len(terms) > 1):
         prepared = _prepared_local_values(vstate, operator, samples, options)
