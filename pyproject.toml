@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27.0"]
+requires = ["hatchling>=1.27.0", "hatch-vcs>=0.4"]
 build-backend = "hatchling.build"
 
 [project]
@@ -114,10 +114,12 @@ docs = [
 ]
 
 [tool.hatch.version]
-path = "neuralqx/_version.py"
+source = "vcs"
+fallback-version = "2.0.0.dev0"
+raw-options = { local_scheme = "no-local-version" }
 
-[tool.hatch.build.force-include]
-"neuralqx/_version.py" = "neuralqx/_version.py"
+[tool.hatch.build.hooks.vcs]
+version-file = "neuralqx/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

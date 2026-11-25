@@ -143,6 +143,10 @@ nav:
           - Built-in callbacks: concepts/callbacks/built-in.md
           - Controlling a run: concepts/callbacks/control.md
           - Logging and monitoring: concepts/callbacks/logging.md
+  - Tutorials:
+      - First simulation: tutorials/notebooks/first-simulation.ipynb
+      - Working with graphs: tutorials/notebooks/graphs.ipynb
+      - Custom components: tutorials/notebooks/custom-components.ipynb
   - Developer guide:
       - Overview: developers/index.md
       - Profiling:
@@ -225,10 +229,6 @@ nav:
       - Multiple nodes and GPUs: distributed/multi-node.md
       - Parallelism configuration: distributed/configuration.md
       - Troubleshooting: distributed/troubleshooting.md
-  - Tutorials:
-      - First simulation: tutorials/notebooks/first-simulation.ipynb
-      - Working with graphs: tutorials/notebooks/graphs.ipynb
-      - Custom components: tutorials/notebooks/custom-components.ipynb
   - API reference:
       - Changelog: api/changelog.md
       - Contributing to neuraLQX: api/contributing.md
