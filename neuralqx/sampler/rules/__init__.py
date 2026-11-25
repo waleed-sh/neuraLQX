@@ -22,6 +22,7 @@ from .exchange import ExchangeRule
 from .functional import FunctionalRule
 from .local import LocalRule
 from .neighbor import NeighborRule
+from .su2 import SU2ExchangeRule
 from .su2 import SU2MetropolisRule
 from .u1 import U1GaugeRule
 
@@ -31,6 +32,7 @@ __all__ = [
     "FunctionalRule",
     "LocalRule",
     "NeighborRule",
+    "SU2ExchangeRule",
     "SU2MetropolisRule",
     "TransitionOutput",
     "U1GaugeRule",

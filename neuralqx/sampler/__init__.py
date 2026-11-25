@@ -28,6 +28,7 @@ from .rules import ExchangeRule
 from .rules import FunctionalRule
 from .rules import LocalRule
 from .rules import NeighborRule
+from .rules import SU2ExchangeRule
 from .rules import SU2MetropolisRule
 from .rules import TransitionOutput
 from .rules import U1GaugeRule
@@ -51,6 +52,7 @@ __all__ = [
     "MetropolisU1Gauge",
     "NeighborRule",
     "OperatorBlur",
+    "SU2ExchangeRule",
     "SU2MetropolisRule",
     "SamplingMeasure",
     "TransitionOutput",

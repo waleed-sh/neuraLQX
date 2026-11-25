@@ -98,15 +98,26 @@ def MetropolisSU2(
     weights=(0.45, 0.2, 0.25, 0.1),
     stay_probability=0.05,
     coherent_loop_probability=0.0,
+    edge_parity=None,
+    exchange_pairs=None,
+    initial_state=None,
     **kwargs: Any,
 ) -> MetropolisSampler:
     """SU(2) sampler with corrected channel proposals and full-support refreshes.
 
-    Weights select loop, same-parity edge, vertex-channel, and global moves.
+    Weights select loop, same-parity edge, vertex-channel, global, and optional
+    exchange moves. Four weights retain the original mixture without exchange.
     The global weight and stay probability must be positive. ``sweep_size``
     counts attempted proposals per stored sample, not accepted state changes.
     ``coherent_loop_probability`` mixes common-sign loop shifts into the
     independent-sign proposal. Positive values help long cycles leave vacuum.
+    ``edge_parity`` optionally fixes a binary scalar or per-edge parity vector
+    for every move and initialization. Loop shifts then use doubled-spin steps
+    of two. ``exchange_pairs`` optionally limits exchanges to fixed edge-index
+    pairs. The default samples pairs without constructing an all-pairs table.
+    ``initial_state`` optionally supplies a valid configuration with nonzero
+    model amplitude. Otherwise initialization is random within the selected
+    space. These options are independent of graph family and vertex valence.
     """
     from neuralqx.hilbert.su2 import SU2GaugeInvariantHilbert
 
@@ -118,6 +129,9 @@ def MetropolisSU2(
             weights=weights,
             stay_probability=stay_probability,
             coherent_loop_probability=coherent_loop_probability,
+            edge_parity=edge_parity,
+            exchange_pairs=exchange_pairs,
+            initial_state=initial_state,
         ),
         **kwargs,
     )

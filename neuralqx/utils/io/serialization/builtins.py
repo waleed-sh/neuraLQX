@@ -96,6 +96,7 @@ def install_codecs():
     from neuralqx.sampler.rules import ExchangeRule
     from neuralqx.sampler.rules import LocalRule
     from neuralqx.sampler.rules import NeighborRule
+    from neuralqx.sampler.rules import SU2ExchangeRule
     from neuralqx.sampler.rules import SU2MetropolisRule
     from neuralqx.sampler.rules import U1GaugeRule
     from neuralqx.utils.typing.graph import Edge
@@ -131,6 +132,7 @@ def install_codecs():
         LocalRule,
         U1GaugeRule,
         SU2MetropolisRule,
+        SU2ExchangeRule,
         ExchangeRule,
         NeighborRule,
         Vertex,

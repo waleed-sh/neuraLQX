@@ -44,6 +44,7 @@ from neuralqx.sampler.metropolis.validation import assert_sample_shape
 from neuralqx.sampler.metropolis.validation import ensure_metropolis_state
 from neuralqx.sampler.metropolis.validation import validate_rule_for_hilbert
 from neuralqx.sampler.rules import AbstractTransitionRule
+from neuralqx.sampler.rules import ExchangeRule
 from neuralqx.sampler.rules import LocalRule
 from neuralqx.sampler.rules import SU2MetropolisRule
 from neuralqx.sampler.rules import U1GaugeRule
@@ -61,8 +62,10 @@ class MetropolisSampler(AbstractSampler):
     ``U1GaugeRule`` to update independent charges and reconstruct dependent
     edges. A ``SU2GaugeInvariantHilbert`` uses ``SU2MetropolisRule`` with its
     default mixture of spin and intertwiner proposals and their Hastings
-    corrections. Other spaces use ``LocalRule``. An explicitly supplied rule
-    always takes precedence. ``MetropolisU1Gauge`` and ``MetropolisSU2`` expose
+    corrections. Other spaces use ``LocalRule``. An explicitly supplied,
+    compatible rule takes precedence. Generic ``ExchangeRule`` is rejected on
+    SU(2) spaces because flat swaps do not enforce channel admissibility.
+    ``MetropolisU1Gauge`` and ``MetropolisSU2`` expose
     the corresponding proposal settings when customization is needed.
 
     Each stored configuration follows ``sweep_size`` attempted proposals per
@@ -102,6 +105,14 @@ class MetropolisSampler(AbstractSampler):
         if not isinstance(self.rule, AbstractTransitionRule):
             raise NeuralqxTypeError(
                 f"rule must be an AbstractTransitionRule; got {type(self.rule).__name__}."
+            )
+        if isinstance(self.hilbert, SU2GaugeInvariantHilbert) and isinstance(
+            self.rule, ExchangeRule
+        ):
+            raise NeuralqxValueError(
+                "ExchangeRule swaps flat entries without enforcing SU(2) channel "
+                "admissibility. Use SU2ExchangeRule, or enable the fifth proposal "
+                "weight in MetropolisSU2 for a mixture that also changes spins."
             )
         validate_rule_for_hilbert(self.rule, self.hilbert.size)
         if isinstance(self.rule, U1GaugeRule):
